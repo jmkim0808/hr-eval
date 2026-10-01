@@ -1,0 +1,15 @@
+{
+  // Cloudflare Workers 설정 (ADR-0002). 비밀값은 여기에 쓰지 않고 `wrangler secret put`으로 넣는다.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "hr-eval",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-09-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": { "directory": ".open-next/assets", "binding": "ASSETS" },
+  "observability": { "enabled": true },
+  "vars": { "MAIL_MODE": "log" },
+  "services": [{ "binding": "MAILER", "service": "hr-eval-mailer" }],
+  "env": {
+    "dev": { "name": "hr-eval-dev", "vars": { "MAIL_MODE": "log" } }
+  }
+}

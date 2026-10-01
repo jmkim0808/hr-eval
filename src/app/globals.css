@@ -1,0 +1,5 @@
+/* 디자인 규칙의 원본은 docs/ui (tokens.css · components.css). 여기서 그대로 가져온다. */
+@import "../../docs/ui/components.css";
+
+html, body { min-height: 100%; }
+.app-shell { min-height: 100vh; display: flex; flex-direction: column; }

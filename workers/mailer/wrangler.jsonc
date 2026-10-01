@@ -1,0 +1,11 @@
+{
+  // 발송 전용 Worker. 배포: cd workers/mailer && npx wrangler deploy
+  // 비밀값: SMTP_HOST·SMTP_PORT·SMTP_USER·SMTP_PASS·MAIL_FROM·CRON_SECRET → wrangler secret put
+  "name": "hr-eval-mailer",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": false,
+  "services": [{ "binding": "APP", "service": "hr-eval" }],
+  "triggers": { "crons": ["* * * * *"] }
+}
