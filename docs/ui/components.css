@@ -28,6 +28,7 @@ body {
 .t-bold { font-weight: var(--font-weight-bold); }
 .t-num { font-variant-numeric: tabular-nums; }
 .t-right { text-align: right; }
+.table th.t-right, .table td.t-right { text-align: right; }
 
 /* ---------- 아이콘 (Lucide) ---------- */
 .icon { flex: none; vertical-align: middle; stroke: currentColor; }
@@ -153,6 +154,7 @@ body {
 .box { background: var(--color-surface-background); border: var(--border-width-default) solid var(--color-border-default); border-radius: var(--radius-box); overflow: hidden; }
 .box__head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--space-3) var(--space-4); border-bottom: var(--border-width-default) solid var(--color-border-default); font-weight: var(--font-weight-bold); }
 .box__body { padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-3); }
+.box__body > .tag { align-self: flex-start; }
 .box--stat .box__body { gap: 0; padding: var(--space-3) var(--space-4); }
 .stat__label { font-size: var(--font-size-caption); line-height: var(--line-height-caption); color: var(--color-text-muted); }
 .stat__value { font-size: var(--font-size-page-title); line-height: var(--line-height-page-title); font-weight: var(--font-weight-bold); font-variant-numeric: tabular-nums; }
