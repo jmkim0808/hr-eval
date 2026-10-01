@@ -1,0 +1,355 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>인사평가 와이어프레임</title>
+<style>
+  /* 흑백 전용: 흰색 · 회색 · 검정만 사용 */
+  body { background:#fff; color:#000; font-family: sans-serif; margin:0; padding:24px 16px; line-height:1.5; }
+  main { max-width: 860px; margin: 0 auto; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .lead { color:#555; margin: 0 0 24px; font-size: 14px; }
+  .legend { border:1px dashed #888; padding:8px 12px; font-size:13px; color:#555; margin-bottom:32px; }
+  .stage { font-size:15px; font-weight:bold; border-bottom:2px solid #000; padding-bottom:4px; margin:40px 0 16px; }
+  .screen { border:2px solid #000; background:#fff; }
+  .screen-head { background:#eee; border-bottom:1px solid #000; padding:8px 12px; display:flex; flex-wrap:wrap; gap:4px 12px; align-items:baseline; }
+  .screen-head .id { font-weight:bold; }
+  .screen-head .who { font-size:12px; color:#555; }
+  .screen-head .q { font-size:13px; color:#555; width:100%; }
+  .screen-body { padding:12px; display:flex; flex-direction:column; gap:10px; }
+  .menu { display:flex; flex-wrap:wrap; gap:4px; font-size:12px; }
+  .menu span { border:1px solid #888; padding:2px 6px; color:#555; }
+  .menu span.on { border-color:#000; color:#000; font-weight:bold; }
+  .box { border:1px solid #888; padding:8px 10px; font-size:13px; }
+  .box.dashed { border-style:dashed; color:#555; }
+  .box h4 { margin:0 0 6px; font-size:13px; }
+  .row { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+  .btn { display:inline-block; border:1px solid #000; padding:4px 10px; font-size:13px; background:#fff; }
+  .btn.main { border-width:3px; font-weight:bold; padding:8px 16px; font-size:15px; }
+  .btn.off { border-color:#ccc; color:#888; }
+  .field { display:inline-block; border:1px solid #888; min-width:120px; padding:4px 8px; color:#888; font-size:13px; }
+  .field.big { display:block; min-height:56px; }
+  .ph { display:inline-block; border:1px solid #888; width:14px; height:14px; vertical-align:middle; margin-right:4px; }
+  .steps { display:flex; flex-wrap:wrap; gap:0; font-size:12px; }
+  .steps span { border:1px solid #888; padding:3px 8px; margin:0 -1px -1px 0; color:#555; }
+  .steps span.done { color:#000; }
+  .steps span.now { border:2px solid #000; color:#000; font-weight:bold; }
+  table { border-collapse:collapse; width:100%; font-size:12px; }
+  th, td { border:1px solid #888; padding:3px 6px; text-align:left; }
+  th { background:#eee; }
+  .tw { overflow-x:auto; }
+  .hl { font-weight:bold; }
+  .note { font-size:12px; color:#555; }
+  .dialog { border:2px solid #000; padding:10px; margin-left:16px; font-size:13px; background:#fff; }
+  .arrow { display:flex; gap:10px; align-items:flex-start; margin:10px 0 10px 20px; font-size:13px; }
+  .arrow .line { font-size:22px; line-height:1; }
+  .arrow .desc { border-left:1px solid #888; padding-left:10px; color:#000; }
+  .arrow .desc .note { display:block; }
+  .split { display:flex; flex-wrap:wrap; gap:10px; }
+  .split > div { flex:1 1 220px; }
+  .end { border:3px double #000; padding:12px; text-align:center; font-weight:bold; margin-top:12px; }
+</style>
+</head>
+<body>
+<main>
+<h1>인사평가 시스템 — 흑백 와이어프레임</h1>
+<p class="lead">2026 정기평가 · 서울 본사 · UX 설계 워크숍(2026-10-01) 결과. 화면 11개를 일의 순서대로 늘어놓고, 화면 사이를 화살표와 설명으로 이었다.</p>
+<div class="legend">
+  읽는 법 — <b>굵은 테두리 버튼</b> = 그 화면에서 가장 크게 보일 행동 하나 · 흐린 버튼 = 아직 누를 수 없음 · 점선 상자 = 비어 있을 때나 안내 문구 · ↓ = 다음 화면으로 가는 길.<br>
+  색·글꼴·아이콘·간격은 다음 단계에서 정한다. 네모(<span class="ph"></span>)는 아이콘이나 그림 자리다.
+</div>
+
+<!-- ============ 0. 들어오기 ============ -->
+<div class="stage">0. 들어오기 — 모든 사람</div>
+
+<div class="screen">
+  <div class="screen-head"><span class="id">S00 이메일 인증</span><span class="who">모두</span><span class="q">답하는 질문: "나 맞나요?"</span></div>
+  <div class="screen-body">
+    <div><span class="ph"></span>파워넷 인사평가</div>
+    <div class="row">이메일 <span class="field">hong@powernet.co.kr</span></div>
+    <div class="box dashed">인증번호를 보냈습니다. 메일함을 확인하세요.</div>
+    <div class="row">인증번호 <span class="field">______</span> <span class="btn off">다시 보내기 (1분 뒤)</span></div>
+    <div><span class="btn main">인증하기</span></div>
+    <div class="note">잘못됐을 때: "번호가 맞지 않습니다" / "시간이 지났습니다" + [다시 보내기]</div>
+  </div>
+</div>
+
+<div class="arrow"><div class="line">↓</div><div class="desc">인증하면 역할에 따라 첫 화면이 다르다.<span class="note">관리자 → A01 진행 현황 · 직원·팀장·임원 → S01 내 할 일 · 대표이사 → E01 등급 결과</span></div></div>
+
+<!-- ============ 1. 평가 시작 ============ -->
+<div class="stage">① 평가 시작 — 관리자</div>
+
+<div class="screen">
+  <div class="screen-head"><span class="id">A01 진행 현황 (처음 상태)</span><span class="who">관리자 첫 화면</span><span class="q">답하는 질문: "지금 누가 어디서 멈춰 있지?"</span></div>
+  <div class="screen-body">
+    <div class="menu"><span class="on">진행 현황</span><span>평가 시작 설정</span><span>가점 입력</span><span>최종평가</span><span>결과 발송</span><span>관리자 설정</span><span>내 할 일</span></div>
+    <div class="box dashed" style="text-align:center;padding:24px;">아직 시작한 평가가 없습니다<br><br><span class="btn main">평가 시작 설정</span></div>
+  </div>
+</div>
+
+<div class="arrow"><div class="line">↓</div><div class="desc">[평가 시작 설정]을 누른다.</div></div>
+
+<div class="screen">
+  <div class="screen-head"><span class="id">A02 평가 시작 설정</span><span class="who">관리자</span><span class="q">답하는 질문: "누구를, 누가, 언제까지 평가하지?"</span></div>
+  <div class="screen-body">
+    <div class="menu"><span>진행 현황</span><span class="on">평가 시작 설정</span><span>가점 입력</span><span>최종평가</span><span>결과 발송</span><span>관리자 설정</span><span>내 할 일</span></div>
+    <div class="box">
+      <h4>① 직원 명단</h4>
+      <div class="row"><span class="btn">템플릿 내려받기</span><span class="btn">템플릿 올리기</span></div>
+      <div class="box dashed" style="margin-top:6px;">미리보기 — 반영 115 · 제외 3 (7월 이후 입사) · <b>확인 필요 2</b> (이메일 빈칸) <span class="btn off">반영하기</span></div>
+    </div>
+    <div class="box">
+      <h4>② 대상자 (그룹 · 평가지 · 평가자)</h4>
+      <div class="tw"><table>
+        <tr><th>이름</th><th>부서</th><th>직급</th><th>그룹</th><th>평가지</th><th>1차 평가자</th><th>2차 평가자</th></tr>
+        <tr><td>김○○</td><td>영업1팀</td><td>대리</td><td>5그룹</td><td>팀원용</td><td>[이○○ ▾]</td><td>[박○○ ▾]</td></tr>
+        <tr><td>최○○</td><td>생산팀</td><td>팀장</td><td>1그룹</td><td>팀장용</td><td>—</td><td>[정○○ ▾]</td></tr>
+        <tr><td>한○○ <span class="note">(부서이동)</span></td><td>품질팀</td><td>과장</td><td>4그룹</td><td>팀원용</td><td>[품질팀장 ▾]</td><td>[○○임원 ▾]</td></tr>
+      </table></div>
+      <div class="note">부서이동자는 평가 진행 시점 부서의 팀장·임원으로 고친다.</div>
+    </div>
+    <div class="box">
+      <h4>③ 기간</h4>
+      <div class="row">개인작성 기간 <span class="field">11/3 ~ 11/7</span></div>
+      <div class="row">1차평가 기간 <span class="field">11/10 ~ 11/17</span></div>
+      <div class="row">2차평가 기간 <span class="field">11/18 ~ 11/24</span></div>
+      <div class="row">가점 인정 기준일 <span class="field">11/14</span></div>
+    </div>
+    <div class="box dashed">④ 안내 이메일 미리보기 — "2026년 정기평가가 시작되었습니다. 개인작성 기간 11/3 ~ 11/7 …"</div>
+    <div><span class="btn main">안내 이메일 발송</span> <span class="note">명단과 기간이 모두 채워져야 눌림</span></div>
+  </div>
+</div>
+
+<div class="arrow"><div class="line">↓</div><div class="desc">발송하면 "발송 중 85 / 120"이 보이고 진행 현황으로 돌아간다. 화면을 떠나도 발송은 계속된다.<span class="note">이때부터 개인작성 기간 시작. 직원들에게 이메일이 도착한다.</span></div></div>
+
+<!-- ============ 2. 개인작성 ============ -->
+<div class="stage">② 개인작성 기간 — 직원 · 팀장</div>
+
+<div class="screen">
+  <div class="screen-head"><span class="id">S01 내 할 일 (팀장의 경우)</span><span class="who">직원·팀장·임원 첫 화면</span><span class="q">답하는 질문: "내가 지금 해야 할 게 뭐고, 언제까지지?"</span></div>
+  <div class="screen-body">
+    <div class="box">지금: <b>개인작성 기간 11/3 ~ 11/7 · D-3</b></div>
+    <div><span class="btn main">내 평가지 작성 — 마감 11/7 &nbsp;›</span></div>
+    <div class="box">
+      <h4>내 평가지 작성</h4>
+      상태: 작성 중 (저장됨 10:42)
+    </div>
+    <div class="box">
+      <h4>1차 평가 — 팀원 8명</h4>
+      1차평가 기간 11/10부터 · 팀원이 제출한 평가지는 지금 볼 수 있습니다
+    </div>
+    <div class="box dashed">비어 있을 때: "지금 할 일이 없습니다 · 다음 일정: 1차평가 기간 11/10 ~ 11/17"</div>
+  </div>
+</div>
+
+<div class="arrow"><div class="line">↓</div><div class="desc">가장 위의 할 일을 누른다.</div></div>
+
+<div class="screen">
+  <div class="screen-head"><span class="id">S02 평가지 작성</span><span class="who">직원·팀장 (피평가자)</span><span class="q">답하는 질문: "내 평가지에 무엇을 써야 하지?"</span></div>
+  <div class="screen-body">
+    <div class="row"><b>2026년 정기평가 · 팀원용 인사평가지</b> <span class="note">영업1팀 · 김○○ · 개인작성 기간 11/3 ~ 11/7</span> <span class="note">저장됨 10:42</span></div>
+    <div class="box">
+      <h4>■ 역량 평가 (본인평가 1~10)</h4>
+      <div class="tw"><table>
+        <tr><th>구분</th><th>역량명</th><th>세부 지표</th><th>본인평가</th></tr>
+        <tr><td>공통역량(인성)</td><td>책임감</td><td>업무의 과정 및 결과에 대한 책임을 지며 …</td><td>[ 8 ]</td></tr>
+        <tr><td></td><td>팀워크</td><td>동료와 협업을 잘 하며 …</td><td>[ 7 ]</td></tr>
+        <tr><td colspan="4" class="note">… 10개 항목 (팀장용은 팀장역량 리더쉽·소통·계획 포함)</td></tr>
+      </table></div>
+      <div class="note">평가자 점수 칸은 보이지 않는다.</div>
+    </div>
+    <div class="box">
+      <h4>■ 업적 평가</h4>
+      2026년 개인역할 및 업적 <span class="field big">…</span>
+      2027년 개선 및 발전 <span class="field big">…</span>
+    </div>
+    <div class="box dashed">가점은 관리자가 입력합니다.</div>
+    <div><span class="btn main">제출</span></div>
+    <div class="note">잠김 상태: 관리자가 다음 단계로 넘기면 보기 전용 + "개인작성 기간이 끝나 고칠 수 없습니다"</div>
+  </div>
+</div>
+
+<div class="arrow"><div class="line">↓</div><div class="desc">[제출] → 내 할 일로 돌아간다. "제출 완료 — 11/7까지 고칠 수 있습니다"가 뜬다.<span class="note">기간 안에는 다시 열어 고칠 수 있다. 쓰다가 나가도 임시저장되어 있다.</span></div></div>
+
+<!-- ============ 3. 진행 관리 ============ -->
+<div class="stage">③ 진행 관리 — 관리자 (기간 내내)</div>
+
+<div class="screen">
+  <div class="screen-head"><span class="id">A01 진행 현황</span><span class="who">관리자</span><span class="q">답하는 질문: "지금 누가 어디서 멈춰 있지?"</span></div>
+  <div class="screen-body">
+    <div class="menu"><span class="on">진행 현황</span><span>평가 시작 설정</span><span>가점 입력</span><span>최종평가</span><span>결과 발송</span><span>관리자 설정</span><span>내 할 일</span></div>
+    <div class="steps"><span class="now">개인작성 (D-0, 기한 지남)</span><span>1차평가</span><span>2차평가</span><span>가점</span><span>최종평가</span><span>확정</span><span>결과 발송</span></div>
+    <div class="box">제출 <b>112</b> / 미제출 <b>8</b> · 가점 반영 0 / 120 · 최근 발송: 안내 이메일 120 완료</div>
+    <div class="box">
+      <h4>미제출자 (8명)</h4>
+      <div class="tw"><table>
+        <tr><th>선택</th><th>이름</th><th>부서</th><th>역할</th><th>상태</th><th>마지막 독촉</th></tr>
+        <tr><td>[■]</td><td>김○○</td><td>영업1팀</td><td>직원</td><td>작성 중</td><td>11/6</td></tr>
+        <tr><td>[■]</td><td>이○○</td><td>생산팀</td><td>팀장</td><td>작성 전</td><td>—</td></tr>
+        <tr><td colspan="6" class="note">… 이름을 누르면 평가하기(보기 전용)가 열린다</td></tr>
+      </table></div>
+      <div class="row" style="margin-top:6px;"><span class="btn">독촉 이메일</span></div>
+    </div>
+    <div><span class="btn main">다음 단계로 넘기기</span></div>
+    <div class="dialog">확인 창 — 미제출 3명 (김○○, 이○○, 박○○). 넘기면 이 사람들은 빈칸인 채로 잠깁니다. 그래도 넘길까요? <span class="btn">넘기기</span> <span class="btn">취소</span></div>
+  </div>
+</div>
+
+<div class="arrow"><div class="line">↓</div><div class="desc">넘기면 개인작성이 잠기고 1차평가 기간이 열린다. 팀장에게 이메일이 간다.<span class="note">같은 방식으로 1차평가 → 2차평가, 2차평가 → 최종평가로 넘긴다.</span></div></div>
+
+<!-- ============ 4·5. 평가 ============ -->
+<div class="stage">④ 1차평가 기간 — 팀장 / ⑤ 2차평가 기간 — 임원</div>
+
+<div class="screen">
+  <div class="screen-head"><span class="id">S01 내 할 일 (임원의 경우)</span><span class="who">임원</span><span class="q">답하는 질문: "누구를 평가할 수 있고, 누구는 1차를 기다리는 중이지?"</span></div>
+  <div class="screen-body">
+    <div class="box">지금: <b>2차평가 기간 11/18 ~ 11/24 · D-5</b></div>
+    <div><span class="btn main">2차 평가 — 3명 남음 &nbsp;›</span></div>
+    <div class="box"><h4>2차 평가 — 팀원 9명</h4>평가 가능 3 · 완료 6</div>
+    <div class="box"><h4>팀장 평가 — 4명</h4>4명 남음</div>
+  </div>
+</div>
+
+<div class="arrow"><div class="line">↓</div><div class="desc">묶음을 누른다. (팀장은 "1차 평가 — 팀원 8명 중 5명 남음" 묶음을 누른다.)</div></div>
+
+<div class="screen">
+  <div class="screen-head"><span class="id">S03 평가하기 (임원 2차 평가)</span><span class="who">팀장·임원 / 관리자는 보기 전용</span><span class="q">답하는 질문: "이 사람에게 몇 점을 줄까?"</span></div>
+  <div class="screen-body">
+    <div class="split">
+      <div class="box" style="flex:0 1 180px;">
+        <h4>피평가자</h4>
+        김○○ — 완료<br><b>이○○ — 작성 중 ◀</b><br>박○○ — 미평가<br>…
+      </div>
+      <div class="box">
+        <h4>이○○ · 영업1팀 · 대리 · 팀원용</h4>
+        <div class="tw"><table>
+          <tr><th>역량명</th><th>본인평가</th><th>1차 (팀장)</th><th>2차 (임원)</th></tr>
+          <tr><td>책임감</td><td>8</td><td>7</td><td>[ __ ]</td></tr>
+          <tr><td>팀워크</td><td>7</td><td>8</td><td>[ __ ]</td></tr>
+          <tr><td colspan="4" class="note">… 10개 항목</td></tr>
+          <tr><td>업적 점수</td><td>—</td><td>7</td><td>[ __ ]</td></tr>
+        </table></div>
+        <div class="box dashed" style="margin-top:6px;">피평가자가 쓴 업적 기술 (읽기만) — "2026년 개인역할 및 업적 …"</div>
+      </div>
+    </div>
+    <div class="row"><span class="btn main">제출</span><span class="btn main">다음 사람 ›</span></div>
+    <div class="note">팀장 화면: "2차 (임원)" 칸이 없다. · 1차평가 기간 중 임원: 같은 화면이 보기만 되고 "2차평가 기간에 입력할 수 있습니다". · 피평가자 미제출(잠김): "본인 작성 없음". · 관리자: 모든 칸이 보이고 입력은 안 됨.</div>
+  </div>
+</div>
+
+<div class="arrow"><div class="line">↓</div><div class="desc">묶음이 다 끝나면 내 할 일에 "8명 중 8명 완료"가 뜨고 묶음이 아래로 내려간다.</div></div>
+
+<!-- ============ 6. 가점 ============ -->
+<div class="stage">⑥ 가점 반영 — 관리자 (11월 중순 ~ 확정 전)</div>
+
+<div class="screen">
+  <div class="screen-head"><span class="id">A03 가점 입력</span><span class="who">관리자</span><span class="q">답하는 질문: "가점이 모두 제대로 들어갔나?"</span></div>
+  <div class="screen-body">
+    <div class="menu"><span>진행 현황</span><span>평가 시작 설정</span><span class="on">가점 입력</span><span>최종평가</span><span>결과 발송</span><span>관리자 설정</span><span>내 할 일</span></div>
+    <div class="row"><span class="btn">템플릿 내려받기</span><span class="btn main">템플릿 올리기</span><span class="note">가점 인정 기준일 11/14</span></div>
+    <div class="box dashed">미리보기 — 120명 중 118명 일치 · <b>이름이 맞지 않는 2명</b> (홍○○, 서○○) <span class="btn">반영하기</span></div>
+    <div class="tw"><table>
+      <tr><th>이름</th><th>자격증</th><th>포상</th><th>직무발명보상</th><th>교육참여도</th><th>징계사항</th><th>내부회계관리제도</th><th>다면평가</th><th>합계</th></tr>
+      <tr><td>김○○</td><td>2</td><td>—</td><td>—</td><td>0.5</td><td>—</td><td>—</td><td class="note">(팀원 없음)</td><td>2.5</td></tr>
+      <tr><td>최○○ (팀장)</td><td>—</td><td>1.5</td><td>—</td><td>0.5</td><td>—</td><td>1</td><td>1</td><td>4.0</td></tr>
+      <tr><td colspan="9" class="note">줄을 누르면 한 사람씩 입력</td></tr>
+    </table></div>
+    <div class="box dashed">비어 있을 때: "아직 가점이 없습니다" + [템플릿 내려받기] · [템플릿 올리기]</div>
+  </div>
+</div>
+
+<div class="arrow"><div class="line">↓</div><div class="desc">2차평가 기간을 넘기면 최종평가에 초안이 나온다.</div></div>
+
+<!-- ============ 7. 최종평가 ============ -->
+<div class="stage">⑦ 최종평가 → 등급조정 → 확정 — 관리자 / 대표이사</div>
+
+<div class="screen">
+  <div class="screen-head"><span class="id">A04 최종평가</span><span class="who">관리자</span><span class="q">답하는 질문: "그룹별로 누가 어떤 등급이고, 조정하면 누가 밀리지?"</span></div>
+  <div class="screen-body">
+    <div class="menu"><span>진행 현황</span><span>평가 시작 설정</span><span>가점 입력</span><span class="on">최종평가</span><span>결과 발송</span><span>관리자 설정</span><span>내 할 일</span></div>
+    <div class="row"><span class="btn">1그룹 팀장</span><span class="btn">2그룹 부장</span><span class="btn">3그룹 차장</span><span class="btn">4그룹 과장</span><span class="btn" style="border-width:2px;font-weight:bold;">5그룹 대리이하</span></div>
+    <div class="box">상태: <b>조정 중</b> · 등급별 인원 (반올림) — S 2 · A 8 · B 24 · C 6 · D 2</div>
+    <div class="tw"><table>
+      <tr><th>순위</th><th>이름</th><th>부서</th><th>최종점수</th><th>초안 등급</th><th>조정 후 등급</th><th>표시</th><th></th></tr>
+      <tr><td>1</td><td>김○○</td><td>영업1팀</td><td>92.4</td><td>S</td><td>S</td><td></td><td></td></tr>
+      <tr><td>2</td><td>이○○</td><td>생산팀</td><td>91.8</td><td>S</td><td class="hl">A</td><td class="hl">밀려남</td><td>[되돌리기]</td></tr>
+      <tr><td>3</td><td>박○○</td><td>품질팀</td><td>90.1</td><td>A</td><td class="hl">S</td><td class="hl">조정</td><td>[되돌리기]</td></tr>
+      <tr><td>10</td><td>정○○</td><td>구매팀</td><td>84.0</td><td>A</td><td>A</td><td></td><td></td></tr>
+      <tr><td>11</td><td>윤○○</td><td>설계팀</td><td>84.0</td><td>B</td><td>B</td><td>동점 — 근속으로 하향</td><td></td></tr>
+    </table></div>
+    <div class="dialog">등급 칸을 누르면 — <b>이렇게 바뀝니다</b><br>박○○ A → S (조정)<br>이○○ S → A (밀려남 — S 최하단)<br><span class="btn">적용</span> <span class="btn">취소</span></div>
+    <div class="note">최종점수는 어느 줄도 바뀌지 않는다. 올리면 그 등급 최하단이 한 칸 내려가고, 내리면 그 등급 최상단이 한 칸 올라간다. [적용]하면 대표이사 화면에 바로 반영된다.</div>
+    <div><span class="btn main">확정</span></div>
+    <div class="dialog">확정 뒤 — "확정됨 (11/28, 확정자 ○○○)" <span class="btn">확정 취소</span><br>확정 취소 창: 사유 <span class="field">________</span> · "다른 관리자에게 알림이 갑니다" · 평가결과 이메일 발송 전까지만</div>
+  </div>
+</div>
+
+<div class="arrow"><div class="line">⇢</div><div class="desc">같은 시간, 보고 자리의 대표이사 화면 (조정이 바로 보인다)</div></div>
+
+<div class="screen">
+  <div class="screen-head"><span class="id">E01 등급 결과</span><span class="who">대표이사 (보기만)</span><span class="q">답하는 질문: "그룹별로 누가 어떤 등급이지?"</span></div>
+  <div class="screen-body">
+    <div class="row"><span class="btn main">1그룹 팀장</span><span class="btn main">2그룹 부장</span><span class="btn main">3그룹 차장</span><span class="btn main">4그룹 과장</span><span class="btn main">5그룹 대리이하</span></div>
+    <div class="box">상태: 조정 중 (실시간 반영) · S 2 · A 8 · B 24 · C 6 · D 2</div>
+    <div class="tw"><table>
+      <tr><th>순위</th><th>이름</th><th>부서</th><th>직급</th><th>최종점수</th><th>등급</th><th>조정</th></tr>
+      <tr><td>1</td><td>김○○</td><td>영업1팀</td><td>대리</td><td>92.4</td><td>S</td><td></td></tr>
+      <tr><td>2</td><td>이○○</td><td>생산팀</td><td>대리</td><td>91.8</td><td>A</td><td>밀려남</td></tr>
+      <tr><td>3</td><td>박○○</td><td>품질팀</td><td>사원</td><td>90.1</td><td>S</td><td>조정</td></tr>
+    </table></div>
+    <div class="note">고치는 칸과 버튼이 없다. 비어 있을 때: "아직 보고할 결과가 없습니다"</div>
+  </div>
+</div>
+
+<div class="arrow"><div class="line">↓</div><div class="desc">관리자가 [확정]하면 결과 발송으로 간다.</div></div>
+
+<!-- ============ 8. 결과 발송 ============ -->
+<div class="stage">⑧ 결과 발송 → 평가 마감 — 관리자</div>
+
+<div class="screen">
+  <div class="screen-head"><span class="id">A05 결과 발송</span><span class="who">관리자</span><span class="q">답하는 질문: "결과를 내보냈고, 이 평가를 끝내도 되나?"</span></div>
+  <div class="screen-body">
+    <div class="menu"><span>진행 현황</span><span>평가 시작 설정</span><span>가점 입력</span><span>최종평가</span><span class="on">결과 발송</span><span>관리자 설정</span><span>내 할 일</span></div>
+    <div><span class="btn">최종결과 엑셀 내려받기</span> <span class="note">연봉조정에 사용</span></div>
+    <div class="box">
+      <h4>평가결과 이메일 미리보기 (예: 이○○)</h4>
+      1차 점수 · 2차 점수 · 가점 · 최종점수 91.8 · 평가등급 A · 상위 %
+      <div class="note">등급조정된 사람: 최종점수는 실제 점수 그대로, 등급·상위 %는 해당 등급 최상위/최하위 득점자의 결과를 따라감</div>
+    </div>
+    <div><span class="btn main">평가결과 이메일 발송</span> <span class="note">확정 전에는 눌리지 않음</span></div>
+    <div class="box">발송 완료 118 · <b>실패 2</b> (홍○○, 서○○) <span class="btn">다시 보내기</span></div>
+    <div class="box">연봉조정까지 끝난 것을 확인한 뒤 누르세요 <span class="btn">평가 마감</span></div>
+  </div>
+</div>
+
+<div class="arrow"><div class="line">↓</div><div class="desc">[평가 마감]을 누르면 진행 현황으로 돌아가고, 그해 평가는 보기 전용 기록이 된다.</div></div>
+
+<div class="screen">
+  <div class="screen-head"><span class="id">A01 진행 현황 (마감 후)</span><span class="who">관리자</span><span class="q">끝났다는 신호</span></div>
+  <div class="screen-body">
+    <div class="steps"><span class="done">개인작성 ✔</span><span class="done">1차평가 ✔</span><span class="done">2차평가 ✔</span><span class="done">가점 ✔</span><span class="done">최종평가 ✔</span><span class="done">확정 ✔</span><span class="done">결과 발송 ✔</span></div>
+    <div class="end">2026년 정기평가 마감 (12/15, 마감자 ○○○) — 보기 전용 기록</div>
+  </div>
+</div>
+
+<!-- ============ 언제든 ============ -->
+<div class="stage">언제든 — 관리자</div>
+
+<div class="screen">
+  <div class="screen-head"><span class="id">A06 관리자 설정</span><span class="who">관리자</span><span class="q">답하는 질문: "누가 관리자지?"</span></div>
+  <div class="screen-body">
+    <div class="menu"><span>진행 현황</span><span>평가 시작 설정</span><span>가점 입력</span><span>최종평가</span><span>결과 발송</span><span class="on">관리자 설정</span><span>내 할 일</span></div>
+    <div class="tw"><table>
+      <tr><th>이름</th><th>이메일</th><th>추가한 날</th><th></th></tr>
+      <tr><td>파트장</td><td>○○@powernet.co.kr</td><td>2026-10-01</td><td>[해제]</td></tr>
+      <tr><td>경영지원실장</td><td>○○@powernet.co.kr</td><td>2026-10-01</td><td>[해제]</td></tr>
+    </table></div>
+    <div class="row">이메일 <span class="field">________</span> <span class="btn main">관리자 추가</span></div>
+    <div class="note">마지막 1명은 해제할 수 없다 (가정).</div>
+  </div>
+</div>
+
+</main>
+</body>
+</html>
