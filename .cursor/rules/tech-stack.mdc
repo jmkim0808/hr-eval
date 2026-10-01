@@ -9,7 +9,8 @@ alwaysApply: true
 근거: `docs/tech/adr/` · 전체 약속: `docs/tech/03-규칙.md` · 데이터·권한 표: `docs/tech/02-데이터-구조.md`
 
 ## 기술 묶음 — 바꾸지 않는다
-- Next.js App Router + TypeScript strict + React Server Components. Cloudflare Workers(`@opennextjs/cloudflare`)에 올리고, Node(`output: "standalone"`) 빌드도 항상 통과시킨다.
+- Next.js App Router + TypeScript strict + React Server Components. Cloudflare Workers **무료 플랜**(`@opennextjs/cloudflare`)에 올리고, Node(`output: "standalone"`) 빌드도 항상 통과시킨다.
+- 무료 한도: 서버 요청당 CPU 10ms, 압축 크기 3MB. 무거운 일(엑셀 읽기·만들기)은 브라우저에서 한다. 서버 코드에 큰 라이브러리를 넣지 않는다.
 - DB는 PostgreSQL을 Drizzle ORM + postgres.js로 `DATABASE_URL` 하나로만 접속한다. 입력 검사 zod, 엑셀 ExcelJS, 아이콘 lucide-react, 테스트 Vitest.
 - 새 라이브러리를 추가하지 말고 위 묶음으로 먼저 해결한다.
 - AI 모델 호출을 넣지 않는다 (ADR-0009).
@@ -28,7 +29,7 @@ alwaysApply: true
 - 권한 표를 바꾸면 같은 변경에서 `authz` 테스트를 고친다.
 
 ## 입력·계산
-- 모든 입력은 zod로 검사한다: 점수 정수 1~10, 업적 글 칸당 4,000자, 엑셀 1MB·.xlsx·1,000줄·제목 줄 일치. 엑셀 원본은 저장하지 않는다.
+- 모든 입력은 zod로 검사한다: 점수 정수 1~10, 업적 글 칸당 4,000자. 엑셀은 브라우저에서 ExcelJS로 읽고(관리자 화면에서만 불러옴) 줄 목록만 서버로 보낸다. 서버는 같은 zod 스키마로 다시 검사한다(1MB·.xlsx·1,000줄·제목 줄 일치). 엑셀 원본은 서버로 보내지도, 저장하지도 않는다.
 - 내보내는 엑셀의 `= + - @` 시작 글자는 `'`를 붙인다.
 - 점수·등급 계산은 `src/domain/grading/` 순수 함수에서만 한다. 금액·점수 저장은 `numeric`이고, JS 실수 결과를 그대로 저장하지 않는다.
 - 판본 번호가 있는 표는 `WHERE version = :기존값`으로 갱신하고, 0줄이면 충돌로 처리한다.
