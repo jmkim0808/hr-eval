@@ -32,7 +32,7 @@ await page.waitForURL(`${BASE}/admin`);
 await check("인증번호를 넣으면 진행 현황이 열리고 \"아직 시작한 평가가 없습니다\"가 보인다", async () =>
   (await page.locator("text=아직 시작한 평가가 없습니다").count()) === 1 && (await page.locator('a:has-text("평가 시작 설정")').count()) >= 1,
 );
-await check("오른쪽 위에 \"대외비 · 열람자 (내 이름)\"이 보인다", async () => (await page.locator(".confidential").textContent())?.includes("대외비 · 열람자 김파트장") ?? false);
+await check("오른쪽 위에 \"대외비 · 열람자 (내 이름)\"이 보인다", async () => (await page.getByText("대외비 · 열람자 김파트장").count()) === 1);
 
 // 30분 미사용
 await sql`update sessions set last_seen_at = now() - interval '31 minutes'`;

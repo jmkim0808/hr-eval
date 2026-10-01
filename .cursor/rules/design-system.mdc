@@ -6,6 +6,8 @@ alwaysApply: true
 
 # 디자인 시스템 규칙 (반드시 지킨다)
 
+> 2026-10-01 변경: 부품은 shadcn/ui(Base UI) 방식. `src/components/ui/`의 부품만 쓰고, 새 부품도 shadcn 구조(cva 버튼 종류 + `cn`)로 그 폴더에 만든다. 스타일은 Tailwind 클래스로 쓰되 `globals.css`의 @theme 이름(primary, muted, success, grade-up 등)과 글자 단계(text-page-title·section-title·subsection-title·body·caption·label)만 쓴다. `bg-[#...]`·`p-[13px]` 같은 임의값 금지. 기존 `components.css` 클래스는 쓰지 않는다.
+
 원본: `docs/ui/tokens.css` · 부품: `docs/ui/components.css` · 설명: `docs/ui/01-디자인-규칙.md` · 보기: `docs/ui/components.html`, `docs/ui/screens.html`
 
 ## 값

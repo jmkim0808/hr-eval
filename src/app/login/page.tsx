@@ -11,7 +11,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   return (
     <>
       <AppHeader />
-      <main className="auth">
+      <main className="flex flex-1 items-start justify-center px-4 pt-16">
         <LoginForm expired={sp.expired === "1"} initialEmail={sp.email ?? ""} />
       </main>
     </>

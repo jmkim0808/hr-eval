@@ -1,8 +1,11 @@
 "use client";
 
-import { CircleX, Info, LogIn, Mail } from "lucide-react";
+import { CircleX, Clock, LogIn, Mail, ShieldCheck } from "lucide-react";
 import { useActionState, useEffect, useState } from "react";
-import { Icon } from "@/components/Icon";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { FieldError, Input, Label } from "@/components/ui/input";
 import { sendCodeAction, verifyCodeAction, type LoginState, type VerifyState } from "./actions";
 
 const RESEND_SECONDS = 60;
@@ -25,69 +28,71 @@ export function LoginForm({ expired, initialEmail }: { expired: boolean; initial
   const error = step === "code" ? ((verifyState.at ?? 0) > sentAt ? verifyState.error : sendState.error) : sendState.error;
 
   return (
-    <div className="box">
-      <div className="box__head">
-        <h1 className="t-subsection-title">이메일 인증</h1>
-      </div>
-      <div className="box__body">
+    <Card className="w-full max-w-sm">
+      <CardHeader>
+        <div className="mb-2 flex size-10 items-center justify-center rounded-lg bg-accent text-accent-foreground">
+          <ShieldCheck className="size-5" aria-hidden="true" />
+        </div>
+        <CardTitle>이메일 인증</CardTitle>
+        <CardDescription>회사 이메일로 받은 인증번호로 들어갑니다.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
         {expired && (
-          <div className="banner banner--neutral" role="status">
-            <Icon as={Info} size={20} />
-            <span className="banner__text">30분 동안 사용하지 않아 다시 인증이 필요합니다.</span>
-          </div>
+          <Alert variant="neutral">
+            <Clock aria-hidden="true" />
+            <AlertDescription>30분 동안 사용하지 않아 다시 인증이 필요합니다.</AlertDescription>
+          </Alert>
         )}
 
         {step === "email" ? (
-          <form action={sendAction} className="stack">
-            <label className="field">
-              <span className="field__label">회사 이메일</span>
-              <input className={`input${sendState.error ? " is-error" : ""}`} name="email" type="email" autoComplete="email" required defaultValue={sendState.email} />
-              {sendState.error && (
-                <span className="field__help field__help--error">
-                  <Icon as={CircleX} size={14} />
-                  {sendState.error}
-                </span>
-              )}
-            </label>
-            <button className="btn btn--primary" disabled={sending}>
-              <Icon as={Mail} />
+          <form action={sendAction} className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="email">회사 이메일</Label>
+              <Input id="email" name="email" type="email" autoComplete="email" required defaultValue={sendState.email} aria-invalid={!!sendState.error || undefined} />
+              <FieldError>
+                {sendState.error && <CircleX className="size-3.5" aria-hidden="true" />}
+                {sendState.error}
+              </FieldError>
+            </div>
+            <Button className="w-full" disabled={sending}>
+              <Mail aria-hidden="true" />
               {sending ? "보내는 중" : "인증번호 받기"}
-            </button>
+            </Button>
           </form>
         ) : (
           <>
-            <div className="banner banner--progress" role="status">
-              <Icon as={Mail} size={20} />
-              <span className="banner__text">{sendState.message ?? "인증번호를 보냈습니다. 메일함을 확인하세요."}</span>
-            </div>
-            <p className="t-caption">{sendState.email}</p>
-            <form action={verifyAction} className="stack">
+            <Alert variant="info">
+              <Mail aria-hidden="true" />
+              <AlertDescription>
+                <span>{sendState.message ?? "인증번호를 보냈습니다. 메일함을 확인하세요."}</span>
+                <span className="text-caption">{sendState.email}</span>
+              </AlertDescription>
+            </Alert>
+            <form action={verifyAction} className="space-y-4">
               <input type="hidden" name="email" value={sendState.email} />
-              <label className="field">
-                <span className="field__label">인증번호 6자리</span>
-                <input className={`input${error ? " is-error" : ""}`} name="code" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9 ]*" maxLength={7} required autoFocus />
-                {error && (
-                  <span className="field__help field__help--error">
-                    <Icon as={CircleX} size={14} />
-                    {error}
-                  </span>
-                )}
-              </label>
-              <button className="btn btn--primary" disabled={verifying}>
-                <Icon as={LogIn} />
+              <div className="space-y-1.5">
+                <Label htmlFor="code">인증번호 6자리</Label>
+                <Input id="code" name="code" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9 ]*" maxLength={7} required autoFocus className="text-center text-section-title tracking-[0.4em]" aria-invalid={!!error || undefined} />
+                <FieldError>
+                  {error && <CircleX className="size-3.5" aria-hidden="true" />}
+                  {error}
+                </FieldError>
+              </div>
+              <Button className="w-full" disabled={verifying}>
+                <LogIn aria-hidden="true" />
                 {verifying ? "확인 중" : "인증하기"}
-              </button>
+              </Button>
             </form>
-            <form action={sendAction} className="row">
+            <form action={sendAction} className="flex justify-center">
               <input type="hidden" name="email" value={sendState.email} />
               <input type="hidden" name="resend" value="1" />
-              <button className="btn btn--secondary btn--small" disabled={wait > 0 || sending}>
+              <Button variant="ghost" size="sm" disabled={wait > 0 || sending}>
                 {wait > 0 ? `다시 보내기 (${wait}초 뒤)` : "다시 보내기"}
-              </button>
+              </Button>
             </form>
           </>
         )}
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }

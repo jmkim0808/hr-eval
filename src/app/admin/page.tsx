@@ -1,7 +1,10 @@
 import Link from "next/link";
-import { Inbox } from "lucide-react";
+import { ClipboardList } from "lucide-react";
 import { AdminNav } from "@/components/AdminNav";
-import { Icon } from "@/components/Icon";
+import { PageHeader } from "@/components/PageHeader";
+import { buttonVariants } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Empty } from "@/components/ui/empty";
 import { requireAdmin } from "@/server/authz/actor";
 import { getCurrentCycle } from "@/server/repo/cycles";
 
@@ -11,28 +14,24 @@ export default async function ProgressPage() {
   return (
     <>
       <AdminNav current="/admin" />
-      <main className="page">
-        <div className="page-head">
-          <div className="stack-1">
-            <h1 className="t-page-title">진행 현황</h1>
-            <p className="page-head__sub">지금 누가 어디서 멈춰 있는지 봅니다</p>
-          </div>
-        </div>
+      <main className="flex flex-col gap-6 px-8 py-6">
+        <PageHeader title="진행 현황" description="지금 누가 어디서 멈춰 있는지 봅니다" />
         {!cycle ? (
-          <div className="box">
-            <div className="empty">
-              <Icon as={Inbox} size={20} />
-              <span className="empty__title">아직 시작한 평가가 없습니다</span>
-              <span>직원 명단을 올리고 기간을 정하면 평가를 시작할 수 있습니다.</span>
-              <Link className="btn btn--primary" href="/admin/setup">
-                평가 시작 설정
-              </Link>
-            </div>
-          </div>
+          <Card>
+            <Empty
+              icon={<ClipboardList aria-hidden="true" />}
+              title="아직 시작한 평가가 없습니다"
+              action={
+                <Link className={buttonVariants()} href="/admin/setup">
+                  평가 시작 설정
+                </Link>
+              }
+            >
+              직원 명단을 올리고 기간을 정하면 평가를 시작할 수 있습니다.
+            </Empty>
+          </Card>
         ) : (
-          <div className="box">
-            <div className="box__body">{cycle.year}년 정기평가</div>
-          </div>
+          <Card className="px-5">{cycle.year}년 정기평가</Card>
         )}
       </main>
     </>

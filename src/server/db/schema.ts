@@ -1,8 +1,10 @@
 // DB 구조 (docs/tech/02-데이터-구조.md). 바꿀 때는 drizzle-kit generate로 마이그레이션 SQL을 만든다.
 import { sql } from "drizzle-orm";
 import {
+  type AnyPgColumn,
   bigserial,
   boolean,
+  date,
   index,
   integer,
   jsonb,
@@ -10,6 +12,7 @@ import {
   smallint,
   text,
   timestamp,
+  unique,
   uuid,
 } from "drizzle-orm/pg-core";
 
@@ -40,6 +43,34 @@ export const reviewCycles = pgTable("review_cycles", {
   version: integer("version").notNull().default(0),
   ...timestamps,
 });
+
+/** 직원 명단 한 줄 = 평가 대상 + 평가자(임원 포함). 해마다 새로 올린다 */
+export const cyclePeople = pgTable(
+  "cycle_people",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    cycleId: uuid("cycle_id")
+      .notNull()
+      .references(() => reviewCycles.id, { onDelete: "cascade" }),
+    email: text("email").notNull(),
+    name: text("name").notNull(),
+    department: text("department").notNull().default(""),
+    position: text("position").notNull().default(""),
+    hireDate: date("hire_date").notNull(),
+    isTeamLeader: boolean("is_team_leader").notNull().default(false),
+    isExecutive: boolean("is_executive").notNull().default(false),
+    isTarget: boolean("is_target").notNull().default(true),
+    excludedReason: text("excluded_reason"),
+    gradeGroup: smallint("grade_group"),
+    formType: text("form_type", { enum: ["member", "leader"] }),
+    firstReviewerId: uuid("first_reviewer_id").references((): AnyPgColumn => cyclePeople.id, { onDelete: "set null" }),
+    secondReviewerId: uuid("second_reviewer_id").references((): AnyPgColumn => cyclePeople.id, { onDelete: "set null" }),
+    accessBlocked: boolean("access_blocked").notNull().default(false),
+    rowNo: integer("row_no").notNull().default(0),
+    ...timestamps,
+  },
+  (t) => [unique("cycle_people_cycle_email").on(t.cycleId, t.email)],
+);
 
 /** 이메일 인증번호 (원문은 저장하지 않는다) */
 export const authCodes = pgTable(

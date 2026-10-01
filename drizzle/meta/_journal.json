@@ -15,6 +15,20 @@
       "when": 1790897993758,
       "tag": "0001_lock_tables",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790898507492,
+      "tag": "0002_roster",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790898508403,
+      "tag": "0003_lock_roster",
+      "breakpoints": true
     }
   ]
 }

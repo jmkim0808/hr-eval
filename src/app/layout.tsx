@@ -10,7 +10,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="ko">
       <body>
-        <div className="app-shell">{children}</div>
+        <div className="flex min-h-screen flex-col">{children}</div>
       </body>
     </html>
   );
