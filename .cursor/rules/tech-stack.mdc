@@ -1,0 +1,52 @@
+---
+description: 인사평가 시스템 개발 규칙 — 기술 묶음, 이식성, 권한, 입력·실패·메일·비밀값 처리. 모든 코드에 항상 적용
+globs: ["**/*"]
+alwaysApply: true
+---
+
+# 개발 규칙 (반드시 지킨다)
+
+근거: `docs/tech/adr/` · 전체 약속: `docs/tech/03-규칙.md` · 데이터·권한 표: `docs/tech/02-데이터-구조.md`
+
+## 기술 묶음 — 바꾸지 않는다
+- Next.js App Router + TypeScript strict + React Server Components. Cloudflare Workers(`@opennextjs/cloudflare`)에 올리고, Node(`output: "standalone"`) 빌드도 항상 통과시킨다.
+- DB는 PostgreSQL을 Drizzle ORM + postgres.js로 `DATABASE_URL` 하나로만 접속한다. 입력 검사 zod, 엑셀 ExcelJS, 아이콘 lucide-react, 테스트 Vitest.
+- 새 라이브러리를 추가하지 말고 위 묶음으로 먼저 해결한다.
+- AI 모델 호출을 넣지 않는다 (ADR-0009).
+
+## 이식성
+- `@supabase/*` 패키지, Supabase Auth·Storage·Realtime·Edge Functions·데이터 API·RLS 정책·pg_cron을 쓰지 않는다.
+- Cloudflare 전용 API(`getCloudflareContext`, `waitUntil`, Cron 처리기, TCP 소켓)는 `src/platform/` 안에서만 쓴다. KV·D1·R2·Durable Objects는 쓰지 않는다.
+- DB 구조는 `drizzle-kit generate` 마이그레이션 SQL로만 바꾼다.
+
+## 권한 — 가장 중요
+- DB 접근은 `src/server/repo/`에서만 한다. 컴포넌트·서버 동작·주소 처리기에서 DB를 직접 부르지 않는다.
+- `repo` 함수는 첫 인자로 `actor`를 받고, `src/server/authz/` 허용 표를 통과한 칸만 SELECT 한다. 화면에서 숨기는 것으로 권한을 대신하지 않는다.
+- 서버 동작·주소 처리기는 `requireActor()`로 시작한다 (예외: 이메일 인증, 비밀값으로 보호된 예약 실행 주소).
+- 잠김·쓰기 가능 여부는 `review_cycles.status`로만 판단한다.
+- 팀장(1차 평가자)에게 2차 점수를, 직원에게 등급조정 여부를 어떤 경로로도 내보내지 않는다.
+- 권한 표를 바꾸면 같은 변경에서 `authz` 테스트를 고친다.
+
+## 입력·계산
+- 모든 입력은 zod로 검사한다: 점수 정수 1~10, 업적 글 칸당 4,000자, 엑셀 1MB·.xlsx·1,000줄·제목 줄 일치. 엑셀 원본은 저장하지 않는다.
+- 내보내는 엑셀의 `= + - @` 시작 글자는 `'`를 붙인다.
+- 점수·등급 계산은 `src/domain/grading/` 순수 함수에서만 한다. 금액·점수 저장은 `numeric`이고, JS 실수 결과를 그대로 저장하지 않는다.
+- 판본 번호가 있는 표는 `WHERE version = :기존값`으로 갱신하고, 0줄이면 충돌로 처리한다.
+
+## 실패
+- 예상된 실패는 `{ ok: false, code, message }`로 돌려주고, 용어집의 말로 화면에 보여 준다.
+- 예상 못 한 실패만 throw → 가장 바깥에서 `error_logs`에 장소·요청 번호·짧은 메시지만 기록한다.
+- 로그·오류 기록에 이름·이메일·점수·업적 글·인증번호를 넣지 않는다. 사람은 id로만 적는다.
+
+## 메일
+- 메일은 `MailSender`로만 보낸다. 인증번호 외의 메일은 `email_outbox`에 쌓는다.
+- 메일 본문에 점수·등급·업적 글·등급조정 여부를 넣지 않는다. 결과는 링크로만 안내한다.
+- 개발 환경은 `MAIL_MODE=log`가 기본값이다.
+
+## 비밀값
+- 비밀값을 코드·저장소·`NEXT_PUBLIC_*`에 넣지 않는다. Cloudflare 비밀값과 `.dev.vars`(gitignore)에만 둔다.
+- 실제 직원 데이터를 개발 DB나 테스트 데이터로 쓰지 않는다.
+
+## 화면
+- 디자인은 `.cursor/rules/design-system.mdc`를 따른다. 화면 글은 `docs/domain/02-공통-용어집.md`의 말을 그대로 쓴다.
+- 로그인이 필요한 화면은 캐시하지 않는다(동적 렌더링). 저장 후에는 `revalidatePath`로 다시 그린다.
