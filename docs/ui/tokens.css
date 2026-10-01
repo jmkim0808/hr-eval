@@ -1,0 +1,153 @@
+/* =========================================================
+   ㈜파워넷 인사평가 시스템 — 디자인 이름표(토큰)
+   - 화면 코드에서는 아래 이름만 부른다. 색·크기 값을 직접 적지 않는다.
+   - 이름은 "쓰임새"로 짓는다. (예: --color-button-primary-background)
+   - 결정 근거: docs/ui/01-디자인-규칙.md, docs/ui/06-선택-기록.md
+   ========================================================= */
+@import url("https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap");
+
+:root {
+  /* ---------- 글꼴 ---------- */
+  --font-family-base: "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+
+  --font-size-page-title: 22px;       /* 화면 제목 */
+  --font-size-section-title: 18px;    /* 구역 제목 */
+  --font-size-subsection-title: 16px; /* 소제목 */
+  --font-size-body: 14px;             /* 본문 · 표 · 버튼 */
+  --font-size-caption: 13px;          /* 보조 설명 · 입력칸 이름표 */
+  --font-size-label-small: 12px;      /* 작은 표시(상태 표시) */
+
+  --line-height-page-title: 1.4;
+  --line-height-section-title: 1.45;
+  --line-height-subsection-title: 1.5;
+  --line-height-body: 1.6;
+  --line-height-caption: 1.6;
+  --line-height-label-small: 1.5;
+
+  --font-weight-regular: 400;  /* 본문 */
+  --font-weight-medium: 500;   /* 작은 표시 · 표 머리 · 입력칸 이름표 */
+  --font-weight-bold: 700;     /* 제목 · 버튼 */
+
+  /* ---------- 바탕 · 글자 · 테두리 (차가운 회색) ---------- */
+  --color-page-background: #F4F5F8;      /* 화면 전체 바탕 */
+  --color-surface-background: #FFFFFF;   /* 상자 · 표 · 입력칸 바탕 */
+  --color-surface-muted: #EEF0F4;        /* 표 머리 · 안내 상자 · 중립 표시 바탕 */
+  --color-row-hover-background: #F4F5F8; /* 목록 한 줄에 마우스 올렸을 때 */
+  --color-selected-background: #F0F2FA;  /* 선택된 줄 · 지금 단계 · 선택된 그룹 */
+
+  --color-text-primary: #1B1F2A;   /* 본문 (흰 바탕 16.5:1) */
+  --color-text-secondary: #3A4150; /* 표 머리 · 부연 (흰 바탕 10.2:1) */
+  --color-text-muted: #5A6170;     /* 보조 설명 (흰 바탕 6.2:1 / 페이지 바탕 5.7:1) */
+  --color-text-disabled: #646B79;  /* 못 누를 때 · 잠김 (못 누를 때 바탕 4.5:1) */
+  --color-text-on-primary: #FFFFFF;
+  --color-text-link: #3B4A8C;      /* 글자 버튼 · 링크 (흰 바탕 8.3:1) */
+
+  --color-border-default: #D5D9E1; /* 상자 테두리 · 표 머리 아래 선 */
+  --color-border-subtle: #E9ECF1;  /* 표 줄 사이 선 · 단계 칸 사이 선 */
+  --color-border-input: #858C99;   /* 입력칸 · 보조 버튼 테두리 (흰 바탕 3.4:1) */
+  --color-border-input-hover: #3A4150;
+  --color-header-rule: #1B1F2A;    /* 화면 맨 위 머리줄 아래 굵은 선 */
+
+  /* ---------- 기준색 (인디고 단색) ---------- */
+  --color-brand-primary: #3B4A8C;
+  --color-button-primary-background: #3B4A8C;         /* 흰 글자 8.3:1 */
+  --color-button-primary-background-hover: #2F3C75;   /* 흰 글자 10.4:1 */
+  --color-button-primary-background-pressed: #262F5E; /* 흰 글자 12.7:1 */
+  --color-button-primary-text: #FFFFFF;
+
+  --color-button-secondary-background: #FFFFFF;
+  --color-button-secondary-background-hover: #F4F5F8;
+  --color-button-secondary-background-pressed: #E9ECF1;
+  --color-button-secondary-border: #858C99;
+  --color-button-secondary-border-hover: #5A6170;
+  --color-button-secondary-text: #1B1F2A;
+
+  --color-button-danger-background: #FFFFFF;
+  --color-button-danger-background-hover: #F6E5E5;
+  --color-button-danger-background-pressed: #EFD3D3;
+  --color-button-danger-border: #9B2C2C;
+  --color-button-danger-border-pressed: #7E2222;
+  --color-button-danger-text: #9B2C2C;        /* 흰 바탕 7.5:1 */
+  --color-button-danger-text-pressed: #7E2222;
+
+  --color-button-text-background-hover: #F0F2FA;
+  --color-button-text-background-pressed: #E1E5F4;
+  --color-button-text-text: #3B4A8C;
+  --color-button-text-text-hover: #2F3C75;
+  --color-button-text-text-pressed: #262F5E;
+
+  --color-button-disabled-background: #E9ECF1;
+  --color-button-disabled-text: #646B79;      /* 4.5:1 */
+
+  --color-focus-ring: #3B4A8C;          /* 키보드로 고른 버튼 바깥 테두리 */
+  --color-input-focus-border: #3B4A8C;
+  --color-input-focus-halo: #DCE1F2;    /* 쓰는 중인 입력칸 바깥 한 겹 (장식) */
+  --color-input-error-border: #9B2C2C;
+  --color-input-error-halo: #F6E5E5;
+  --color-input-disabled-background: #E9ECF1;
+
+  /* ---------- 상태 색 (차분한 톤) — 항상 아이콘 + 글자와 함께 ---------- */
+  --color-status-success-text: #3F6B4F;      --color-status-success-background: #E7EFEA;  /* 5.2:1 */
+  --color-status-warning-text: #8A5A12;      --color-status-warning-background: #F6EEDD;  /* 5.1:1 */
+  --color-status-danger-text: #9B2C2C;       --color-status-danger-background: #F6E5E5;   /* 6.2:1 */
+  --color-status-progress-text: #3E6587;     --color-status-progress-background: #E5EDF4; /* 5.2:1 */
+  --color-status-neutral-text: #5A6170;      --color-status-neutral-background: #EEF0F4;  /* 5.5:1 */
+
+  /* ---------- 등급 변화 표시 (최종평가 · 등급 결과 화면 전용) ---------- */
+  --color-grade-up-text: #1E5AA8;   --color-grade-up-background: #E3EDFA;   --color-grade-up-border: #9DBBE6;   /* 5.8:1 */
+  --color-grade-down-text: #B42318; --color-grade-down-background: #FDE8E6; --color-grade-down-border: #F1A9A1; /* 5.6:1 */
+  --color-grade-rule-text: #6B4E00; --color-grade-rule-background: #FFF3C4; --color-grade-rule-border: #E9C46A; /* 7.0:1 */
+
+  /* ---------- 대외비 표시 ---------- */
+  --color-confidential-text: #7F1D1D;   /* 흰 바탕 10.0:1 */
+  --color-confidential-border: #7F1D1D;
+
+  /* ---------- 덮개 (확인 창 뒤) ---------- */
+  --color-overlay-backdrop: rgba(27, 31, 42, 0.45);
+
+  /* ---------- 형태 ---------- */
+  --radius-control: 6px;  /* 버튼 · 입력칸 */
+  --radius-box: 6px;      /* 상자 · 표 상자 · 알림 띠 · 확인 창 */
+  --radius-tag: 4px;      /* 작은 상태 표시 */
+
+  --border-width-default: 1px;
+  --border-width-header-rule: 2px;
+  --border-width-indicator: 3px;  /* 선택된 줄 · 지금 단계 · 메뉴 밑줄 */
+  --border-width-banner-accent: 4px; /* 알림 띠 왼쪽 굵은 선 */
+  --focus-ring-width: 2px;
+  --focus-ring-offset: 2px;
+  --input-halo-width: 3px;
+
+  --shadow-overlay: 0 8px 24px rgba(27, 31, 42, 0.16); /* 확인 창 · 펼침 목록에만 */
+
+  /* ---------- 간격 (4 단위) ---------- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+
+  /* ---------- 크기 ---------- */
+  --size-control-small: 28px;  /* 표 안 버튼 */
+  --size-control-medium: 36px; /* 기본 버튼 · 입력칸 */
+  --size-control-large: 44px;  /* 화면의 마지막 버튼 ([제출] 등) */
+  --size-row: 40px;            /* 표 · 목록 한 줄 */
+  --size-textarea-min: 96px;   /* 업적 기술 칸 최소 높이 */
+  --size-checkbox: 16px;       /* 선택 네모 */
+  --size-progress-bar: 8px;    /* 발송 진행 막대 두께 */
+
+  --size-icon-xsmall: 14px; /* 작은 상태 표시 안 */
+  --size-icon-small: 16px;  /* 버튼 · 표 · 입력칸 안 */
+  --size-icon-medium: 20px; /* 알림 띠 · 빈 화면 안내 */
+  --icon-stroke-width: 2;   /* Lucide 기본 */
+
+  /* ---------- 화면 틀 ---------- */
+  --layout-page-padding-x: 32px;     /* 화면 좌우 여백 */
+  --layout-page-padding-y: 24px;
+  --layout-form-max-width: 960px;    /* 직원·평가자 화면(내 할 일·평가지 작성·평가하기) 최대 폭 */
+  --layout-auth-max-width: 400px;    /* 이메일 인증 상자 폭 */
+  --layout-dialog-width: 480px;      /* 확인 창 폭 */
+  --layout-side-list-width: 240px;   /* 평가하기 왼쪽 피평가자 목록 폭 */
+}
