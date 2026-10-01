@@ -42,6 +42,7 @@ body {
 .row--between { justify-content: space-between; }
 .row--end { justify-content: flex-end; }
 .row--top { align-items: flex-start; }
+.row--bottom { align-items: flex-end; }
 .grow { flex: 1; }
 .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-4); }
 .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-4); }
@@ -140,7 +141,7 @@ body {
 .input:disabled, .input.is-disabled, .select.is-disabled, .textarea.is-disabled {
   background: var(--color-input-disabled-background); border-color: var(--color-input-disabled-background); color: var(--color-text-disabled); cursor: not-allowed;
 }
-.input--score { width: auto; min-width: calc(var(--size-control-medium) * 2); }
+.input--score { display: inline-flex; width: auto; min-width: calc(var(--size-control-medium) * 2); }
 .checkbox {
   display: inline-block; width: var(--size-checkbox); height: var(--size-checkbox); flex: none;
   border: var(--border-width-default) solid var(--color-border-input); border-radius: var(--radius-tag);
@@ -171,6 +172,7 @@ body {
 .table tr.is-selected td { background: var(--color-selected-background); }
 .table tr.is-selected td:first-child { box-shadow: inset var(--border-width-indicator) 0 0 var(--color-brand-primary); }
 .table tr.is-locked td { color: var(--color-text-disabled); }
+.table tr.is-muted td { color: var(--color-text-muted); text-align: center; }
 .table .col-check { width: calc(var(--size-control-medium) * 2); }
 
 /* ---------- 작은 상태 표시 ---------- */
@@ -213,6 +215,8 @@ body {
 /* ---------- 그룹 고르기 ---------- */
 .group-tabs { display: flex; gap: var(--space-2); flex-wrap: wrap; }
 .group-tabs__item { display: inline-flex; align-items: center; height: var(--size-control-medium); padding: 0 var(--space-3); background: var(--color-surface-background); border: var(--border-width-default) solid var(--color-border-default); border-radius: var(--radius-control); color: var(--color-text-primary); }
+.group-tabs__item { text-decoration: none; }
+.group-tabs--large .group-tabs__item { height: var(--size-control-large); padding: 0 var(--space-4); font-size: var(--font-size-subsection-title); }
 .group-tabs__item.is-current { border-color: var(--color-brand-primary); background: var(--color-selected-background); color: var(--color-brand-primary); font-weight: var(--font-weight-bold); }
 
 /* ---------- 확인 창 ---------- */
