@@ -1,9 +1,11 @@
 // 최종평가 (PRD 10). 관리자만. 계산은 domain/grading, 여기서는 읽고 저장만 한다.
 import { and, eq, inArray } from "drizzle-orm";
+import { scoreCodes } from "@/domain/review";
+import { fail, ok, type Result } from "@/lib/result";
 import { bonusTotal, type BonusCode } from "@/domain/bonus";
 import { computeScores, draftGrades, type Grade } from "@/domain/grading";
 import { getDb, type Db } from "@/server/db/client";
-import { bonusPoints, cyclePeople, evaluations, evaluationScores, finalResults } from "@/server/db/schema";
+import { appUsers, auditLogs, bonusPoints, cyclePeople, evaluations, evaluationScores, finalResults, reviewCycles } from "@/server/db/schema";
 import type { Actor } from "@/server/authz/actor";
 import { assert, can } from "@/server/authz/policy";
 
@@ -34,6 +36,7 @@ export async function recomputeFinal(db: Db | Tx, cycleId: string) {
     const s = (p.evId && sc.get(p.evId)) || { first: {}, second: {} };
     return { p, r: computeScores(p.formType!, s.first, s.second, bonusTotal(bn.get(p.id) ?? {})) };
   });
+  const before = new Map((await db.select({ id: finalResults.personId, draft: finalResults.draftGrade }).from(finalResults).where(eq(finalResults.cycleId, cycleId))).map((r) => [r.id, r.draft]));
   const rows: (typeof finalResults.$inferInsert)[] = [];
   const groups = new Map<number, typeof computed>();
   for (const c of computed) groups.set(c.p.group ?? 0, [...(groups.get(c.p.group ?? 0) ?? []), c]);
@@ -57,6 +60,7 @@ export async function recomputeFinal(db: Db | Tx, cycleId: string) {
         tieRule: d.tieRule,
         changeKind: "none",
         displayPercentile: d.percentile === null ? null : d.percentile.toFixed(1),
+        recalcFrom: before.get(p.id) && d.grade && before.get(p.id) !== d.grade ? before.get(p.id)! : null,
         updatedAt: new Date(),
       });
     }
@@ -82,6 +86,7 @@ export type FinalRow = {
   draft: Grade | null;
   grade: Grade | null;
   tieRule: boolean;
+  recalcFrom: Grade | null;
 };
 
 export async function listFinal(actor: Actor, cycleId: string): Promise<FinalRow[]> {
@@ -111,6 +116,7 @@ export async function listFinal(actor: Actor, cycleId: string): Promise<FinalRow
       draft: f.draftGrade,
       grade: f.finalGrade,
       tieRule: f.tieRule,
+      recalcFrom: f.recalcFrom,
     }))
     .sort((a, b) => a.group - b.group || (a.rank ?? 1e9) - (b.rank ?? 1e9) || a.name.localeCompare(b.name, "ko"));
 }
@@ -124,4 +130,51 @@ export async function remainingBeforeFinal(actor: Actor, cycleId: string) {
     .leftJoin(evaluations, eq(evaluations.personId, cyclePeople.id))
     .where(and(eq(cyclePeople.cycleId, cycleId), eq(cyclePeople.isTarget, true)));
   return rows.filter((r) => !r.first || (r.formType === "member" && !r.second)).length;
+}
+
+// ── 빈 점수 대신 입력 (PRD 11, ADR-0016) ──
+
+export async function getFillForm(actor: Actor, personId: string) {
+  assert(can.manageCycle(actor));
+  const db = getDb();
+  const [row] = await db.select({ p: cyclePeople, ev: evaluations }).from(cyclePeople).leftJoin(evaluations, eq(evaluations.personId, cyclePeople.id)).where(eq(cyclePeople.id, personId)).limit(1);
+  if (!row || !row.p.isTarget || !row.p.formType) return null;
+  const scores = row.ev ? await db.select().from(evaluationScores).where(and(eq(evaluationScores.evaluationId, row.ev.id), inArray(evaluationScores.rater, ["first", "second"]))) : [];
+  const emails = [...new Set(scores.map((s) => s.enteredBy).filter((x): x is string => !!x))];
+  const admins = emails.length ? await db.select({ email: appUsers.email, name: appUsers.name }).from(appUsers).where(inArray(appUsers.email, emails)) : [];
+  const nameOf = new Map(admins.map((a) => [a.email, a.name]));
+  const cell = (rater: "first" | "second") =>
+    Object.fromEntries(scores.filter((s) => s.rater === rater).map((s) => [s.itemCode, { score: s.score, proxy: s.enteredBy ? (nameOf.get(s.enteredBy) ?? s.enteredBy) : null }])) as Record<string, { score: number; proxy: string | null }>;
+  return { person: { id: row.p.id, name: row.p.name, department: row.p.department, formType: row.p.formType, cycleId: row.p.cycleId }, first: cell("first"), second: cell("second") };
+}
+
+/** 빈 칸에만 넣는다. 이미 들어간 점수는 건드리지 않는다. 넣은 뒤 다시 계산 */
+export async function fillBlankScores(actor: Actor, personId: string, input: { first: Record<string, number>; second: Record<string, number> }): Promise<Result<{ filled: number }>> {
+  assert(can.manageCycle(actor));
+  const f = await getFillForm(actor, personId);
+  if (!f) return fail("not_found", "대상자를 찾을 수 없습니다.");
+  const db = getDb();
+  const [c] = await db.select().from(reviewCycles).where(eq(reviewCycles.id, f.person.cycleId)).limit(1);
+  if (!c || c.status !== "final_review") return fail("locked", "최종평가 단계에서 확정 전까지만 대신 입력할 수 있습니다.");
+  const codes = new Set(scoreCodes(f.person.formType));
+  const rows: { rater: "first" | "second"; itemCode: string; score: number }[] = [];
+  for (const rater of ["first", "second"] as const) {
+    if (rater === "second" && f.person.formType === "leader") continue;
+    for (const [code, v] of Object.entries(input[rater] ?? {})) {
+      if (!codes.has(code)) continue;
+      if (f[rater][code]) return fail("filled", "이미 들어간 점수는 고칠 수 없습니다.");
+      if (!Number.isInteger(v) || v < 1 || v > 10) return fail("range", "점수는 1~10 사이 숫자만 넣을 수 있습니다.");
+      rows.push({ rater, itemCode: code, score: v });
+    }
+  }
+  if (rows.length === 0) return fail("empty", "넣을 점수가 없습니다.");
+  await db.transaction(async (tx) => {
+    let [ev] = await tx.select().from(evaluations).where(eq(evaluations.personId, personId)).limit(1);
+    if (!ev) [ev] = await tx.insert(evaluations).values({ personId, version: 1 }).returning();
+    await tx.insert(evaluationScores).values(rows.map((r) => ({ evaluationId: ev!.id, ...r, enteredBy: actor.email })));
+    await tx.update(evaluations).set({ version: ev!.version + 1, updatedAt: new Date() }).where(eq(evaluations.id, ev!.id));
+    await tx.insert(auditLogs).values({ actorEmail: actor.email, action: "score.proxy", cycleId: c.id, personId, detail: { count: rows.length } });
+    await recomputeFinal(tx, c.id);
+  });
+  return ok({ filled: rows.length });
 }

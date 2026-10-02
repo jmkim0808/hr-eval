@@ -218,5 +218,7 @@ export const finalResults = pgTable("final_results", {
   tieRule: boolean("tie_rule").notNull().default(false),
   changeKind: text("change_kind", { enum: ["none", "adjusted", "pushed"] }).notNull().default("none"),
   displayPercentile: numeric("display_percentile", { precision: 5, scale: 1 }),
+  /** 다시 계산(대신 입력·가점)으로 초안 등급이 바뀌었으면 바뀌기 전 등급 */
+  recalcFrom: text("recalc_from", { enum: ["S", "A", "B", "C", "D"] }),
   ...timestamps,
 });

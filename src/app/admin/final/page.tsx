@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Equal, Hourglass, TriangleAlert } from "lucide-react";
+import { ArrowDownUp, Equal, Hourglass, TriangleAlert } from "lucide-react";
 import { AdminNav } from "@/components/AdminNav";
 import { PageHeader } from "@/components/PageHeader";
 import { Badge } from "@/components/ui/badge";
@@ -98,15 +98,23 @@ export default async function FinalPage({ searchParams }: { searchParams: Promis
                         <TableCell className="text-right font-semibold tabular-nums">{fmt(r.final)}</TableCell>
                         <TableCell>
                           {r.blank ? (
-                            <Badge variant="warning">
-                              <TriangleAlert aria-hidden="true" />
-                              점수 빈칸 — 대신 입력 필요
-                            </Badge>
+                            <Link href={`/admin/final/fill/${r.id}`} className="rounded-md focus-visible:ring-[3px] focus-visible:ring-ring/40 focus-visible:outline-none">
+                              <Badge variant="warning" className="underline-offset-2 hover:underline">
+                                <TriangleAlert aria-hidden="true" />
+                                점수 빈칸 — 대신 입력 필요
+                              </Badge>
+                            </Link>
                           ) : (
                             <span className="font-bold">{r.draft}</span>
                           )}
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="flex flex-wrap gap-1.5">
+                          {r.recalcFrom && r.draft && (
+                            <Badge variant={r.recalcFrom < r.draft ? "grade-down" : "grade-up"}>
+                              <ArrowDownUp aria-hidden="true" />
+                              다시 계산으로 {r.recalcFrom}→{r.draft}
+                            </Badge>
+                          )}
                           {r.tieRule && (
                             <Badge variant="grade-rule">
                               <Equal aria-hidden="true" />
