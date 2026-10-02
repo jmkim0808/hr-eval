@@ -60,7 +60,7 @@ export type SaveResult = Result<{ version: number; savedAt: string }> | { ok: fa
 /** 임시저장(submit=false) 또는 제출. 판본 번호가 다르면 다른 창에서 고친 것이다 (ADR-0012). */
 export async function saveSelf(actor: Actor, personId: string, version: number, draft: SelfDraft, submit: boolean): Promise<SaveResult> {
   const form = await getSelfForm(actor, personId);
-  if (!form.editable) return fail("locked", "개인작성 단계가 끝나 더 이상 고칠 수 없습니다.");
+  if (!form.editable) return fail("locked", "개인작성 기간이 끝나 고칠 수 없습니다.");
   const clean: SelfDraft = {
     scores: cleanScores(form.person.formType, draft.scores),
     achievement: draft.achievement,

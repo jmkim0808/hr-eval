@@ -28,7 +28,7 @@ type Props = {
   lockedNote?: string;
 };
 
-export function SelfForm({ personId, formType, year, editable, initial, lockedNote = "개인작성 단계가 끝나 보기만 할 수 있습니다." }: Props) {
+export function SelfForm({ personId, formType, year, editable, initial, lockedNote = "개인작성 기간이 끝나 고칠 수 없습니다." }: Props) {
   const router = useRouter();
   const items = FORMS[formType];
   const [draft, setDraft] = useState<SelfDraft>(initial.draft);

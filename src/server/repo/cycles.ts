@@ -10,7 +10,7 @@ import { assert, can } from "@/server/authz/policy";
 export async function getCurrentCycle(actor: Actor) {
   assert(can.manageCycle(actor));
   const [c] = await getDb()
-    .select({ id: reviewCycles.id, year: reviewCycles.year, status: reviewCycles.status, selfStart: reviewCycles.selfStart, selfEnd: reviewCycles.selfEnd, firstStart: reviewCycles.firstStart, firstEnd: reviewCycles.firstEnd, secondStart: reviewCycles.secondStart, secondEnd: reviewCycles.secondEnd })
+    .select({ id: reviewCycles.id, year: reviewCycles.year, status: reviewCycles.status, version: reviewCycles.version, selfStart: reviewCycles.selfStart, selfEnd: reviewCycles.selfEnd, firstStart: reviewCycles.firstStart, firstEnd: reviewCycles.firstEnd, secondStart: reviewCycles.secondStart, secondEnd: reviewCycles.secondEnd })
     .from(reviewCycles)
     .orderBy(desc(reviewCycles.year))
     .limit(1);
@@ -96,4 +96,51 @@ export async function latestBatch(actor: Actor, cycleId: string, kind: "invite" 
     .orderBy(desc(emailOutbox.createdAt))
     .limit(1);
   return r?.batchId ?? null;
+}
+
+// ── 다음 단계로 넘기기 (PRD 06) ──
+
+export const NEXT_STAGE = { self_review: "first_review", first_review: "second_review", second_review: "final_review" } as const;
+export type AdvanceFrom = keyof typeof NEXT_STAGE;
+export const STAGE_LABEL: Record<string, string> = { self_review: "개인작성", first_review: "1차평가", second_review: "2차평가", final_review: "최종평가" };
+
+/** 지금 단계를 잠그고 다음 단계를 연다. 다른 관리자가 먼저 넘겼으면 실패한다. 다음 단계 평가자에게 안내 메일을 쌓는다. */
+export async function advanceStage(actor: Actor, cycleId: string, from: AdvanceFrom, version: number): Promise<Result<{ to: string; batchId: string | null; mails: number }>> {
+  assert(can.manageCycle(actor));
+  const to = NEXT_STAGE[from];
+  return getDb().transaction(async (tx) => {
+    const [c] = await tx.select().from(reviewCycles).where(eq(reviewCycles.id, cycleId)).limit(1).for("update");
+    if (!c) return fail("not_found", "평가를 찾을 수 없습니다.");
+    if (c.status !== from || c.version !== version) return fail("stale", "다른 관리자가 먼저 처리했습니다. 화면을 새로고침해 주세요.");
+    await tx.update(reviewCycles).set({ status: to, version: c.version + 1, updatedAt: new Date() }).where(eq(reviewCycles.id, cycleId));
+    await tx.insert(auditLogs).values({ actorEmail: actor.email, action: "cycle.advance", cycleId, detail: { from, to } });
+
+    // 다음 단계 평가자: 1차 = 팀원 평가지의 1차 평가자(팀장), 2차 = 팀원 평가지의 2차 평가자 + 팀장 평가지의 평가자(임원)
+    const targets = await tx
+      .select({ formType: cyclePeople.formType, first: cyclePeople.firstReviewerId, second: cyclePeople.secondReviewerId })
+      .from(cyclePeople)
+      .where(and(eq(cyclePeople.cycleId, cycleId), eq(cyclePeople.isTarget, true)));
+    const load = new Map<string, number>();
+    const add = (id: string | null) => id && load.set(id, (load.get(id) ?? 0) + 1);
+    if (to === "first_review") targets.filter((t) => t.formType === "member").forEach((t) => add(t.first));
+    if (to === "second_review") targets.forEach((t) => add(t.formType === "member" ? t.second : t.first));
+    if (load.size === 0) return ok({ to, batchId: null, mails: 0 });
+    const reviewers = await tx.select({ id: cyclePeople.id, email: cyclePeople.email, name: cyclePeople.name }).from(cyclePeople).where(and(eq(cyclePeople.cycleId, cycleId)));
+    const batchId = crypto.randomUUID();
+    const task = to === "first_review" ? "1차 평가" : "2차 평가";
+    const range = to === "first_review" ? fmtRange(c.firstStart, c.firstEnd) : fmtRange(c.secondStart, c.secondEnd);
+    const rows = reviewers
+      .filter((r) => load.has(r.id))
+      .map((r) => ({
+        cycleId,
+        kind: "stage_notice" as const,
+        toEmail: r.email,
+        personId: r.id,
+        batchId,
+        createdBy: actor.email,
+        payload: { name: r.name, year: String(c.year), task, range, who: "평가할 사람", count: String(load.get(r.id)) },
+      }));
+    await tx.insert(emailOutbox).values(rows);
+    return ok({ to, batchId, mails: rows.length });
+  });
 }

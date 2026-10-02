@@ -11,9 +11,10 @@ import { Empty } from "@/components/ui/empty";
 import { fmtDay, fmtRange } from "@/domain/periods";
 import { seoulToday } from "@/lib/time";
 import { requireAdmin } from "@/server/authz/actor";
-import { getCurrentCycle, latestBatch } from "@/server/repo/cycles";
+import { getCurrentCycle, latestBatch, NEXT_STAGE, STAGE_LABEL } from "@/server/repo/cycles";
 import { batchProgress } from "@/server/repo/outbox";
 import { selfStageProgress } from "@/server/repo/progress";
+import { AdvanceButton } from "./AdvanceButton";
 import { PendingTable } from "./PendingTable";
 
 export default async function ProgressPage() {
@@ -33,7 +34,21 @@ export default async function ProgressPage() {
     <>
       <AdminNav current="/admin" />
       <main className="flex flex-col gap-6 px-8 py-6">
-        <PageHeader title="진행 현황" description={cycle ? `${cycle.year}년 정기평가 · 지금 누가 어디서 멈춰 있는지 봅니다` : "지금 누가 어디서 멈춰 있는지 봅니다"} />
+        <PageHeader
+          title="진행 현황"
+          description={cycle ? `${cycle.year}년 정기평가 · 지금 누가 어디서 멈춰 있는지 봅니다` : "지금 누가 어디서 멈춰 있는지 봅니다"}
+          actions={
+            cycle && cycle.status in NEXT_STAGE ? (
+              <AdvanceButton
+                from={cycle.status as keyof typeof NEXT_STAGE}
+                version={cycle.version}
+                fromLabel={STAGE_LABEL[cycle.status]!}
+                toLabel={STAGE_LABEL[NEXT_STAGE[cycle.status as keyof typeof NEXT_STAGE]]!}
+                pendingNames={stage?.pending.map((p) => p.name) ?? []}
+              />
+            ) : undefined
+          }
+        />
         {!cycle ? (
           <Card>
             <Empty
