@@ -23,6 +23,8 @@
 4. 본 프로그램 비밀값: `npx wrangler secret put DATABASE_URL` (AUTH_SECRET·APP_URL·CRON_SECRET·MAIL_FROM 동일), `wrangler.jsonc`의 `MAIL_MODE`를 `smtp`로.
 5. `npm run deploy:cf`
 
+한 번에: `scripts/deploy-cf.sh` (자세한 순서는 `docs/운영/01-배포-가이드.md`)
+
 ## 회사 서버로 옮길 때
 
 `npm run build:node` → `.next/standalone`(+ `.next/static` 복사)을 `node server.js`로 실행. 메일은 nodemailer로 바로 보낸다(SMTP_* 환경 값). 1분마다 `curl -X POST -H "Authorization: Bearer $CRON_SECRET" https://주소/api/cron/tick`을 cron에 등록.
