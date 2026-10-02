@@ -6,6 +6,7 @@ const items = [
   { href: "/admin", label: "진행 현황" },
   { href: "/admin/bonus", label: "가점 입력" },
   { href: "/admin/final", label: "최종평가" },
+  { href: "/admin/results", label: "결과 발송" },
   { href: "/admin/setup", label: "평가 시작 설정" },
 ] as const;
 

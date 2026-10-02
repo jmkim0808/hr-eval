@@ -11,7 +11,9 @@ import { cn } from "@/lib/utils";
 import { requireAdmin } from "@/server/authz/actor";
 import { getCurrentCycle } from "@/server/repo/cycles";
 import { listFinal, remainingBeforeFinal } from "@/server/repo/final";
+import { BackupNotice } from "@/components/ExportButtons";
 import { confirmReadiness } from "@/server/repo/confirm";
+import { backupDue } from "@/server/repo/export";
 import { ConfirmControls } from "./ConfirmControls";
 import { ChangeBadge, GradeCell, RevertButton } from "./GradeCell";
 
@@ -32,6 +34,7 @@ export default async function FinalPage({ searchParams }: { searchParams: Promis
   const blanks = rows.filter((r) => r.blank).length;
   const editable = cycle?.status === "final_review";
   const readiness = ready ? await confirmReadiness(a, cycle!.id) : null;
+  const due = cycle ? await backupDue(a, cycle.id) : false;
   const actual = Object.fromEntries(GRADES.map((g) => [g, list.filter((r) => r.grade === g).length])) as Record<Grade, number>;
 
   return (
@@ -53,6 +56,7 @@ export default async function FinalPage({ searchParams }: { searchParams: Promis
             ) : undefined
           }
         />
+        {due && <BackupNotice />}
         {!ready ? (
           <Card>
             <Empty icon={<Hourglass aria-hidden="true" />} title={`2차평가가 끝나면 초안이 나옵니다 (남은 인원 ${remain}명)`}>

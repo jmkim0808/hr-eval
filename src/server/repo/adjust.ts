@@ -114,7 +114,7 @@ export async function applyAdjust(actor: Actor, personId: string, to: Grade, ver
     if (!plan.ok) return fail("plan", plan.message);
     const batchId = crypto.randomUUID();
     const m = plan.moves[0]!;
-    await tx.insert(gradeAdjustments).values({ cycleId: c.cycleId, personId, fromGrade: m.from, toGrade: m.to, kind: "manual", batchId, createdBy: actor.email });
+    await tx.insert(gradeAdjustments).values({ cycleId: c.cycleId, personId, fromGrade: m.from, toGrade: m.to, kind: "manual", batchId, createdBy: actor.email, createdAt: new Date() }); // 밀려남 줄과 같은 시각(밀리초)으로
     await replayAdjustments(tx, c.cycleId);
     await tx.update(reviewCycles).set({ version: cy.version + 1, updatedAt: new Date() }).where(eq(reviewCycles.id, cy.id));
     await tx.insert(auditLogs).values({ actorEmail: actor.email, action: "grade.adjust", cycleId: c.cycleId, personId, detail: { from: m.from, to: m.to, moved: plan.moves.length - 1 } });

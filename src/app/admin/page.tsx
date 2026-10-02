@@ -13,7 +13,9 @@ import { seoulToday } from "@/lib/time";
 import { requireAdmin } from "@/server/authz/actor";
 import { getCurrentCycle, latestBatch, NEXT_STAGE, STAGE_LABEL } from "@/server/repo/cycles";
 import { batchProgress } from "@/server/repo/outbox";
+import { BackupButton, BackupNotice } from "@/components/ExportButtons";
 import { bonusCount } from "@/server/repo/bonus";
+import { backupDue } from "@/server/repo/export";
 import { stageProgress } from "@/server/repo/progress";
 import { AdvanceButton } from "./AdvanceButton";
 import { PendingTable } from "./PendingTable";
@@ -34,6 +36,7 @@ export default async function ProgressPage() {
   const remind = remindId ? await batchProgress(a, remindId) : null;
   const stage = cycle ? await stageProgress(a, cycle.id, cycle.status) : null;
   const stageCopy = cycle ? STAGE_COPY[cycle.status] : undefined;
+  const due = cycle ? await backupDue(a, cycle.id) : false;
   const bonus = cycle && cycle.status !== "setup" ? { n: await bonusCount(a, cycle.id), total: (await stageProgress(a, cycle.id, "self_review"))?.total ?? 0 } : null;
   const today = seoulToday();
   const end = cycle ? { self_review: cycle.selfEnd, first_review: cycle.firstEnd, second_review: cycle.secondEnd }[cycle.status as string] : null;
@@ -83,6 +86,7 @@ export default async function ProgressPage() {
                 2: cycle.secondStart ? fmtRange(cycle.secondStart, cycle.secondEnd) : undefined,
               }}
             />
+            {due && <BackupNotice />}
             {cycle.status === "setup" && (
               <Card>
                 <CardContent className="flex items-center justify-between gap-4">
@@ -162,6 +166,12 @@ export default async function ProgressPage() {
               </Card>
             )}
           </>
+        )}
+        {cycle && (
+          <div className="flex items-center justify-end gap-3 border-t pt-4">
+            <span className="text-caption text-muted-foreground">명단·평가지·점수·가점·최종평가·등급조정 이력</span>
+            <BackupButton />
+          </div>
         )}
       </main>
     </>
