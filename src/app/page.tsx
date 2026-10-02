@@ -7,6 +7,7 @@ export const dynamic = "force-dynamic";
 export default async function Home() {
   const a = await requireActor();
   if (a.roles.admin) redirect("/admin");
+  if (a.roles.ceo) redirect("/report");
   if (a.personId) redirect("/me");
   redirect("/login");
 }

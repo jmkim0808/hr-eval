@@ -8,6 +8,7 @@
 2. `npm install`
 3. `npm run db:migrate` — 표 만들기
 4. `npm run seed:admins -- "이름:이메일" "이름:이메일"` — 처음 관리자 등록
+   `npm run seed:ceo -- "이름:이메일"` — 대표이사 등록 (등급 결과 보기 전용)
 5. `npm run dev` → http://localhost:3000 (MAIL_MODE=log면 인증번호가 터미널에 찍힌다)
 
 확인: `npm run typecheck`, `npm test`, `npm run build:node`, `npm run build:cf`

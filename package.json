@@ -14,7 +14,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx scripts/migrate.ts",
     "seed:admins": "tsx scripts/seed-admins.ts",
-    "deploy:cf": "npm run build:cf && opennextjs-cloudflare deploy"
+    "deploy:cf": "npm run build:cf && opennextjs-cloudflare deploy",
+    "seed:ceo": "tsx scripts/seed-ceo.ts"
   },
   "engines": {
     "node": ">=22"

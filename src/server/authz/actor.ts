@@ -52,6 +52,12 @@ export async function requireParticipant(): Promise<Actor & { personId: string }
   return a as Actor & { personId: string };
 }
 
+export async function requireReportViewer(): Promise<Actor> {
+  const a = await requireActor();
+  if (!a.roles.ceo && !a.roles.admin) redirect("/");
+  return a;
+}
+
 export async function requireAdmin(): Promise<Actor> {
   const a = await requireActor();
   if (!a.roles.admin) redirect("/");

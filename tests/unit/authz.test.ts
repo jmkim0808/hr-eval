@@ -22,3 +22,11 @@ describe("본인 평가지", () => {
     expect(can.writeSelfForm(ceo, "p-staff")).toBe(false);
   });
 });
+
+describe("등급 결과", () => {
+  it("대표이사와 관리자만 본다", () => {
+    expect(can.viewReport(ceo)).toBe(true);
+    expect(can.viewReport(admin)).toBe(true);
+    expect(can.viewReport(staff)).toBe(false);
+  });
+});
