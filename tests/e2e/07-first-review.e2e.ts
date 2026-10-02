@@ -31,7 +31,7 @@ const b = await browser();
 const lp = await (await b.newContext({ viewport: { width: 1300, height: 1100 } })).newPage();
 await login(lp, "lead@powernet.test");
 await lp.goto(`${BASE}/me/review/first/${ids["김대리"]}`);
-const inputs = () => lp.locator('input[aria-label$="1차 평가 점수"]');
+const inputs = () => lp.locator('input[aria-label$=" 1차 점수"]');
 await check("개인작성 기간에도 팀장은 팀원이 제출한 평가지를 볼 수 있지만 점수 칸은 없다", async () =>
   (await lp.getByText("김대리 업적 글").count()) === 1 && (await inputs().count()) === 0 && (await lp.getByText(/1차평가 기간\(.+\)에 입력할 수 있습니다/).count()) === 1,
 );

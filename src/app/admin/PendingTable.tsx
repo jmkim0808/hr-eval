@@ -79,9 +79,13 @@ export function PendingTable({ rows, canRemind }: { rows: PendingRow[]; canRemin
                 </TableCell>
               )}
               <TableCell>
-                <Link href={`/admin/forms/${r.personId}`} className="font-medium text-primary underline-offset-4 hover:underline">
-                  {r.name}
-                </Link>
+                {r.formHref ? (
+                  <Link href={r.formHref} className="font-medium text-primary underline-offset-4 hover:underline">
+                    {r.name}
+                  </Link>
+                ) : (
+                  <span className="font-medium">{r.name}</span>
+                )}
               </TableCell>
               <TableCell>{r.department || "—"}</TableCell>
               <TableCell className="text-text-secondary">{r.role}</TableCell>

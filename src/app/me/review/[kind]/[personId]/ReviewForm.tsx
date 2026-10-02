@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Empty } from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
 import type { FormType, Item } from "@/domain/forms";
-import { ACHIEVEMENT, parseScore, type ReviewKind } from "@/domain/review";
+import { ACHIEVEMENT, parseScore, REVIEW, type ReviewKind } from "@/domain/review";
 import { cn } from "@/lib/utils";
 import { saveReviewAction } from "../../actions";
 
@@ -132,7 +132,7 @@ export function ReviewForm(p: Props) {
         <Input
           id={`score-${code}`}
           inputMode="numeric"
-          aria-label={`${name} ${p.label} 점수`}
+          aria-label={`${name} ${REVIEW[p.kind].column} 점수`}
           aria-invalid={!!err}
           value={v}
           onChange={(e) => change(code, e.target.value)}
@@ -194,7 +194,7 @@ export function ReviewForm(p: Props) {
           <span>역량</span>
           <span className="text-center">본인평가</span>
           {showFirst && <span className="text-center">1차</span>}
-          {p.showMine && <span className="text-center">{p.label.replace(" 평가", "")}</span>}
+          {p.showMine && <span className="text-center">{REVIEW[p.kind].column}</span>}
         </div>
         {groups.map((g) => (
           <section key={g} aria-label={g}>
@@ -234,7 +234,7 @@ export function ReviewForm(p: Props) {
             )}
             {p.showMine && (
               <label className="flex items-center gap-3 font-medium">
-                {p.label.replace(" 평가", "")} 업적 점수
+                {REVIEW[p.kind].column} 업적 점수
                 {scoreCell(ACHIEVEMENT, "업적")}
               </label>
             )}

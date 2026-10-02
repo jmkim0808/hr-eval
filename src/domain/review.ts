@@ -5,9 +5,9 @@ import { FORMS, type FormType } from "./forms";
 export type ReviewKind = "first" | "second" | "leader";
 
 export const REVIEW = {
-  first: { label: "1차 평가", rater: "first", window: "first_review", windowLabel: "1차평가", who: "팀원" },
-  second: { label: "2차 평가", rater: "second", window: "second_review", windowLabel: "2차평가", who: "" },
-  leader: { label: "팀장 평가", rater: "first", window: "second_review", windowLabel: "2차평가", who: "팀장" },
+  first: { label: "1차 평가", column: "1차", rater: "first", window: "first_review", windowLabel: "1차평가", who: "팀원" },
+  second: { label: "2차 평가", column: "2차", rater: "second", window: "second_review", windowLabel: "2차평가", who: "" },
+  leader: { label: "팀장 평가", column: "임원", rater: "first", window: "second_review", windowLabel: "2차평가", who: "팀장" },
 } as const;
 
 export const ACHIEVEMENT = "achievement";
