@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Empty } from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
 import type { FormType, Item } from "@/domain/forms";
-import { ACHIEVEMENT, parseScore, REVIEW, type ReviewKind } from "@/domain/review";
+import { ACHIEVEMENT, AVG_TARGET, checkAverage, parseScore, raterTotal, REVIEW, type ReviewKind } from "@/domain/review";
 import { cn } from "@/lib/utils";
 import { saveReviewAction } from "../../actions";
 
@@ -33,6 +33,8 @@ type Props = {
   firstScores: Record<string, number> | null;
   initial: { scores: Record<string, number>; version: number; submittedAt: string | null };
   nextHref: string | null;
+  /** 같은 묶음 사람들의 내 점수 (평균 80점 확인) */
+  bundle: { id: string; name: string; total: number | null; submitted: boolean }[];
 };
 
 type Save = { kind: "idle" } | { kind: "saving" } | { kind: "saved"; at: string } | { kind: "conflict" } | { kind: "error"; message: string };
@@ -42,6 +44,7 @@ export function ReviewForm(p: Props) {
   const [raw, setRaw] = useState<Record<string, string>>(() => Object.fromEntries(Object.entries(p.initial.scores).map(([k, v]) => [k, String(v)])));
   const [save, setSave] = useState<Save>({ kind: "idle" });
   const [missing, setMissing] = useState<Set<string>>(new Set());
+  const [avgBlock, setAvgBlock] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState<string | null>(p.initial.submittedAt);
   const [submitting, startSubmit] = useTransition();
   const version = useRef(p.initial.version);
@@ -97,9 +100,13 @@ export function ReviewForm(p: Props) {
       if (r.ok) {
         version.current = r.value.version;
         setMissing(new Set());
+        setAvgBlock(null);
         setSubmitted(r.value.savedAt);
         setSave({ kind: "saved", at: r.value.savedAt });
         router.refresh();
+      } else if (r.code === "average") {
+        setAvgBlock(r.message);
+        document.getElementById("average-panel")?.scrollIntoView({ behavior: "smooth", block: "center" });
       } else if (r.code === "incomplete" && "missing" in r) {
         setMissing(new Set(r.missing));
         document.getElementById(`score-${r.missing[0]}`)?.focus();
@@ -242,6 +249,8 @@ export function ReviewForm(p: Props) {
         </CardContent>
       </Card>
 
+      {p.showMine && <AveragePanel bundle={p.bundle} personId={p.person.id} current={raterTotal(p.person.formType, valid(raw))} block={avgBlock} />}
+
       {p.editable && (
         <div className="flex flex-wrap items-center justify-end gap-3">
           {submitted && (
@@ -300,4 +309,54 @@ function SaveLine({ save, editable }: { save: Save; editable: boolean }) {
       </span>
     );
   return <span className={cn(base, "text-muted-foreground")}>점수를 넣고 멈추면 저절로 저장됩니다</span>;
+}
+
+/** 내 평균 (평가자 평균 80 ± 0.5). 이 사람의 점수는 지금 넣고 있는 값으로 바로 다시 계산한다 */
+function AveragePanel({ bundle, personId, current, block }: { bundle: Props["bundle"]; personId: string; current: number | null; block: string | null }) {
+  const rows = bundle.map((b) => (b.id === personId ? { ...b, total: current } : b));
+  const totals = rows.map((b) => b.total).filter((t): t is number => t !== null);
+  const c = checkAverage(rows.length, totals);
+  const all = c.count === rows.length;
+  return (
+    <Card id="average-panel" className="gap-3">
+      <CardHeader>
+        <CardTitle className="flex flex-wrap items-baseline gap-x-3">
+          내 평균
+          <span className={cn("tabular-nums", c.applies && c.avg !== null && (c.ok ? "text-success" : "text-danger"))} data-testid="my-average">
+            {c.avg === null ? "—" : `${c.avg.toFixed(2)}점`}
+          </span>
+        </CardTitle>
+        <CardDescription>
+          {c.applies
+            ? `기준 ${AVG_TARGET}점 (허용 79.5~80.5) · ${rows.length}명 중 ${c.count}명 입력 · 역량×30% + 업적×70%로 낸 내 점수의 평균 · ${all ? "마지막 사람은 평균이 맞아야 제출됩니다" : "모두 입력하면 평균이 맞아야 마지막 사람을 제출할 수 있습니다"}`
+            : "맡은 사람이 2명 이하라 평균 80점 규칙을 적용하지 않습니다"}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3">
+        {block ? (
+          <Alert variant="destructive" data-testid="average-block">
+            <CircleAlert aria-hidden="true" />
+            <AlertTitle>평균이 80점에 맞지 않아 제출할 수 없습니다</AlertTitle>
+            <AlertDescription>{block}</AlertDescription>
+          </Alert>
+        ) : (
+          c.advice && (
+            <Alert variant="warning" data-testid="average-advice">
+              <CircleAlert aria-hidden="true" />
+              <AlertDescription>{c.advice}</AlertDescription>
+            </Alert>
+          )
+        )}
+        {c.applies && (
+          <ul className="flex flex-wrap gap-x-4 gap-y-1 text-caption text-text-secondary" aria-label="사람별 내 점수">
+            {rows.map((b) => (
+              <li key={b.id} className={cn("tabular-nums", b.id === personId && "font-semibold text-foreground")}>
+                {b.name} {b.total === null ? "—" : b.total.toFixed(1)}
+              </li>
+            ))}
+          </ul>
+        )}
+      </CardContent>
+    </Card>
+  );
 }

@@ -2,7 +2,7 @@
 import { and, eq, inArray, or } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { FORMS, type FormType } from "@/domain/forms";
-import { canScore, canSeeForm, missingScores, REVIEW, reviewKindOf, scoreCodes, seesFirstScores, type ReviewKind } from "@/domain/review";
+import { canScore, canSeeForm, checkAverage, missingScores, raterTotal, REVIEW, reviewKindOf, scoreCodes, seesFirstScores, type ReviewKind } from "@/domain/review";
 import { fail, ok, type Result } from "@/lib/result";
 import { getDb } from "@/server/db/client";
 import { auditLogs, cyclePeople, evaluations, evaluationScores, reviewCycles } from "@/server/db/schema";
@@ -98,10 +98,40 @@ export async function getReview(actor: Actor, kind: ReviewKind, personId: string
     mine: pick(rater),
     submittedAt: submittedAt?.toISOString() ?? null,
     version: ev?.version ?? 0,
+    bundle: await bundleTotals(actor, kind),
   };
 }
 
-export type ReviewSaveResult = Result<{ version: number; savedAt: string }> | { ok: false; code: "incomplete"; message: string; missing: string[] };
+export type BundlePerson = { id: string; name: string; total: number | null; submitted: boolean };
+
+/** 같은 묶음 사람들의 내 점수(평가자 점수)와 제출 여부 — 평균 80점 확인용 */
+export async function bundleTotals(actor: Actor, kind: ReviewKind): Promise<BundlePerson[]> {
+  const group = (await listReviewGroups(actor)).find((g) => g.kind === kind);
+  if (!group) return [];
+  const db = getDb();
+  const rater = REVIEW[kind].rater;
+  const rows = await db
+    .select({ personId: evaluations.personId, formType: cyclePeople.formType, item: evaluationScores.itemCode, score: evaluationScores.score })
+    .from(evaluations)
+    .innerJoin(cyclePeople, eq(cyclePeople.id, evaluations.personId))
+    .innerJoin(evaluationScores, and(eq(evaluationScores.evaluationId, evaluations.id), eq(evaluationScores.rater, rater)))
+    .where(inArray(evaluations.personId, group.people.map((p) => p.id)));
+  const by = new Map<string, { form: FormType; s: Record<string, number> }>();
+  for (const r of rows) {
+    const e = by.get(r.personId) ?? { form: r.formType as FormType, s: {} };
+    e.s[r.item] = r.score;
+    by.set(r.personId, e);
+  }
+  return group.people.map((p) => {
+    const e = by.get(p.id);
+    return { id: p.id, name: p.name, total: e ? raterTotal(e.form, e.s) : null, submitted: p.status === "done" };
+  });
+}
+
+export type ReviewSaveResult =
+  | Result<{ version: number; savedAt: string }>
+  | { ok: false; code: "incomplete"; message: string; missing: string[] }
+  | { ok: false; code: "average"; message: string; avg: number };
 
 export async function saveReview(actor: Actor, kind: ReviewKind, personId: string, version: number, raw: Record<string, number>, submit: boolean): Promise<ReviewSaveResult> {
   const r = await getReview(actor, kind, personId);
@@ -116,6 +146,14 @@ export async function saveReview(actor: Actor, kind: ReviewKind, personId: strin
   if (submit) {
     const missing = missingScores(r.person.formType, scores);
     if (missing.length) return { ok: false, code: "incomplete", message: `빈 점수 칸이 ${missing.length}개 있습니다.`, missing };
+    // 묶음의 마지막 사람을 제출할 때(또는 모두 제출한 뒤 다시 제출할 때) 평균 80 ± 0.5
+    const bundle = await bundleTotals(actor, kind);
+    const others = bundle.filter((b) => b.id !== personId);
+    if (others.every((b) => b.submitted)) {
+      const totals = [...others.map((b) => b.total).filter((t): t is number => t !== null), raterTotal(r.person.formType, scores)!];
+      const avg = checkAverage(bundle.length, totals);
+      if (!avg.ok) return { ok: false, code: "average", message: avg.advice!, avg: avg.avg! };
+    }
   }
   const rater = REVIEW[kind].rater;
   return getDb().transaction(async (tx) => {

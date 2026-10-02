@@ -56,3 +56,28 @@ describe("평가하기 권한 (PRD 07)", () => {
     expect(parseScore("")).toBeNull();
   });
 });
+
+import { averageAdvice, checkAverage, raterTotal } from "@/domain/review";
+
+describe("평가자 평균 80점", () => {
+  const all = (v: number, ach: number) => ({ ...Object.fromEntries(["responsibility", "teamwork", "discipline", "objectivity", "execution", "knowledge", "information", "contribution", "communication", "trust"].map((c) => [c, v])), achievement: ach });
+  it("평가자 점수 = 역량 합×0.3 + 업적×7", () => {
+    expect(raterTotal("member", all(8, 8))).toBe(80);
+    expect(raterTotal("member", all(9, 8))).toBe(83);
+    expect(raterTotal("member", { ...all(8, 8), trust: 0 })).toBeNull();
+  });
+  it("80 ± 0.5 안이면 통과, 2명 이하는 적용하지 않음", () => {
+    expect(checkAverage(3, [80, 79.7, 80.6]).ok).toBe(true);
+    expect(checkAverage(3, [83, 80, 80]).ok).toBe(false);
+    expect(checkAverage(2, [95, 90]).applies).toBe(false);
+  });
+  it("조정 안내: 따라 하면 허용 범위에 들어간다", () => {
+    for (const totals of [[87, 83, 81], [70, 75, 72, 78], [90, 90, 90, 90, 90], [80.9, 80.9, 80.9]]) {
+      const c = checkAverage(totals.length, totals);
+      const m = c.advice!.match(/평균 ([\d.]+)점이 됩니다/);
+      expect(Math.abs(Number(m![1]) - 80)).toBeLessThanOrEqual(0.5);
+    }
+    expect(averageAdvice(83, 3)).toContain("낮추면");
+    expect(averageAdvice(82, 3)).toContain("업적 점수 1점은 평균을 2.33점, 역량 항목 1점은 0.10점");
+  });
+});

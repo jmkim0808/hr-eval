@@ -65,7 +65,7 @@ await check("[제출] 뒤 [다음 사람]을 누르면 같은 묶음의 다음 �
 });
 for (let k = 0; k < 2; k++) {
   await inputs().first().waitFor();
-  await fillAll("7");
+  await fillAll("8"); // 평균 80점 규칙(3명 이상)에 맞게 모두 80점
   await lp.getByRole("button", { name: "제출" }).click();
   await lp.getByText("제출함").waitFor();
   const next = lp.getByRole("link", { name: "다음 사람" });

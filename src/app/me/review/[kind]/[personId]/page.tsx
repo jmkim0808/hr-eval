@@ -75,6 +75,7 @@ export default async function ReviewPage({ params }: { params: Promise<{ kind: s
           firstScores={r.firstScores}
           initial={{ scores: r.mine, version: r.version, submittedAt: r.submittedAt }}
           nextHref={next && next.id !== personId ? `/me/review/${kind}/${next.id}` : null}
+          bundle={r.bundle}
         />
       </div>
     </main>

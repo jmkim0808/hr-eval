@@ -45,3 +45,50 @@ export function parseScore(raw: string): number | null | "invalid" {
 export function missingScores(form: FormType, scores: Record<string, number>): string[] {
   return scoreCodes(form).filter((c) => !scores[c]);
 }
+
+// ── 평가자 평균 80점 (2026-10-02 추가 요구) ──
+// 평가자 한 명이 묶음(1차·2차·팀장 평가)에서 매긴 점수의 평균이 80 ± 0.5 여야 한다. 맡은 사람이 2명 이하면 적용하지 않는다.
+// 한 사람에 대한 평가자 점수 = 역량(정성) 10개 합 × 0.3 + 업적(정량) × 10 × 0.7 (100점 만점, 통보용 1차·2차 점수와 같은 식)
+
+export const AVG_TARGET = 80;
+export const AVG_TOLERANCE = 0.5;
+export const AVG_MIN_PEOPLE = 3;
+
+/** 평가자 한 명의 점수(100점 만점). 칸이 비어 있으면 null. 1/100점 정수로 계산 */
+export function raterTotal(form: FormType, s: Record<string, number>): number | null {
+  const codes = FORMS[form].map((i) => i.code);
+  if ([...codes, ACHIEVEMENT].some((c) => !s[c])) return null;
+  const sum = codes.reduce((t, c) => t + s[c]!, 0);
+  return (sum * 30 + s[ACHIEVEMENT]! * 700) / 100;
+}
+
+export type AverageCheck = { applies: boolean; count: number; avg: number | null; ok: boolean; advice: string | null };
+
+/** 묶음 인원(n)과 지금까지 점수가 다 들어간 사람들의 점수로 평균을 본다 */
+export function checkAverage(n: number, totals: number[]): AverageCheck {
+  const count = totals.length;
+  const avg = count ? Math.round((totals.reduce((a, b) => a + b, 0) / count) * 100) / 100 : null;
+  if (n < AVG_MIN_PEOPLE) return { applies: false, count, avg, ok: true, advice: null };
+  const ok = avg !== null && Math.abs(avg - AVG_TARGET) <= AVG_TOLERANCE + 1e-9;
+  return { applies: true, count, avg, ok, advice: avg === null || ok ? null : averageAdvice(avg, count) };
+}
+
+/**
+ * 몇 점을 어떻게 고치면 되는지. 업적 1점 = 평가자 점수 7점, 역량 항목 1점 = 0.3점.
+ * 합계를 (80 − 평균) × 인원만큼 옮기면 평균이 80이 된다.
+ */
+export function averageAdvice(avg: number, count: number): string {
+  const need = Math.round((AVG_TARGET - avg) * count * 100) / 100; // 옮겨야 할 합계(점)
+  const dir = need < 0 ? "낮추면" : "높이면";
+  const abs = Math.abs(need);
+  let ach = Math.floor(abs / 7);
+  let comp = Math.round((abs - ach * 7) / 0.3);
+  // 허용 범위(±0.5×인원) 안이면 업적만으로도 충분한지 확인
+  if (Math.abs(abs - Math.round(abs / 7) * 7) <= AVG_TOLERANCE * count) {
+    ach = Math.round(abs / 7);
+    comp = 0;
+  }
+  const after = Math.round((avg + ((need < 0 ? -1 : 1) * (ach * 7 + comp * 0.3)) / count) * 100) / 100;
+  const parts = [ach ? `업적 점수 합계를 ${ach}점` : null, comp ? `역량 항목 점수 합계를 ${comp}점` : null].filter(Boolean).join(", ");
+  return `지금 평균 ${avg.toFixed(2)}점입니다. 80점(허용 79.5~80.5)에 맞추려면 ${parts} ${dir} 평균 ${after.toFixed(2)}점이 됩니다. ${count}명 기준으로 업적 점수 1점은 평균을 ${(7 / count).toFixed(2)}점, 역량 항목 1점은 ${(0.3 / count).toFixed(2)}점 바꿉니다. 여러 사람에게 나눠 고쳐도 됩니다.`;
+}
