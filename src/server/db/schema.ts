@@ -222,3 +222,25 @@ export const finalResults = pgTable("final_results", {
   recalcFrom: text("recalc_from", { enum: ["S", "A", "B", "C", "D"] }),
   ...timestamps,
 });
+
+/** 등급조정 이력. 되돌리기를 위해 지우지 않고 reverted_at으로 표시한다 */
+export const gradeAdjustments = pgTable(
+  "grade_adjustments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    cycleId: uuid("cycle_id")
+      .notNull()
+      .references(() => reviewCycles.id, { onDelete: "cascade" }),
+    personId: uuid("person_id")
+      .notNull()
+      .references(() => cyclePeople.id, { onDelete: "cascade" }),
+    fromGrade: text("from_grade", { enum: ["S", "A", "B", "C", "D"] }).notNull(),
+    toGrade: text("to_grade", { enum: ["S", "A", "B", "C", "D"] }).notNull(),
+    kind: text("kind", { enum: ["manual", "push"] }).notNull(),
+    batchId: uuid("batch_id").notNull(),
+    revertedAt: timestamp("reverted_at", { withTimezone: true }),
+    createdBy: text("created_by").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("grade_adjustments_cycle_idx").on(t.cycleId, t.createdAt)],
+);

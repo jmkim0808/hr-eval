@@ -1,0 +1,1 @@
+ALTER TABLE "grade_adjustments" ENABLE ROW LEVEL SECURITY;

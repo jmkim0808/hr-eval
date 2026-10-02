@@ -74,7 +74,7 @@ const row = (n: string) => page.locator(`tr[data-person="${n}"]`);
 await check("같은 점수가 등급 경계에 걸리면 입사일이 늦은 사람이 아래 등급이고 \"동점 — 근속으로 하향\"이 보인다", async () => {
   const a = await row("라마").locator("td").allInnerTexts();
   const c = await row("다라").locator("td").allInnerTexts();
-  return a[7] === c[7] && a[8] === "A" && c[8] === "B" && c[9]!.includes("동점 — 근속으로 하향") && !a[9]!.includes("동점");
+  return a[7] === c[7] && a[8] === "A" && c[8] === "B" && c[10]!.includes("동점 — 근속으로 하향") && !a[10]!.includes("동점");
 });
 // 엑셀 양식 수식으로 계산: N4=SUM(R), R=P×60%+Q×40%, N5=(O25×60%+Q25×40%)×10, Q4=N4×0.3+N5×0.7+P4
 const excel = (f: number, s: number, fa: number, sa: number, b: number) => {

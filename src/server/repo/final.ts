@@ -1,6 +1,7 @@
 // 최종평가 (PRD 10). 관리자만. 계산은 domain/grading, 여기서는 읽고 저장만 한다.
 import { and, eq, inArray } from "drizzle-orm";
 import { scoreCodes } from "@/domain/review";
+import { replayAdjustments } from "@/server/repo/adjust";
 import { fail, ok, type Result } from "@/lib/result";
 import { bonusTotal, type BonusCode } from "@/domain/bonus";
 import { computeScores, draftGrades, type Grade } from "@/domain/grading";
@@ -67,6 +68,8 @@ export async function recomputeFinal(db: Db | Tx, cycleId: string) {
   }
   await db.delete(finalResults).where(eq(finalResults.cycleId, cycleId));
   await db.insert(finalResults).values(rows);
+  // 이미 적용한 등급조정은 유지한다 (ADR-0016)
+  await replayAdjustments(db, cycleId);
 }
 
 export type FinalRow = {
@@ -87,6 +90,7 @@ export type FinalRow = {
   grade: Grade | null;
   tieRule: boolean;
   recalcFrom: Grade | null;
+  changeKind: "none" | "adjusted" | "pushed";
 };
 
 export async function listFinal(actor: Actor, cycleId: string): Promise<FinalRow[]> {
@@ -117,6 +121,7 @@ export async function listFinal(actor: Actor, cycleId: string): Promise<FinalRow
       grade: f.finalGrade,
       tieRule: f.tieRule,
       recalcFrom: f.recalcFrom,
+      changeKind: f.changeKind,
     }))
     .sort((a, b) => a.group - b.group || (a.rank ?? 1e9) - (b.rank ?? 1e9) || a.name.localeCompare(b.name, "ko"));
 }

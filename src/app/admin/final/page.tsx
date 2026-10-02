@@ -6,11 +6,12 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Empty } from "@/components/ui/empty";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { GRADES, GROUP_LABEL, gradeCounts } from "@/domain/grading";
+import { GRADES, GROUP_LABEL, gradeCounts, type Grade } from "@/domain/grading";
 import { cn } from "@/lib/utils";
 import { requireAdmin } from "@/server/authz/actor";
 import { getCurrentCycle } from "@/server/repo/cycles";
 import { listFinal, remainingBeforeFinal } from "@/server/repo/final";
+import { ChangeBadge, GradeCell, RevertButton } from "./GradeCell";
 
 const fmt = (n: number | null) => (n === null ? "—" : n.toFixed(2));
 const AFTER = ["final_review", "confirmed", "results_sent", "closed"];
@@ -27,6 +28,8 @@ export default async function FinalPage({ searchParams }: { searchParams: Promis
   const list = rows.filter((r) => r.group === group);
   const counts = gradeCounts(list.length);
   const blanks = rows.filter((r) => r.blank).length;
+  const editable = cycle?.status === "final_review";
+  const actual = Object.fromEntries(GRADES.map((g) => [g, list.filter((r) => r.grade === g).length])) as Record<Grade, number>;
 
   return (
     <>
@@ -65,7 +68,7 @@ export default async function FinalPage({ searchParams }: { searchParams: Promis
                   {GROUP_LABEL[group]} · {list.length}명
                 </CardTitle>
                 <CardDescription data-testid="grade-counts">
-                  등급별 인원 {GRADES.map((g) => `${g} ${counts[g]}`).join(" · ")} (S·A·C·D 반올림, B가 나머지)
+                  등급별 인원 {GRADES.map((g) => `${g} ${counts[g]}`).join(" · ")} (S·A·C·D 반올림, B가 나머지) · 지금 {GRADES.map((g) => `${g} ${actual[g]}`).join(" · ")}
                 </CardDescription>
               </CardHeader>
               <Table>
@@ -79,7 +82,8 @@ export default async function FinalPage({ searchParams }: { searchParams: Promis
                     <TableHead className="text-right">2차 점수</TableHead>
                     <TableHead className="text-right">가점</TableHead>
                     <TableHead className="text-right">최종점수</TableHead>
-                    <TableHead>초안 등급</TableHead>
+                    <TableHead>초안</TableHead>
+                    <TableHead>평가등급</TableHead>
                     <TableHead>표시</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -105,9 +109,10 @@ export default async function FinalPage({ searchParams }: { searchParams: Promis
                               </Badge>
                             </Link>
                           ) : (
-                            <span className="font-bold">{r.draft}</span>
+                            <span className="text-text-secondary">{r.draft}</span>
                           )}
                         </TableCell>
+                        <TableCell className="py-1.5">{r.grade && <GradeCell personId={r.id} name={r.name} grade={r.grade} version={cycle!.version} editable={editable} />}</TableCell>
                         <TableCell className="flex flex-wrap gap-1.5">
                           {r.recalcFrom && r.draft && (
                             <Badge variant={r.recalcFrom < r.draft ? "grade-down" : "grade-up"}>
@@ -115,6 +120,8 @@ export default async function FinalPage({ searchParams }: { searchParams: Promis
                               다시 계산으로 {r.recalcFrom}→{r.draft}
                             </Badge>
                           )}
+                          {r.changeKind !== "none" && r.grade && r.draft && <ChangeBadge kind={r.changeKind} up={GRADES.indexOf(r.grade) < GRADES.indexOf(r.draft)} />}
+                          {editable && r.changeKind !== "none" && <RevertButton personId={r.id} version={cycle!.version} />}
                           {r.tieRule && (
                             <Badge variant="grade-rule">
                               <Equal aria-hidden="true" />

@@ -67,3 +67,37 @@ describe("초안 등급과 동점", () => {
     expect(d[1]).toMatchObject({ rank: null, grade: null });
   });
 });
+
+import { displayPercentile, planAdjust, type Placed } from "@/domain/grading";
+
+describe("등급조정 (PRD 12)", () => {
+  // 10명: S1 A2 B4 C2 D1
+  const base = (): Placed[] =>
+    ["S", "A", "A", "B", "B", "B", "B", "C", "C", "D"].map((g, i) => ({ id: `p${i + 1}`, rank: i + 1, grade: g as Placed["grade"], manual: false, percentile: (i + 1) * 10 }));
+  it("A를 S로 → S 최하단이 A로 밀려난다", () => {
+    const r = planAdjust(base(), "p3", "S");
+    expect(r).toEqual({ ok: true, moves: [{ id: "p3", from: "A", to: "S", kind: "manual" }, { id: "p1", from: "S", to: "A", kind: "push" }] });
+  });
+  it("S를 A로 → A 최상단이 S로 올라간다", () => {
+    const r = planAdjust(base(), "p1", "A");
+    expect(r).toEqual({ ok: true, moves: [{ id: "p1", from: "S", to: "A", kind: "manual" }, { id: "p2", from: "A", to: "S", kind: "push" }] });
+  });
+  it("B를 S로 → S 최하단은 A로, A 최하단은 B로 연쇄", () => {
+    const r = planAdjust(base(), "p6", "S");
+    expect(r.ok && r.moves.map((m) => `${m.id}:${m.from}${m.to}`)).toEqual(["p6:BS", "p1:SA", "p3:AB"]);
+  });
+  it("이미 조정된 사람은 밀어내지 않는다", () => {
+    const l = base();
+    l[0]!.manual = true; // p1은 조정된 S
+    const r = planAdjust(l, "p2", "S");
+    expect(r.ok).toBe(false);
+  });
+  it("조정된 사람의 상위 %는 새 등급 기준", () => {
+    const l = base().map((p) => ({ ...p, draft: p.grade }));
+    const up = { ...l[2]!, grade: "S" as const, manual: true }; // A(30%)→S
+    const list = [up, { ...l[0]!, grade: "A" as const }, ...l.slice(1, 2), ...l.slice(3)];
+    expect(displayPercentile(list, up)).toBe(30); // S 안에 조정 안 된 사람이 없으면 자기 값
+    const down = { ...l[0]!, grade: "A" as const, manual: true }; // S(10%)→A: A 최상위자(p2 20%)
+    expect(displayPercentile([down, ...l.slice(1)], down)).toBe(20);
+  });
+});

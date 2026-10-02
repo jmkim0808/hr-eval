@@ -92,6 +92,20 @@
       "when": 1790902518246,
       "tag": "0012_recalc_from",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1790902693979,
+      "tag": "0013_grade_adjustments",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1790902694915,
+      "tag": "0014_lock_adjustments",
+      "breakpoints": true
     }
   ]
 }

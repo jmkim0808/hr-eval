@@ -89,3 +89,43 @@ export function draftGrades(group: Ranked[]): DraftRow[] {
   });
   return group.map((p) => out.get(p.id) ?? { id: p.id, rank: null, grade: null, tieRule: false, percentile: null });
 }
+
+// ── 등급조정 (PRD 12) ──
+
+export type Placed = { id: string; rank: number; grade: Grade; manual: boolean; percentile: number };
+export type Move = { id: string; from: Grade; to: Grade; kind: "manual" | "push" };
+
+/**
+ * 한 사람의 등급을 바꾸면 등급별 인원을 지키려고 누가 한 칸씩 움직이는지.
+ * 상향: 들어간 등급의 최하단부터 원래 등급까지 한 칸씩 아래로 (밀려남).
+ * 하향: 들어간 등급의 최상단부터 원래 등급까지 한 칸씩 위로.
+ * 이미 조정된 사람은 움직이지 않는다.
+ */
+export function planAdjust(list: Placed[], personId: string, to: Grade): { ok: true; moves: Move[] } | { ok: false; message: string } {
+  const me = list.find((p) => p.id === personId);
+  if (!me) return { ok: false, message: "대상자를 찾을 수 없습니다." };
+  if (me.grade === to) return { ok: false, message: "지금과 같은 등급입니다." };
+  const i1 = GRADES.indexOf(me.grade);
+  const i2 = GRADES.indexOf(to);
+  const moves: Move[] = [{ id: me.id, from: me.grade, to, kind: "manual" }];
+  const moved = new Set([me.id]);
+  const step = i2 < i1 ? 1 : -1; // 상향이면 아래로 밀고, 하향이면 위로 당긴다
+  for (let k = i2; k !== i1; k += step) {
+    const g = GRADES[k]!;
+    const pool = list.filter((p) => p.grade === g && !p.manual && !moved.has(p.id)).sort((a, b) => a.rank - b.rank);
+    const pick = step === 1 ? pool[pool.length - 1] : pool[0];
+    if (!pick) return { ok: false, message: `${g} 등급에 옮길 수 있는 사람이 없습니다. 먼저 다른 조정을 되돌려 주세요.` };
+    moves.push({ id: pick.id, from: g, to: GRADES[k + step]!, kind: "push" });
+    moved.add(pick.id);
+  }
+  return { ok: true, moves };
+}
+
+/** 조정된 사람의 통보용 상위 %: 하향이면 새 등급 최상위자, 상향이면 최하위자의 값 (조정되지 않은 사람 기준) */
+export function displayPercentile(list: (Placed & { draft: Grade })[], p: Placed & { draft: Grade }): number {
+  if (!p.manual || p.grade === p.draft) return p.percentile;
+  const peers = list.filter((x) => x.grade === p.grade && !x.manual).sort((a, b) => a.rank - b.rank);
+  if (peers.length === 0) return p.percentile;
+  const down = GRADES.indexOf(p.grade) > GRADES.indexOf(p.draft);
+  return down ? peers[0]!.percentile : peers[peers.length - 1]!.percentile;
+}
