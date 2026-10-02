@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { isUuid } from "@/lib/utils";
 import { notFound } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 import { AdminNav } from "@/components/AdminNav";
@@ -13,6 +14,7 @@ import { FillForm } from "./FillForm";
 export default async function FillPage({ params }: { params: Promise<{ personId: string }> }) {
   const a = await requireAdmin();
   const { personId } = await params;
+  if (!isUuid(personId)) notFound();
   const f = await getFillForm(a, personId);
   if (!f) notFound();
   const cycle = await getCurrentCycle(a);

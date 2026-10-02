@@ -1,3 +1,5 @@
+import { notFound } from "next/navigation";
+import { isUuid } from "@/lib/utils";
 import { PageHeader } from "@/components/PageHeader";
 import { fmtRange } from "@/domain/periods";
 import { requireParticipant } from "@/server/authz/actor";
@@ -7,6 +9,7 @@ import { SelfForm } from "./SelfForm";
 export default async function SelfFormPage({ params }: { params: Promise<{ personId: string }> }) {
   const a = await requireParticipant();
   const { personId } = await params;
+  if (!isUuid(personId)) notFound();
   const f = await getSelfForm(a, personId);
   const formName = f.person.formType === "leader" ? "팀장용 인사평가지" : "팀원용 인사평가지";
   return (

@@ -1,3 +1,5 @@
+import { notFound } from "next/navigation";
+import { isUuid } from "@/lib/utils";
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 import { SelfForm } from "@/app/me/form/[personId]/SelfForm";
@@ -11,6 +13,7 @@ import { getFormForAdmin } from "@/server/repo/evaluations";
 export default async function AdminFormView({ params }: { params: Promise<{ personId: string }> }) {
   const a = await requireAdmin();
   const { personId } = await params;
+  if (!isUuid(personId)) notFound();
   const f = await getFormForAdmin(a, personId);
   const formName = f.person.formType === "leader" ? "팀장용 인사평가지" : "팀원용 인사평가지";
   const status = f.status === "submitted" ? "제출 완료" : f.status === "writing" ? "작성 중" : "작성 전";

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { isUuid } from "@/lib/utils";
 import { notFound } from "next/navigation";
 import { CircleCheck, FilePen, Clock } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
@@ -16,6 +17,7 @@ const ORDER = ["setup", "self_review", "first_review", "second_review", "final_r
 export default async function ReviewPage({ params }: { params: Promise<{ kind: string; personId: string }> }) {
   const a = await requireParticipant();
   const { kind: k, personId } = await params;
+  if (!isUuid(personId)) notFound();
   if (!(k in REVIEW)) notFound();
   const kind = k as ReviewKind;
   const r = await getReview(a, kind, personId);

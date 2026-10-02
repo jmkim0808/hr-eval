@@ -42,7 +42,7 @@ export function renderOutbox(kind: string, to: string, payload: Record<string, s
   if (kind === "invite") return inviteMail(to, payload);
   if (kind === "reminder") return reminderMail(to, payload);
   if (kind === "stage_notice") return stageNoticeMail(to, payload);
-  if (kind === "admin_alert") return adminAlertMail(to, payload);
+  if (kind === "admin_alert") return payload.digest ? errorDigestMail(to, payload) : adminAlertMail(to, payload);
   if (kind === "result_notice") return resultNoticeMail(to, payload);
   throw new Error(`unknown mail kind ${kind}`);
 }
@@ -87,4 +87,12 @@ export function resultNoticeMail(to: string, p: Record<string, string>): MailMes
   const subject = `[파워넷 인사평가] ${p.year}년 정기평가 결과가 나왔습니다`;
   const lines = [`${p.name} 님, ${p.year}년 정기평가 결과가 나왔습니다.`, "아래 링크로 들어와 이메일 인증을 하면 내 평가결과를 볼 수 있습니다."];
   return { to, subject, text: `${lines.join("\n")}\n${link}\n\n㈜파워넷 인사평가 · 대외비`, html: wrap("평가결과 알림", [...lines.map(esc), `<a href="${esc(link)}">${esc(link)}</a>`]) };
+}
+
+/** 오류 요약 (ADR-0013): 건수와 요청 번호만. 이름·이메일·점수·오류 내용은 넣지 않는다 */
+export function errorDigestMail(to: string, p: Record<string, string>): MailMessage {
+  const link = `${env.appUrl}/admin`;
+  const subject = `[파워넷 인사평가] 오류 ${p.count}건 (${p.range})`;
+  const lines = [`${p.range} 동안 예상하지 못한 오류가 ${p.count}건 있었습니다.`, `요청 번호: ${p.ids}`, "직원이 요청 번호를 알려 오면 이 목록과 맞춰 보세요."];
+  return { to, subject, text: `${lines.join("\n")}\n${link}\n\n㈜파워넷 인사평가 · 대외비`, html: wrap(`오류 ${p.count}건`, [...lines.map(esc), `<a href="${esc(link)}">${esc(link)}</a>`]) };
 }

@@ -4,6 +4,7 @@ import { BASE, browser, check, login, sql, summary } from "./helpers";
 await sql`delete from auth_codes`;
 await sql`update app_users set active = false where role = 'admin' and email <> 'part@powernet.test'`;
 await sql`delete from app_users where email = 'newadmin@powernet.test'`;
+await sql`delete from audit_logs where detail->>'email' = 'newadmin@powernet.test'`;
 
 const b = await browser();
 const page = await b.newPage({ viewport: { width: 1300, height: 900 } });
