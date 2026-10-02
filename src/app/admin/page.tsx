@@ -13,6 +13,7 @@ import { seoulToday } from "@/lib/time";
 import { requireAdmin } from "@/server/authz/actor";
 import { getCurrentCycle, latestBatch, NEXT_STAGE, STAGE_LABEL } from "@/server/repo/cycles";
 import { batchProgress } from "@/server/repo/outbox";
+import { bonusCount } from "@/server/repo/bonus";
 import { stageProgress } from "@/server/repo/progress";
 import { AdvanceButton } from "./AdvanceButton";
 import { PendingTable } from "./PendingTable";
@@ -33,6 +34,7 @@ export default async function ProgressPage() {
   const remind = remindId ? await batchProgress(a, remindId) : null;
   const stage = cycle ? await stageProgress(a, cycle.id, cycle.status) : null;
   const stageCopy = cycle ? STAGE_COPY[cycle.status] : undefined;
+  const bonus = cycle && cycle.status !== "setup" ? { n: await bonusCount(a, cycle.id), total: (await stageProgress(a, cycle.id, "self_review"))?.total ?? 0 } : null;
   const today = seoulToday();
   const end = cycle ? { self_review: cycle.selfEnd, first_review: cycle.firstEnd, second_review: cycle.secondEnd }[cycle.status as string] : null;
   const overdue = !!end && today > end;
@@ -88,6 +90,21 @@ export default async function ProgressPage() {
                   <Link className={buttonVariants({ variant: "outline" })} href="/admin/setup">
                     평가 시작 설정
                   </Link>
+                </CardContent>
+              </Card>
+            )}
+            {bonus && (
+              <Card>
+                <CardContent className="flex flex-wrap items-center justify-between gap-3">
+                  <span className="font-semibold">가점 반영</span>
+                  <span className="flex items-center gap-4">
+                    <span className="text-subsection-title font-bold tabular-nums" data-testid="bonus-count">
+                      가점 반영 {bonus.n} / {bonus.total}
+                    </span>
+                    <Link className={buttonVariants({ variant: "outline", size: "sm" })} href="/admin/bonus">
+                      가점 입력
+                    </Link>
+                  </span>
                 </CardContent>
               </Card>
             )}

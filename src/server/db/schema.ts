@@ -8,6 +8,7 @@ import {
   index,
   integer,
   jsonb,
+  numeric,
   pgTable,
   primaryKey,
   smallint,
@@ -178,4 +179,20 @@ export const evaluationScores = pgTable(
     enteredBy: text("entered_by"),
   },
   (t) => [primaryKey({ columns: [t.evaluationId, t.rater, t.itemCode] })],
+);
+
+/** 가점: 사람 × 항목. 템플릿·직접 입력으로 반영한 사람은 7개 항목이 모두 들어간다 (빈칸 = 0) */
+export const bonusPoints = pgTable(
+  "bonus_points",
+  {
+    personId: uuid("person_id")
+      .notNull()
+      .references(() => cyclePeople.id, { onDelete: "cascade" }),
+    item: text("item", { enum: ["certificate", "award", "invention", "education", "discipline", "internal_control", "multi_rater"] }).notNull(),
+    points: numeric("points", { precision: 6, scale: 2 }).notNull(),
+    note: text("note"),
+    updatedBy: text("updated_by"),
+    ...timestamps,
+  },
+  (t) => [primaryKey({ columns: [t.personId, t.item] })],
 );

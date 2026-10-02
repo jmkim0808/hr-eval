@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 // 만들어진 화면만 메뉴에 둔다. 조각이 늘어날 때마다 여기에 더한다.
 const items = [
   { href: "/admin", label: "진행 현황" },
+  { href: "/admin/bonus", label: "가점 입력" },
   { href: "/admin/setup", label: "평가 시작 설정" },
 ] as const;
 
