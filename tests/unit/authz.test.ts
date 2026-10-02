@@ -30,3 +30,11 @@ describe("등급 결과", () => {
     expect(can.viewReport(staff)).toBe(false);
   });
 });
+
+describe("내 평가결과", () => {
+  it("본인만, 결과 알림 뒤에만", () => {
+    expect(can.viewOwnResult(staff, "p-staff", "results_sent")).toBe(true);
+    expect(can.viewOwnResult(staff, "p-staff", "confirmed")).toBe(false);
+    expect(can.viewOwnResult(admin, "p-staff", "results_sent")).toBe(false);
+  });
+});

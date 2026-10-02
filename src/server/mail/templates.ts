@@ -43,6 +43,7 @@ export function renderOutbox(kind: string, to: string, payload: Record<string, s
   if (kind === "reminder") return reminderMail(to, payload);
   if (kind === "stage_notice") return stageNoticeMail(to, payload);
   if (kind === "admin_alert") return adminAlertMail(to, payload);
+  if (kind === "result_notice") return resultNoticeMail(to, payload);
   throw new Error(`unknown mail kind ${kind}`);
 }
 
@@ -78,4 +79,12 @@ export function adminAlertMail(to: string, p: Record<string, string>): MailMessa
   const subject = `[파워넷 인사평가] ${p.title}`;
   const lines = [`${p.year}년 정기평가: ${p.title}`, `처리한 사람: ${p.actor}`, ...(p.reason ? [`사유: ${p.reason}`] : [])];
   return { to, subject, text: `${lines.join("\n")}\n${link}\n\n㈜파워넷 인사평가 · 대외비`, html: wrap(p.title!, [...lines.map(esc), `<a href="${esc(link)}">${esc(link)}</a>`]) };
+}
+
+/** 평가결과 알림: "결과가 나왔습니다"와 링크만 (점수·등급 없음, ADR-0007) */
+export function resultNoticeMail(to: string, p: Record<string, string>): MailMessage {
+  const link = `${env.appUrl}/login?email=${encodeURIComponent(to)}`;
+  const subject = `[파워넷 인사평가] ${p.year}년 정기평가 결과가 나왔습니다`;
+  const lines = [`${p.name} 님, ${p.year}년 정기평가 결과가 나왔습니다.`, "아래 링크로 들어와 이메일 인증을 하면 내 평가결과를 볼 수 있습니다."];
+  return { to, subject, text: `${lines.join("\n")}\n${link}\n\n㈜파워넷 인사평가 · 대외비`, html: wrap("평가결과 알림", [...lines.map(esc), `<a href="${esc(link)}">${esc(link)}</a>`]) };
 }

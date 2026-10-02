@@ -1,6 +1,6 @@
 // 등급조정 (PRD 12). 관리자만, 최종평가 단계에서. 최종점수는 건드리지 않고 등급만 바꾼다.
 import { and, asc, eq, inArray, isNull } from "drizzle-orm";
-import { displayPercentile, planAdjust, type Grade, type Move, type Placed } from "@/domain/grading";
+import { displayPercentiles, planAdjust, type Grade, type Move, type Placed } from "@/domain/grading";
 import { fail, ok, type Result } from "@/lib/result";
 import { getDb, type Db } from "@/server/db/client";
 import { auditLogs, cyclePeople, finalResults, gradeAdjustments, reviewCycles } from "@/server/db/schema";
@@ -55,9 +55,13 @@ export async function replayAdjustments(db: Db | Tx, cycleId: string) {
     if (pushes.length)
       await db.insert(gradeAdjustments).values(pushes.map((x) => ({ cycleId, personId: x.id, fromGrade: x.from, toGrade: x.to, kind: "push" as const, batchId: m.batchId, createdBy: m.createdBy, createdAt: m.createdAt })));
   }
+  const shownAll = new Map<string, number>();
+  for (const g of new Set([...s.values()].map((p) => p.group))) {
+    const list = [...s.values()].filter((x) => x.group === g);
+    for (const [id, v] of displayPercentiles(list, groupSize.get(g) ?? list.length)) shownAll.set(id, v);
+  }
   for (const p of s.values()) {
-    const list = [...s.values()].filter((x) => x.group === p.group).map((x) => ({ ...x }));
-    const shown = displayPercentile(list, p);
+    const shown = shownAll.get(p.id) ?? p.percentile;
     await db
       .update(finalResults)
       .set({ finalGrade: p.grade, changeKind: p.manual ? "adjusted" : p.grade !== p.draft ? "pushed" : "none", displayPercentile: shown.toFixed(1), updatedAt: new Date() })

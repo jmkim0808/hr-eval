@@ -68,7 +68,7 @@ describe("초안 등급과 동점", () => {
   });
 });
 
-import { displayPercentile, planAdjust, type Placed } from "@/domain/grading";
+import { displayPercentiles, planAdjust, type Placed } from "@/domain/grading";
 
 describe("등급조정 (PRD 12)", () => {
   // 10명: S1 A2 B4 C2 D1
@@ -92,12 +92,24 @@ describe("등급조정 (PRD 12)", () => {
     const r = planAdjust(l, "p2", "S");
     expect(r.ok).toBe(false);
   });
-  it("조정된 사람의 상위 %는 새 등급 기준", () => {
-    const l = base().map((p) => ({ ...p, draft: p.grade }));
-    const up = { ...l[2]!, grade: "S" as const, manual: true }; // A(30%)→S
-    const list = [up, { ...l[0]!, grade: "A" as const }, ...l.slice(1, 2), ...l.slice(3)];
-    expect(displayPercentile(list, up)).toBe(30); // S 안에 조정 안 된 사람이 없으면 자기 값
-    const down = { ...l[0]!, grade: "A" as const, manual: true }; // S(10%)→A: A 최상위자(p2 20%)
-    expect(displayPercentile([down, ...l.slice(1)], down)).toBe(20);
+  it("상위 %는 등급 순서와 어긋나지 않는다: 하향은 새 등급 맨 위, 상향은 맨 아래", () => {
+    // 5명 A1 B3 C1. 4등(B)을 C로 → 5등(C)이 B로 올라감
+    const l = [
+      { id: "p1", rank: 1, grade: "A", draft: "A", manual: false },
+      { id: "p2", rank: 2, grade: "B", draft: "B", manual: false },
+      { id: "p3", rank: 3, grade: "B", draft: "B", manual: false },
+      { id: "p4", rank: 4, grade: "C", draft: "B", manual: true },
+      { id: "p5", rank: 5, grade: "B", draft: "C", manual: false },
+    ].map((x) => ({ ...x, percentile: 0 })) as (Placed & { draft: Placed["grade"] })[];
+    const d = displayPercentiles(l, 5);
+    expect(d.get("p4")).toBe(100); // C의 맨 위 = 원래 C 최상위자(5등)의 값
+    expect(d.get("p5")).toBe(80);
+    // 상향: 3등(B)을 A로 → A 맨 아래
+    const u = l.map((x) => ({ ...x, grade: x.draft, manual: false }));
+    u[2] = { ...u[2]!, grade: "A", manual: true };
+    u[0] = { ...u[0]!, grade: "B" };
+    const e = displayPercentiles(u, 5);
+    expect(e.get("p3")).toBe(20); // A 최하위자 자리 = 원래 A였던 1등의 값
+    expect(e.get("p1")).toBe(40);
   });
 });

@@ -121,11 +121,14 @@ export function planAdjust(list: Placed[], personId: string, to: Grade): { ok: t
   return { ok: true, moves };
 }
 
-/** 조정된 사람의 통보용 상위 %: 하향이면 새 등급 최상위자, 상향이면 최하위자의 값 (조정되지 않은 사람 기준) */
-export function displayPercentile(list: (Placed & { draft: Grade })[], p: Placed & { draft: Grade }): number {
-  if (!p.manual || p.grade === p.draft) return p.percentile;
-  const peers = list.filter((x) => x.grade === p.grade && !x.manual).sort((a, b) => a.rank - b.rank);
-  if (peers.length === 0) return p.percentile;
-  const down = GRADES.indexOf(p.grade) > GRADES.indexOf(p.draft);
-  return down ? peers[0]!.percentile : peers[peers.length - 1]!.percentile;
+/**
+ * 통보용 상위 % (조정 반영): 등급이 좋은 순서 → 같은 등급 안에서는 점수 순서로 줄을 세운 자리 ÷ 그룹 인원.
+ * 하향 조정된 사람은 새 등급의 맨 위, 상향 조정된 사람은 새 등급의 맨 아래에 선다.
+ * 그래서 보통은 "하향 → 그 등급 최상위자, 상향 → 최하위자의 값"과 같고, 등급과 % 순서가 어긋나지 않는다.
+ */
+export function displayPercentiles(list: (Placed & { draft: Grade })[], groupSize: number): Map<string, number> {
+  const g = (x: Grade) => GRADES.indexOf(x);
+  const bias = (p: Placed & { draft: Grade }) => (!p.manual ? 0 : g(p.grade) > g(p.draft) ? -1 : g(p.grade) < g(p.draft) ? 1 : 0);
+  const order = [...list].sort((a, b) => g(a.grade) - g(b.grade) || bias(a) - bias(b) || a.rank - b.rank);
+  return new Map(order.map((p, i) => [p.id, Math.round(((i + 1) / groupSize) * 1000) / 10]));
 }

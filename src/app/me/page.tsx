@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronRight, CircleCheck, ClipboardCheck, Clock, Eye, FilePen, Inbox, Lock, TriangleAlert } from "lucide-react";
+import { Award, ChevronRight, CircleCheck, ClipboardCheck, Clock, Eye, FilePen, Inbox, Lock, TriangleAlert } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -25,6 +25,9 @@ export default async function MyTasksPage() {
   const left = cur?.[2] ? daysLeft(cur[2], today) : null;
 
   const tasks: Task[] = [];
+  if (t.self && ["results_sent", "closed"].includes(c.status)) {
+    tasks.push({ key: "result", href: "/me/result", title: "평가결과가 나왔습니다", done: false, icon: <Award className="size-5" aria-hidden="true" />, badges: <Badge variant="info">내 평가결과 보기</Badge> });
+  }
   if (t.self) {
     const overdue = t.self.editable && !!c.selfEnd && today > c.selfEnd;
     tasks.push({
