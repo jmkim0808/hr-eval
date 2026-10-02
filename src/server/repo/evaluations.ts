@@ -13,6 +13,17 @@ export type SelfStatus = "not_started" | "writing" | "submitted";
 /** 내 평가지를 읽는다. 남의 것이면 없는 주소처럼 보인다. */
 export async function getSelfForm(actor: Actor, personId: string) {
   if (!can.writeSelfForm(actor, personId)) notFound();
+  return loadForm(personId);
+}
+
+/** 관리자가 보기 전용으로 연다 (진행 현황의 미제출자 이름 → 평가지). 고치는 함수는 없다. */
+export async function getFormForAdmin(actor: Actor, personId: string) {
+  if (!can.manageCycle(actor)) notFound();
+  const f = await loadForm(personId);
+  return { ...f, editable: false };
+}
+
+async function loadForm(personId: string) {
   const db = getDb();
   const [row] = await db
     .select({ person: cyclePeople, cycle: reviewCycles })

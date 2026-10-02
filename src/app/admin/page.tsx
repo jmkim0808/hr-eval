@@ -1,16 +1,20 @@
 import Link from "next/link";
-import { ClipboardList, Mail } from "lucide-react";
+import { ClipboardList, Mail, Users } from "lucide-react";
 import { AdminNav } from "@/components/AdminNav";
 import { BatchProgress } from "@/components/BatchProgress";
 import { PageHeader } from "@/components/PageHeader";
 import { StageBar } from "@/components/StageBar";
 import { buttonVariants } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
 import { Empty } from "@/components/ui/empty";
-import { fmtRange } from "@/domain/periods";
+import { fmtDay, fmtRange } from "@/domain/periods";
+import { seoulToday } from "@/lib/time";
 import { requireAdmin } from "@/server/authz/actor";
 import { getCurrentCycle, latestBatch } from "@/server/repo/cycles";
 import { batchProgress } from "@/server/repo/outbox";
+import { selfStageProgress } from "@/server/repo/progress";
+import { PendingTable } from "./PendingTable";
 
 export default async function ProgressPage() {
   const a = await requireAdmin();
@@ -18,6 +22,12 @@ export default async function ProgressPage() {
   const batchId = cycle ? await latestBatch(a, cycle.id, "invite") : null;
   const progress = batchId ? await batchProgress(a, batchId) : null;
   const showInvite = !!progress && (progress.pending > 0 || progress.failed > 0);
+  const remindId = cycle ? await latestBatch(a, cycle.id, "reminder") : null;
+  const remind = remindId ? await batchProgress(a, remindId) : null;
+  const stage = cycle && cycle.status === "self_review" ? await selfStageProgress(a, cycle.id) : null;
+  const today = seoulToday();
+  const end = cycle ? { self_review: cycle.selfEnd, first_review: cycle.firstEnd, second_review: cycle.secondEnd }[cycle.status as string] : null;
+  const overdue = !!end && today > end;
 
   return (
     <>
@@ -42,6 +52,7 @@ export default async function ProgressPage() {
           <>
             <StageBar
               status={cycle.status}
+              overdue={overdue}
               notes={{
                 0: cycle.selfStart ? fmtRange(cycle.selfStart, cycle.selfEnd) : undefined,
                 1: cycle.firstStart ? fmtRange(cycle.firstStart, cycle.firstEnd) : undefined,
@@ -57,6 +68,46 @@ export default async function ProgressPage() {
                   </Link>
                 </CardContent>
               </Card>
+            )}
+            {stage && (
+              <>
+                <Card>
+                  <CardContent className="flex flex-col gap-2">
+                    <div className="flex flex-wrap items-baseline justify-between gap-2">
+                      <span className="flex items-center gap-2 font-semibold">
+                        <Users className="size-4 text-muted-foreground" aria-hidden="true" />
+                        평가지 제출
+                      </span>
+                      <span className="text-section-title font-bold tabular-nums" data-testid="submitted-count">
+                        {stage.submitted} / {stage.total}
+                      </span>
+                    </div>
+                    <Progress value={stage.total ? (stage.submitted / stage.total) * 100 : 0} aria-label="평가지 제출" />
+                  </CardContent>
+                </Card>
+                <Card className="pb-0">
+                  <CardHeader>
+                    <CardTitle>미제출 {stage.pending.length}명</CardTitle>
+                    <CardDescription>
+                      개인작성 마감 {fmtDay(cycle.selfEnd)} · 기한이 지나도 저절로 잠기지 않습니다 · 이름을 누르면 쓰던 평가지를 보기 전용으로 엽니다
+                    </CardDescription>
+                  </CardHeader>
+                  <PendingTable rows={stage.pending} canRemind />
+                </Card>
+                {remindId && remind && (remind.pending > 0 || remind.failed > 0) && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Mail className="size-4 text-muted-foreground" aria-hidden="true" />
+                        독촉 이메일
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <BatchProgress batchId={remindId} initial={remind} />
+                    </CardContent>
+                  </Card>
+                )}
+              </>
             )}
             {showInvite && batchId && progress && (
               <Card>

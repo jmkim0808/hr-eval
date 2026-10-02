@@ -24,9 +24,11 @@ type Props = {
   year: number;
   editable: boolean;
   initial: { draft: SelfDraft; version: number; savedAt: string | null; submittedAt: string | null };
+  /** 잠겼을 때 보일 안내 (관리자 보기 전용 등) */
+  lockedNote?: string;
 };
 
-export function SelfForm({ personId, formType, year, editable, initial }: Props) {
+export function SelfForm({ personId, formType, year, editable, initial, lockedNote = "개인작성 단계가 끝나 보기만 할 수 있습니다." }: Props) {
   const router = useRouter();
   const items = FORMS[formType];
   const [draft, setDraft] = useState<SelfDraft>(initial.draft);
@@ -107,7 +109,7 @@ export function SelfForm({ personId, formType, year, editable, initial }: Props)
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <SaveStatus save={save} editable={editable} />
-        {initial.submittedAt && (
+        {initial.submittedAt && editable && (
           <span className="flex items-center gap-1.5 text-caption text-success">
             <CircleCheck className="size-3.5" aria-hidden="true" />
             제출함 · 기간 안에서는 고쳐서 다시 제출할 수 있습니다
@@ -212,7 +214,7 @@ export function SelfForm({ personId, formType, year, editable, initial }: Props)
       ) : (
         <Alert variant="neutral">
           <Lock aria-hidden="true" />
-          <AlertDescription>개인작성 단계가 끝나 보기만 할 수 있습니다.</AlertDescription>
+          <AlertDescription>{lockedNote}</AlertDescription>
         </Alert>
       )}
     </div>

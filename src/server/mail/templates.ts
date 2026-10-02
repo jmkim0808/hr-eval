@@ -40,5 +40,19 @@ export function inviteMail(to: string, p: Record<string, string>): MailMessage {
 
 export function renderOutbox(kind: string, to: string, payload: Record<string, string>): MailMessage {
   if (kind === "invite") return inviteMail(to, payload);
+  if (kind === "reminder") return reminderMail(to, payload);
   throw new Error(`unknown mail kind ${kind}`);
+}
+
+/** 독촉 이메일: 할 일·기한·링크만 (점수 없음) */
+export function reminderMail(to: string, p: Record<string, string>): MailMessage {
+  const link = `${env.appUrl}/login?email=${encodeURIComponent(to)}`;
+  const subject = `[파워넷 인사평가] ${p.task} 기한은 ${p.due}입니다`;
+  const lines = [`${p.name} 님, ${p.year}년 정기평가의 ${p.task}이(가) 아직 제출되지 않았습니다.`, `${p.due}까지 아래 링크로 들어와 제출해 주세요.`];
+  return {
+    to,
+    subject,
+    text: `${lines.join("\n")}\n${link}\n\n㈜파워넷 인사평가 · 대외비`,
+    html: wrap(`${p.task} 안내`, [...lines.map(esc), `<a href="${esc(link)}">${esc(link)}</a>`]),
+  };
 }
