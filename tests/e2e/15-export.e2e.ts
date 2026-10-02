@@ -51,7 +51,7 @@ const goneAfterBackup = (await page.getByText("지금 백업을 내려받아 보
 
 // 등급조정 하나 (이력용) 후 확정
 await page.goto(`${BASE}/admin/final?group=5`);
-await page.locator('tr[data-person="이번"]').getByRole("combobox").selectOption("A");
+await page.locator('tr[data-person="삼번"]').getByRole("combobox").selectOption("A"); // 5명: S1 A1 B2 C1
 await page.waitForSelector('[role="alertdialog"]');
 await page.getByRole("button", { name: "적용" }).click();
 await page.waitForTimeout(1500);

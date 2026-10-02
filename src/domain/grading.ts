@@ -10,17 +10,20 @@ const RATIO: Record<Exclude<Grade, "B">, number> = { S: 5, A: 20, C: 15, D: 5 };
 /** 0.5는 올림 (정수 백분율로 계산해 부동소수 오차 없음) */
 const roundHalfUp = (n: number, pct: number) => Math.floor((n * pct * 2 + 100) / 200);
 
-/** 그룹 인원별 등급 인원: S·A·C·D 반올림, B = 나머지. B가 음수면 C→A→D→S 순서로 1명씩 줄인다 */
+/**
+ * 그룹 인원별 등급 인원: S·A·C·D 반올림, B = 나머지 (ADR-0015).
+ * 인원이 적어 S가 0명이 되면 S는 1명으로 하고, 그 1명은 B(나머지)에서 뺀다 (2026-10-02 결정).
+ * B가 음수가 되면 A·C·D 중 인원이 가장 많은 등급에서 1명씩 뺀다 (S는 1명 아래로 줄이지 않는다).
+ */
 export function gradeCounts(n: number): Record<Grade, number> {
   const c = { S: roundHalfUp(n, RATIO.S), A: roundHalfUp(n, RATIO.A), B: 0, C: roundHalfUp(n, RATIO.C), D: roundHalfUp(n, RATIO.D) };
+  if (n > 0 && c.S === 0) c.S = 1;
   c.B = n - c.S - c.A - c.C - c.D;
-  const order: Exclude<Grade, "B">[] = ["C", "A", "D", "S"];
-  for (let i = 0; c.B < 0; i = (i + 1) % order.length) {
-    const g = order[i]!;
-    if (c[g] > 0) {
-      c[g]--;
-      c.B++;
-    }
+  while (c.B < 0) {
+    const g = (["A", "C", "D"] as const).reduce((m, x) => (c[x] > c[m] ? x : m), "A" as "A" | "C" | "D");
+    if (c[g] === 0) break;
+    c[g]--;
+    c.B++;
   }
   return c;
 }

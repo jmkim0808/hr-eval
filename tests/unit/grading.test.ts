@@ -9,13 +9,20 @@ const fill = (form: "member" | "leader", v: number[] | number, ach: number) => {
 
 describe("등급 인원 (ADR-0015)", () => {
   it("10명 → S1 A2 B4 C2 D1", () => expect(gradeCounts(10)).toEqual({ S: 1, A: 2, B: 4, C: 2, D: 1 }));
-  it("3명 → A1 B2", () => expect(gradeCounts(3)).toEqual({ S: 0, A: 1, B: 2, C: 0, D: 0 }));
+  it("3명 → S1 A1 B1 (S는 최소 1명, B에서 뺌)", () => expect(gradeCounts(3)).toEqual({ S: 1, A: 1, B: 1, C: 0, D: 0 }));
+  it("작은 그룹도 S 1명: 1명 S1 / 2명 S1 B1 / 5명 S1 A1 B2 C1 / 9명 S1 A2 B5 C1 D0", () => {
+    expect(gradeCounts(1)).toEqual({ S: 1, A: 0, B: 0, C: 0, D: 0 });
+    expect(gradeCounts(2)).toEqual({ S: 1, A: 0, B: 1, C: 0, D: 0 });
+    expect(gradeCounts(5)).toEqual({ S: 1, A: 1, B: 2, C: 1, D: 0 });
+    expect(gradeCounts(9)).toEqual({ S: 1, A: 2, B: 5, C: 1, D: 0 });
+  });
   it("42명 → S2 A8 B24 C6 D2", () => expect(gradeCounts(42)).toEqual({ S: 2, A: 8, B: 24, C: 6, D: 2 }));
   it("합계는 언제나 그룹 인원", () => {
     for (let n = 1; n <= 200; n++) {
       const c = gradeCounts(n);
       expect(c.S + c.A + c.B + c.C + c.D).toBe(n);
       expect(c.B).toBeGreaterThanOrEqual(0);
+      expect(c.S).toBeGreaterThanOrEqual(1);
     }
   });
 });

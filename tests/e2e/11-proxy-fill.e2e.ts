@@ -62,10 +62,10 @@ await check("입력한 칸 옆에 \"관리자 대신 입력 (이름)\"이 보인
 await page.goto(`${BASE}/admin/final?group=5`);
 await check("저장하면 최종평가 화면에서 그 사람에게 최종점수와 등급이 생긴다", async () => {
   const t = await row("빈칸이").locator("td").allInnerTexts();
-  return t[7] === "80.56" && t[8]!.trim() === "A";
+  return t[7] === "80.56" && t[8]!.trim() === "S"; // 6명: S1 A1 B3 C1 (작은 그룹도 S 1명)
 });
 await check("다시 계산으로 등급 경계가 바뀐 사람이 있으면 그 줄에 표시가 보인다", async () =>
-  before === "A" && (await gradeOf("일번")) === "B" && (await row("일번").getByText("다시 계산으로 A→B").count()) === 1 && (await row("오번").getByText("다시 계산으로 B→C").count()) === 1,
+  before === "S" && (await gradeOf("일번")) === "A" && (await row("일번").getByText("다시 계산으로 S→A").count()) === 1 && (await row("오번").getByText("다시 계산으로 B→C").count()) === 1,
 );
 await check("(기록) 대신 입력은 작업 기록에 남는다", async () => {
   const [r] = await sql`select count(*)::int n from audit_logs where action = 'score.proxy' and person_id = ${blank}`;
