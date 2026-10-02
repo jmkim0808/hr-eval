@@ -8,6 +8,7 @@ const items = [
   { href: "/admin/final", label: "최종평가" },
   { href: "/admin/results", label: "결과 발송" },
   { href: "/admin/setup", label: "평가 시작 설정" },
+  { href: "/admin/settings", label: "관리자 설정" },
 ] as const;
 
 export function AdminNav({ current }: { current: string }) {
