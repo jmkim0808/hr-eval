@@ -17,6 +17,7 @@ import { BackupButton, BackupNotice } from "@/components/ExportButtons";
 import { bonusCount } from "@/server/repo/bonus";
 import { backupDue } from "@/server/repo/export";
 import { stageProgress } from "@/server/repo/progress";
+import { retentionUntil } from "@/server/repo/results";
 import { AdvanceButton } from "./AdvanceButton";
 import { PendingTable } from "./PendingTable";
 
@@ -87,6 +88,18 @@ export default async function ProgressPage() {
               }}
             />
             {due && <BackupNotice />}
+            {cycle.status === "closed" && cycle.closedAt && (
+              <Card>
+                <CardContent className="flex flex-wrap items-center justify-between gap-3">
+                  <span className="text-subsection-title font-bold" data-testid="closed-line">
+                    {cycle.year}년 정기평가 마감 ({fmtDay(new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(cycle.closedAt))}, {cycle.closedBy})
+                  </span>
+                  <span className="text-caption text-muted-foreground" data-testid="retention">
+                    보관 기한 {retentionUntil(cycle.closedAt)} (마감 + 3년) · 이 평가는 보기 전용 기록입니다
+                  </span>
+                </CardContent>
+              </Card>
+            )}
             {cycle.status === "setup" && (
               <Card>
                 <CardContent className="flex items-center justify-between gap-4">

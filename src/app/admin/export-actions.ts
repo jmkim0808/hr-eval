@@ -7,7 +7,7 @@ import { requireAdmin } from "@/server/authz/actor";
 import { getCurrentCycle } from "@/server/repo/cycles";
 import { exportBackup, exportFinal, type Sheet } from "@/server/repo/export";
 import { drainOutbox } from "@/server/repo/outbox";
-import { sendResultNotices } from "@/server/repo/results";
+import { closeCycle, sendResultNotices } from "@/server/repo/results";
 
 export async function exportFinalAction(): Promise<Result<{ year: number; sheet: Sheet }>> {
   const actor = await requireAdmin();
@@ -32,5 +32,14 @@ export async function sendResultsAction(version: number): Promise<Result<{ batch
     after(() => drainOutbox().catch(() => 0));
     revalidatePath("/admin", "layout");
   }
+  return r;
+}
+
+export async function closeCycleAction(version: number): Promise<Result> {
+  const actor = await requireAdmin();
+  const c = await getCurrentCycle(actor);
+  if (!c) return fail("no_cycle", "진행 중인 평가가 없습니다.");
+  const r = await closeCycle(actor, c.id, version);
+  if (r.ok) revalidatePath("/", "layout");
   return r;
 }

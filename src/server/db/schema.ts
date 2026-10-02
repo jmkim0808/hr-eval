@@ -54,6 +54,8 @@ export const reviewCycles = pgTable("review_cycles", {
   confirmedBy: text("confirmed_by"),
   /** 처음 확정한 시각. 확정을 취소해도 가점은 다시 열리지 않는다 */
   bonusClosedAt: timestamp("bonus_closed_at", { withTimezone: true }),
+  closedAt: timestamp("closed_at", { withTimezone: true }),
+  closedBy: text("closed_by"),
   version: integer("version").notNull().default(0),
   ...timestamps,
 });

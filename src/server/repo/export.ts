@@ -121,7 +121,7 @@ export async function backupDue(actor: Actor, cycleId: string): Promise<boolean>
   const [ev] = await db
     .select({ at: auditLogs.createdAt })
     .from(auditLogs)
-    .where(and(eq(auditLogs.cycleId, cycleId), inArray(auditLogs.action, ["cycle.advance", "cycle.confirm"])))
+    .where(and(eq(auditLogs.cycleId, cycleId), inArray(auditLogs.action, ["cycle.advance", "cycle.confirm", "cycle.close"])))
     .orderBy(desc(auditLogs.createdAt))
     .limit(1);
   return !!ev && (!last?.at || ev.at > last.at);

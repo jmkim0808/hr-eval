@@ -83,3 +83,24 @@ export async function resultViews(actor: Actor, cycleId: string) {
   const v = new Map(views.map((x) => [x.id, x.at]));
   return people.map((p) => ({ ...p, viewedAt: v.get(p.id)?.toISOString() ?? null }));
 }
+
+/** 평가 마감 (PRD 17). 결과 알림 뒤에만. 메일 실패자가 남아도 된다(수기 전달). 마감 뒤에는 모든 화면이 보기 전용 */
+export async function closeCycle(actor: Actor, cycleId: string, version: number): Promise<Result> {
+  assert(can.manageCycle(actor));
+  return getDb().transaction(async (tx) => {
+    const [c] = await tx.select().from(reviewCycles).where(eq(reviewCycles.id, cycleId)).limit(1).for("update");
+    if (!c || c.status !== "results_sent") return fail("stage", "평가결과 알림을 보낸 뒤에 마감할 수 있습니다.");
+    if (c.version !== version) return fail("stale", "다른 관리자가 먼저 처리했습니다. 화면을 새로고침해 주세요.");
+    const now = new Date();
+    await tx.update(reviewCycles).set({ status: "closed", closedAt: now, closedBy: actor.name, version: c.version + 1, updatedAt: now }).where(eq(reviewCycles.id, cycleId));
+    await tx.insert(auditLogs).values({ actorEmail: actor.email, action: "cycle.close", cycleId, detail: {} });
+    return ok();
+  });
+}
+
+/** 보관 기한: 마감일 + 3년 (ADR-0010) */
+export const retentionUntil = (closedAt: Date) => {
+  const d = new Date(closedAt);
+  d.setFullYear(d.getFullYear() + 3);
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(d);
+};

@@ -11,7 +11,7 @@ import type { BatchProgress as P } from "@/server/repo/outbox";
 const POLL_MS = 3000; // ADR-0017
 
 /** 메일 발송 진행 숫자. 화면을 떠났다 와도 서버에 쌓인 숫자를 다시 읽어 이어 보인다. */
-export function BatchProgress({ batchId, initial }: { batchId: string; initial: P }) {
+export function BatchProgress({ batchId, initial, readOnly = false }: { batchId: string; initial: P; readOnly?: boolean }) {
   const [p, setP] = useState<P>(initial);
   const [retrying, startRetry] = useTransition();
 
@@ -55,6 +55,9 @@ export function BatchProgress({ batchId, initial }: { batchId: string; initial: 
           <AlertTitle>보내지 못한 사람 {p.failed}명</AlertTitle>
           <AlertDescription>
             <p>{p.failedPeople.map((f) => f.name).join(", ")}</p>
+            {readOnly ? (
+              <p className="text-caption">평가가 마감되어 다시 보낼 수 없습니다. 수기로 전달해 주세요.</p>
+            ) : (
             <Button
               variant="outline"
               size="sm"
@@ -70,6 +73,7 @@ export function BatchProgress({ batchId, initial }: { batchId: string; initial: 
               <RotateCw aria-hidden="true" />
               다시 보내기
             </Button>
+            )}
           </AlertDescription>
         </Alert>
       )}

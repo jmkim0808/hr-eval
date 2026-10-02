@@ -9,6 +9,7 @@ import { requireAdmin } from "@/server/authz/actor";
 import { getCurrentCycle, latestBatch } from "@/server/repo/cycles";
 import { batchProgress } from "@/server/repo/outbox";
 import { resultViews } from "@/server/repo/results";
+import { CloseCycle } from "./CloseCycle";
 import { SendResults } from "./SendResults";
 import { backupDue } from "@/server/repo/export";
 
@@ -35,7 +36,10 @@ export default async function ResultsPage() {
           </CardHeader>
           <CardContent>
             {batchId && progress ? (
-              <BatchProgress batchId={batchId} initial={progress} />
+              <div className="flex flex-col gap-4">
+                <BatchProgress batchId={batchId} initial={progress} readOnly={cycle?.status === "closed"} />
+                {cycle?.status === "results_sent" && progress.pending === 0 && <CloseCycle version={cycle.version} failed={progress.failed} />}
+              </div>
             ) : (
               <SendResults enabled={cycle?.status === "confirmed"} version={cycle?.version ?? 0} count={views.length || (cycle ? (await resultViews(a, cycle.id)).length : 0)} />
             )}

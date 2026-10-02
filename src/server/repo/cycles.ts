@@ -11,7 +11,7 @@ import { assert, can } from "@/server/authz/policy";
 export async function getCurrentCycle(actor: Actor) {
   assert(can.manageCycle(actor));
   const [c] = await getDb()
-    .select({ id: reviewCycles.id, year: reviewCycles.year, status: reviewCycles.status, version: reviewCycles.version, confirmedAt: reviewCycles.confirmedAt, confirmedBy: reviewCycles.confirmedBy, selfStart: reviewCycles.selfStart, selfEnd: reviewCycles.selfEnd, firstStart: reviewCycles.firstStart, firstEnd: reviewCycles.firstEnd, secondStart: reviewCycles.secondStart, secondEnd: reviewCycles.secondEnd })
+    .select({ id: reviewCycles.id, year: reviewCycles.year, status: reviewCycles.status, version: reviewCycles.version, confirmedAt: reviewCycles.confirmedAt, confirmedBy: reviewCycles.confirmedBy, closedAt: reviewCycles.closedAt, closedBy: reviewCycles.closedBy, selfStart: reviewCycles.selfStart, selfEnd: reviewCycles.selfEnd, firstStart: reviewCycles.firstStart, firstEnd: reviewCycles.firstEnd, secondStart: reviewCycles.secondStart, secondEnd: reviewCycles.secondEnd })
     .from(reviewCycles)
     .orderBy(desc(reviewCycles.year))
     .limit(1);

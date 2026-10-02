@@ -1,7 +1,7 @@
 // 보낼 메일 목록 (ADR-0006). 쌓기·진행 숫자·다시 보내기는 관리자만, 내보내기는 예약 실행(시스템)이 한다.
 import { and, asc, eq, inArray, lt, sql } from "drizzle-orm";
 import { getDb } from "@/server/db/client";
-import { cyclePeople, emailOutbox } from "@/server/db/schema";
+import { cyclePeople, emailOutbox, reviewCycles } from "@/server/db/schema";
 import type { Actor } from "@/server/authz/actor";
 import { assert, can } from "@/server/authz/policy";
 import { sendMail } from "@/server/mail/sender";
@@ -35,6 +35,13 @@ export async function batchProgress(actor: Actor, batchId: string): Promise<Batc
 
 export async function retryFailed(actor: Actor, batchId: string) {
   assert(can.manageCycle(actor));
+  const [c] = await getDb()
+    .select({ status: reviewCycles.status })
+    .from(emailOutbox)
+    .innerJoin(reviewCycles, eq(reviewCycles.id, emailOutbox.cycleId))
+    .where(eq(emailOutbox.batchId, batchId))
+    .limit(1);
+  if (c?.status === "closed") return; // 마감 뒤에는 보기 전용
   await getDb()
     .update(emailOutbox)
     .set({ status: "queued", attempts: 0, lastError: null })
