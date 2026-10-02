@@ -9,7 +9,8 @@ import type { Actor } from "@/server/authz/actor";
 import { assert, can } from "@/server/authz/policy";
 
 const LOCKED = ["confirmed", "results_sent", "closed"];
-export const bonusEditable = (status: string) => !LOCKED.includes(status);
+/** 확정 전까지. 한 번 확정했으면 확정을 취소해도 다시 열리지 않는다 */
+export const bonusEditable = (c: { status: string; bonusClosedAt: Date | null }) => !LOCKED.includes(c.status) && !c.bonusClosedAt;
 
 
 export async function listBonus(actor: Actor, cycleId: string): Promise<BonusRow[]> {
@@ -39,7 +40,7 @@ async function cycleOf(cycleId: string) {
 export async function applyBonus(actor: Actor, cycleId: string, rows: { personId: string; values: BonusValues }[]): Promise<Result<{ count: number }>> {
   assert(can.manageCycle(actor));
   const c = await cycleOf(cycleId);
-  if (!c || !bonusEditable(c.status)) return fail("locked", "평가등급이 확정되어 가점을 더 이상 인정하지 않습니다.");
+  if (!c || !bonusEditable(c)) return fail("locked", "평가등급이 확정되어 가점을 더 이상 인정하지 않습니다.");
   const roster = await listBonus(actor, cycleId);
   const ref = new Map(roster.map((r) => [r.id, r]));
   for (const r of rows) {

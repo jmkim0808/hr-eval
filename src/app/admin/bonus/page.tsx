@@ -16,7 +16,7 @@ export default async function BonusPage() {
   const cur = await getCurrentCycle(a);
   const cycle = cur ? await getCycleDetail(a, cur.year) : null;
   const rows = cycle ? await listBonus(a, cycle.id) : [];
-  const locked = !!cycle && !bonusEditable(cycle.status);
+  const locked = !!cycle && !bonusEditable(cycle);
   const done = rows.filter((r) => r.values).length;
   return (
     <>

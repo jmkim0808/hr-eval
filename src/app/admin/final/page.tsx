@@ -11,6 +11,8 @@ import { cn } from "@/lib/utils";
 import { requireAdmin } from "@/server/authz/actor";
 import { getCurrentCycle } from "@/server/repo/cycles";
 import { listFinal, remainingBeforeFinal } from "@/server/repo/final";
+import { confirmReadiness } from "@/server/repo/confirm";
+import { ConfirmControls } from "./ConfirmControls";
 import { ChangeBadge, GradeCell, RevertButton } from "./GradeCell";
 
 const fmt = (n: number | null) => (n === null ? "—" : n.toFixed(2));
@@ -29,13 +31,28 @@ export default async function FinalPage({ searchParams }: { searchParams: Promis
   const counts = gradeCounts(list.length);
   const blanks = rows.filter((r) => r.blank).length;
   const editable = cycle?.status === "final_review";
+  const readiness = ready ? await confirmReadiness(a, cycle!.id) : null;
   const actual = Object.fromEntries(GRADES.map((g) => [g, list.filter((r) => r.grade === g).length])) as Record<Grade, number>;
 
   return (
     <>
       <AdminNav current="/admin/final" />
       <main className="flex flex-col gap-6 px-8 py-6">
-        <PageHeader title="최종평가" description={`${cycle ? `${cycle.year}년 정기평가 · ` : ""}최종점수와 그룹별 상대평가 초안 등급 · 최종점수는 고치지 않습니다`} />
+        <PageHeader
+          title="최종평가"
+          description={`${cycle ? `${cycle.year}년 정기평가 · ` : ""}최종점수와 그룹별 상대평가 초안 등급 · 최종점수는 고치지 않습니다`}
+          actions={
+            ready && readiness ? (
+              <ConfirmControls
+                status={cycle!.status}
+                version={cycle!.version}
+                blanks={readiness.blanks}
+                noBonus={readiness.noBonus}
+                confirmed={cycle!.confirmedAt ? { at: cycle!.confirmedAt.toISOString(), by: cycle!.confirmedBy ?? "" } : null}
+              />
+            ) : undefined
+          }
+        />
         {!ready ? (
           <Card>
             <Empty icon={<Hourglass aria-hidden="true" />} title={`2차평가가 끝나면 초안이 나옵니다 (남은 인원 ${remain}명)`}>

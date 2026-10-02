@@ -42,6 +42,7 @@ export function renderOutbox(kind: string, to: string, payload: Record<string, s
   if (kind === "invite") return inviteMail(to, payload);
   if (kind === "reminder") return reminderMail(to, payload);
   if (kind === "stage_notice") return stageNoticeMail(to, payload);
+  if (kind === "admin_alert") return adminAlertMail(to, payload);
   throw new Error(`unknown mail kind ${kind}`);
 }
 
@@ -69,4 +70,12 @@ export function stageNoticeMail(to: string, p: Record<string, string>): MailMess
     text: `${lines.join("\n")}\n${link}\n\n㈜파워넷 인사평가 · 대외비`,
     html: wrap(`${p.task} 안내`, [...lines.map(esc), `<a href="${esc(link)}">${esc(link)}</a>`]),
   };
+}
+
+/** 관리자 알림 (확정 취소 등). 점수·등급은 담지 않는다 */
+export function adminAlertMail(to: string, p: Record<string, string>): MailMessage {
+  const link = `${env.appUrl}/admin/final`;
+  const subject = `[파워넷 인사평가] ${p.title}`;
+  const lines = [`${p.year}년 정기평가: ${p.title}`, `처리한 사람: ${p.actor}`, ...(p.reason ? [`사유: ${p.reason}`] : [])];
+  return { to, subject, text: `${lines.join("\n")}\n${link}\n\n㈜파워넷 인사평가 · 대외비`, html: wrap(p.title!, [...lines.map(esc), `<a href="${esc(link)}">${esc(link)}</a>`]) };
 }
