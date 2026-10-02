@@ -29,6 +29,20 @@
       "when": 1790898508403,
       "tag": "0003_lock_roster",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790899344586,
+      "tag": "0004_periods_outbox",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790899345488,
+      "tag": "0005_lock_outbox",
+      "breakpoints": true
     }
   ]
 }

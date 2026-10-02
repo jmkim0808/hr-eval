@@ -3,12 +3,15 @@
 import { sql } from "drizzle-orm";
 import { env } from "@/platform/env";
 import { getDb } from "@/server/db/client";
+import { drainOutbox } from "@/server/repo/outbox";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
   if (req.headers.get("authorization") !== `Bearer ${env.cronSecret}`) return new Response("forbidden", { status: 403 });
-  // DB 깨우기 (Supabase 무료 플랜 7일 멈춤 방지, ADR-0011). 이후 조각에서 메일 목록 비우기 등을 더한다.
+  // DB 깨우기 (Supabase 무료 플랜 7일 멈춤 방지, ADR-0011)
   await getDb().execute(sql`select 1`);
-  return Response.json({ ok: true });
+  // 보낼 메일 목록 비우기 (한 번에 10통, ADR-0006)
+  const sent = await drainOutbox();
+  return Response.json({ ok: true, sent });
 }

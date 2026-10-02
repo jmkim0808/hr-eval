@@ -40,6 +40,14 @@ export const reviewCycles = pgTable("review_cycles", {
   })
     .notNull()
     .default("setup"),
+  selfStart: date("self_start"),
+  selfEnd: date("self_end"),
+  firstStart: date("first_start"),
+  firstEnd: date("first_end"),
+  secondStart: date("second_start"),
+  secondEnd: date("second_end"),
+  bonusCutoff: date("bonus_cutoff"),
+  invitedAt: timestamp("invited_at", { withTimezone: true }),
   version: integer("version").notNull().default(0),
   ...timestamps,
 });
@@ -70,6 +78,28 @@ export const cyclePeople = pgTable(
     ...timestamps,
   },
   (t) => [unique("cycle_people_cycle_email").on(t.cycleId, t.email)],
+);
+
+/** 보낼 메일 목록 — 점수·등급·업적 글을 담지 않는다 */
+export const emailOutbox = pgTable(
+  "email_outbox",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    cycleId: uuid("cycle_id").references(() => reviewCycles.id, { onDelete: "cascade" }),
+    kind: text("kind", { enum: ["invite", "reminder", "stage_notice", "result_notice", "admin_alert"] }).notNull(),
+    toEmail: text("to_email").notNull(),
+    personId: uuid("person_id"),
+    payload: jsonb("payload").$type<Record<string, string>>().notNull().default(sql`'{}'::jsonb`),
+    status: text("status", { enum: ["queued", "sending", "sent", "failed"] }).notNull().default("queued"),
+    attempts: smallint("attempts").notNull().default(0),
+    lastError: text("last_error"),
+    batchId: uuid("batch_id").notNull(),
+    createdBy: text("created_by"),
+    claimedAt: timestamp("claimed_at", { withTimezone: true }),
+    sentAt: timestamp("sent_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("email_outbox_status_idx").on(t.status, t.createdAt), index("email_outbox_batch_idx").on(t.batchId)],
 );
 
 /** 이메일 인증번호 (원문은 저장하지 않는다) */
