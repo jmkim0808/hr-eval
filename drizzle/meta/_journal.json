@@ -71,6 +71,20 @@
       "when": 1790902128284,
       "tag": "0009_lock_bonus",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1790902379372,
+      "tag": "0010_final_results",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1790902380255,
+      "tag": "0011_lock_final",
+      "breakpoints": true
     }
   ]
 }

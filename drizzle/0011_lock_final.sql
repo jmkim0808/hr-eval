@@ -1,0 +1,1 @@
+ALTER TABLE "final_results" ENABLE ROW LEVEL SECURITY;

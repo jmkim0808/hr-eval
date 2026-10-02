@@ -196,3 +196,27 @@ export const bonusPoints = pgTable(
   },
   (t) => [primaryKey({ columns: [t.personId, t.item] })],
 );
+
+/** 최종평가 결과 (ADR-0014). 2차평가를 넘길 때, 그 뒤 가점·대신 입력이 바뀔 때 다시 계산해 저장한다 */
+export const finalResults = pgTable("final_results", {
+  personId: uuid("person_id")
+    .primaryKey()
+    .references(() => cyclePeople.id, { onDelete: "cascade" }),
+  cycleId: uuid("cycle_id")
+    .notNull()
+    .references(() => reviewCycles.id, { onDelete: "cascade" }),
+  blank: boolean("blank").notNull().default(false),
+  competencyScore: numeric("competency_score", { precision: 6, scale: 2 }),
+  achievementScore: numeric("achievement_score", { precision: 6, scale: 2 }),
+  firstTotal: numeric("first_total", { precision: 6, scale: 2 }),
+  secondTotal: numeric("second_total", { precision: 6, scale: 2 }),
+  bonusTotal: numeric("bonus_total", { precision: 6, scale: 2 }),
+  finalScore: numeric("final_score", { precision: 6, scale: 2 }),
+  groupRank: integer("group_rank"),
+  draftGrade: text("draft_grade", { enum: ["S", "A", "B", "C", "D"] }),
+  finalGrade: text("final_grade", { enum: ["S", "A", "B", "C", "D"] }),
+  tieRule: boolean("tie_rule").notNull().default(false),
+  changeKind: text("change_kind", { enum: ["none", "adjusted", "pushed"] }).notNull().default("none"),
+  displayPercentile: numeric("display_percentile", { precision: 5, scale: 1 }),
+  ...timestamps,
+});

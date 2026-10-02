@@ -3,6 +3,7 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import { BONUS_ITEMS, bonusTotal, checkValues, type BonusCode, type BonusRow, type BonusValues } from "@/domain/bonus";
 import { fail, ok, type Result } from "@/lib/result";
 import { getDb } from "@/server/db/client";
+import { recomputeFinal } from "@/server/repo/final";
 import { auditLogs, bonusPoints, cyclePeople, reviewCycles } from "@/server/db/schema";
 import type { Actor } from "@/server/authz/actor";
 import { assert, can } from "@/server/authz/policy";
@@ -53,6 +54,7 @@ export async function applyBonus(actor: Actor, cycleId: string, rows: { personId
     await tx.insert(bonusPoints).values(
       rows.flatMap((r) => BONUS_ITEMS.map((i) => ({ personId: r.personId, item: i.code, points: (r.values[i.code as BonusCode] ?? 0).toFixed(2), updatedBy: actor.email }))),
     );
+    if (c.status === "final_review") await recomputeFinal(tx, cycleId);
     await tx.insert(auditLogs).values({ actorEmail: actor.email, action: rows.length === 1 ? "bonus.set" : "bonus.upload", cycleId, personId: rows.length === 1 ? rows[0]!.personId : null, detail: { count: rows.length } });
   });
   return ok({ count: rows.length });

@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 const items = [
   { href: "/admin", label: "진행 현황" },
   { href: "/admin/bonus", label: "가점 입력" },
+  { href: "/admin/final", label: "최종평가" },
   { href: "/admin/setup", label: "평가 시작 설정" },
 ] as const;
 

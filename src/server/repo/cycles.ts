@@ -2,6 +2,7 @@ import { and, desc, eq, sql as dsql } from "drizzle-orm";
 import { fail, ok, type Result } from "@/lib/result";
 import { checkPeriods, fmtDay, fmtRange, type PeriodErrors, type Periods } from "@/domain/periods";
 import { getDb } from "@/server/db/client";
+import { recomputeFinal } from "@/server/repo/final";
 import { auditLogs, cyclePeople, emailOutbox, reviewCycles } from "@/server/db/schema";
 import type { Actor } from "@/server/authz/actor";
 import { assert, can } from "@/server/authz/policy";
@@ -114,6 +115,10 @@ export async function advanceStage(actor: Actor, cycleId: string, from: AdvanceF
     if (c.status !== from || c.version !== version) return fail("stale", "다른 관리자가 먼저 처리했습니다. 화면을 새로고침해 주세요.");
     await tx.update(reviewCycles).set({ status: to, version: c.version + 1, updatedAt: new Date() }).where(eq(reviewCycles.id, cycleId));
     await tx.insert(auditLogs).values({ actorEmail: actor.email, action: "cycle.advance", cycleId, detail: { from, to } });
+    if (to === "final_review") {
+      await recomputeFinal(tx, cycleId);
+      return ok({ to, batchId: null, mails: 0 });
+    }
 
     // 다음 단계 평가자: 1차 = 팀원 평가지의 1차 평가자(팀장), 2차 = 팀원 평가지의 2차 평가자 + 팀장 평가지의 평가자(임원)
     const targets = await tx
