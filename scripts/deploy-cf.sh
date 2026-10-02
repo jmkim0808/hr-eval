@@ -31,7 +31,7 @@ echo "2) 메일 Worker 먼저 (서로 가리키지 않는 형태로)"
 (cd workers/mailer && npx wrangler deploy --env bootstrap >/dev/null)
 
 echo "3) 본 프로그램 빌드·배포"
-npm run -s build:cf >/dev/null
+BUILD_TARGET=cloudflare npx opennextjs-cloudflare build >/dev/null  # npm 스크립트의 VAR=값 형식은 윈도우에서 안 돼서 직접 부른다
 MODE=$([ "$HAS_SMTP" = 1 ] && echo smtp || echo log)
 OUT=$(npx wrangler deploy --var "MAIL_MODE:$MODE" 2>&1)
 URL=$(printf '%s' "$OUT" | grep -oE 'https://hr-eval\.[a-z0-9-]+\.workers\.dev' | head -1)
