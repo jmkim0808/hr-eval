@@ -120,5 +120,6 @@ export async function getMyTasks(actor: Actor & { personId: string }) {
     const f = await getSelfForm(actor, person.id);
     self = { personId: person.id, status: f.status, editable: f.editable };
   }
-  return { cycle: { year: cycle.year, status: cycle.status, selfStart: cycle.selfStart, selfEnd: cycle.selfEnd }, self };
+  const { year, status, selfStart, selfEnd, firstStart, firstEnd, secondStart, secondEnd } = cycle;
+  return { cycle: { year, status, selfStart, selfEnd, firstStart, firstEnd, secondStart, secondEnd }, self };
 }
