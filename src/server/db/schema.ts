@@ -9,6 +9,7 @@ import {
   integer,
   jsonb,
   pgTable,
+  primaryKey,
   smallint,
   text,
   timestamp,
@@ -146,3 +147,35 @@ export const errorLogs = pgTable("error_logs", {
   requestId: text("request_id").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+/** 평가지 한 장 = 피평가자 한 명 */
+export const evaluations = pgTable("evaluations", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  personId: uuid("person_id")
+    .notNull()
+    .unique()
+    .references(() => cyclePeople.id, { onDelete: "cascade" }),
+  formVersion: smallint("form_version").notNull().default(1),
+  achievementText: text("achievement_text").notNull().default(""),
+  improvementText: text("improvement_text").notNull().default(""),
+  selfSubmittedAt: timestamp("self_submitted_at", { withTimezone: true }),
+  firstSubmittedAt: timestamp("first_submitted_at", { withTimezone: true }),
+  secondSubmittedAt: timestamp("second_submitted_at", { withTimezone: true }),
+  version: integer("version").notNull().default(0),
+  ...timestamps,
+});
+
+/** 점수 한 칸: 누가(본인·1차·2차) 어떤 항목에 */
+export const evaluationScores = pgTable(
+  "evaluation_scores",
+  {
+    evaluationId: uuid("evaluation_id")
+      .notNull()
+      .references(() => evaluations.id, { onDelete: "cascade" }),
+    rater: text("rater", { enum: ["self", "first", "second"] }).notNull(),
+    itemCode: text("item_code").notNull(),
+    score: smallint("score").notNull(),
+    enteredBy: text("entered_by"),
+  },
+  (t) => [primaryKey({ columns: [t.evaluationId, t.rater, t.itemCode] })],
+);

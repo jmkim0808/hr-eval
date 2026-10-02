@@ -13,6 +13,8 @@ export type Actor = {
   email: string;
   name: string;
   roles: { admin: boolean; ceo: boolean };
+  /** 올해 평가 명단에서의 나 (관리자·대표이사만이면 null) */
+  personId: string | null;
 };
 
 export const getActor = cache(async (): Promise<Actor | null> => {
@@ -30,7 +32,7 @@ export const getActor = cache(async (): Promise<Actor | null> => {
   const who = await repo.findLoginIdentity(db, s.email);
   if (!who) return null;
   await repo.touchSession(db, hash);
-  return { email: who.email, name: who.name, roles: { admin: who.role === "admin", ceo: who.role === "ceo" } };
+  return { email: who.email, name: who.name, roles: { admin: who.role === "admin", ceo: who.role === "ceo" }, personId: who.personId };
 });
 
 /** 로그인하지 않았거나 30분이 지났으면 이메일 인증 화면으로 보낸다. */
@@ -41,6 +43,13 @@ export async function requireActor(): Promise<Actor> {
     redirect(hadSession ? "/login?expired=1" : "/login");
   }
   return a;
+}
+
+/** 평가 명단에 있는 사람만 (내 할 일·평가지) */
+export async function requireParticipant(): Promise<Actor & { personId: string }> {
+  const a = await requireActor();
+  if (!a.personId) redirect("/");
+  return a as Actor & { personId: string };
 }
 
 export async function requireAdmin(): Promise<Actor> {

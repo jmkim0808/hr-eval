@@ -10,6 +10,8 @@ export class Forbidden extends Error {
 export const can = {
   /** 진행 현황·평가 시작 설정 등 관리자 화면 */
   manageCycle: (a: Actor) => a.roles.admin,
+  /** 본인 평가지 작성: 평가지 주인만 (관리자도 남의 평가지를 대신 쓰지 않는다) */
+  writeSelfForm: (a: Actor, personId: string) => a.personId === personId,
 };
 
 export function assert(allowed: boolean): asserts allowed {

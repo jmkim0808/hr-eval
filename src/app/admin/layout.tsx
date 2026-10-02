@@ -7,7 +7,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const a = await requireAdmin();
   return (
     <>
-      <AppHeader viewer={a.name} />
+      <AppHeader viewer={a.name} link={a.personId ? { href: "/me", label: "내 할 일" } : undefined} />
       {children}
     </>
   );

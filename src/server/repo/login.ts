@@ -1,19 +1,31 @@
 // 로그인 전 단계에서 쓰는 저장소 함수. 아직 actor가 없으므로 예외적으로 actor 인자를 받지 않는다
 // (docs/tech/03-규칙.md 7: 이메일 인증 예외).
-import { and, desc, eq, gt, isNotNull, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, gt, isNotNull, isNull, ne, sql } from "drizzle-orm";
 import type { Db } from "@/server/db/client";
-import { appUsers, authCodes, sessions } from "@/server/db/schema";
+import { appUsers, authCodes, cyclePeople, reviewCycles, sessions } from "@/server/db/schema";
 
-export type LoginIdentity = { email: string; name: string; role: "admin" | "ceo" };
+export type LoginIdentity = { email: string; name: string; role: "admin" | "ceo" | null; personId: string | null };
 
-/** 들어올 수 있는 사람인지. 지금은 관리자·대표이사만 (직원·평가자는 04번 조각에서 추가). */
+/**
+ * 들어올 수 있는 사람인지: 관리자·대표이사, 또는 안내 이메일을 보낸 뒤의 평가 명단(직원·팀장·임원).
+ * 열람 차단된 사람은 명단에 있어도 들어올 수 없다.
+ */
 export async function findLoginIdentity(db: Db, email: string): Promise<LoginIdentity | null> {
   const [u] = await db
     .select({ email: appUsers.email, name: appUsers.name, role: appUsers.role })
     .from(appUsers)
     .where(and(eq(appUsers.email, email), eq(appUsers.active, true)))
     .limit(1);
-  return u ?? null;
+  const [p] = await db
+    .select({ id: cyclePeople.id, name: cyclePeople.name, blocked: cyclePeople.accessBlocked })
+    .from(cyclePeople)
+    .innerJoin(reviewCycles, eq(reviewCycles.id, cyclePeople.cycleId))
+    .where(and(eq(cyclePeople.email, email), ne(reviewCycles.status, "setup")))
+    .orderBy(desc(reviewCycles.year))
+    .limit(1);
+  const person = p && !p.blocked ? p : null;
+  if (!u && !person) return null;
+  return { email, name: u?.name ?? person!.name, role: u?.role ?? null, personId: person?.id ?? null };
 }
 
 export async function countCodeRequestsSince(db: Db, by: { email?: string; ip?: string }, since: Date) {
