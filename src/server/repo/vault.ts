@@ -118,8 +118,11 @@ export async function removeSlot(actor: Actor, id: string): Promise<Result> {
  * 개발·시험용 자동 열기: 메일을 실제로 보내지 않는 모드(MAIL_MODE=log)에서만 HR_DEV_PASSPHRASE로 연다.
  * 실제 운영(MAIL_MODE=smtp)에서는 이 값이 있어도 쓰지 않는다 (ADR-0018과 같은 원칙).
  */
+const dev = globalThis as unknown as { __hrDevTried?: boolean };
 export async function devAutoUnlock() {
-  if (isOpen()) return;
+  // 서버가 켜진 뒤 한 번만 시도한다 — 관리자가 [지금 잠그기]를 누른 뒤에는 저절로 열리지 않는다
+  if (isOpen() || dev.__hrDevTried) return;
+  dev.__hrDevTried = true;
   const pass = process.env.HR_DEV_PASSPHRASE;
   if (!pass || env.mailMode !== "log") return;
   if (await tryUnlock(pass)) return;

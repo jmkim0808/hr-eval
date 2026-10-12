@@ -1,0 +1,30 @@
+# 사내 포털 등록 정보 (전산 담당자 제출용). ★ 표시는 전산 담당자에게 받아 채운다.
+name: hr-eval                     # ★ 포털에서 쓸 앱 이름 (확인 필요)
+title: 인사평가
+runtime: node20                   # Node.js 20 LTS (20.9 이상)
+base_path: /hr-eval               # ★ 포털 주소 아래 경로. 바꾸면 env BASE_PATH와 APP_URL도 같이 바꾼다
+port: ""                          # ★ 배정 포트 (예: 8xxx). 앱은 127.0.0.1에서만 받는다
+install: npm ci && npm run build  # 빌드 결과는 .next/standalone (외부 인터넷 필요 없음, npm 미러만)
+start: node scripts/start.mjs --port ${PORT}
+health: /hr-eval/health           # 200 {"status":"ok"}
+login: portal-jwt                 # 1차 포털 로그인(ax_access_token, HS256) + 2차 회사 메일 인증번호
+data_dir: AX_DATA_DIR             # 이 앱은 파일을 저장하지 않는다 (모든 데이터는 PostgreSQL)
+database: postgresql              # ★ 전용 DB·계정 (아래 DATABASE_URL)
+export_logging: /api/dlp/exports  # 엑셀 내려받기마다 포털 DLP에 기록
+external_ai: none                 # 외부 AI 사용 없음 (ADR-0009)
+
+# 환경 값 (값은 포털 관리 화면에서 넣는다. 저장소에는 넣지 않는다)
+env:
+  - DATABASE_URL      # ★ postgres://계정:비밀번호@호스트:5432/hr_eval
+  - JWT_SECRET_KEY    # 포털이 넣어 주는 토큰 서명 값
+  - AUTH_SECRET       # 32자 이상 임의 문자열 (인증번호·세션 해시용)
+  - APP_URL           # ★ https://포털주소/hr-eval  (메일 링크에 쓰임)
+  - BASE_PATH         # /hr-eval
+  - MAIL_MODE         # smtp (운영) / log (개발: 메일을 보내지 않고 기록만)
+  - MAIL_FROM         # "파워넷 인사평가 <hr-eval@회사도메인>"
+  - SMTP_HOST         # ★ 다우오피스 SMTP
+  - SMTP_PORT         # 465
+  - SMTP_USER         # ★
+  - SMTP_PASS         # ★
+  - CRON_SECRET       # 임의 문자열 (수동 예약 실행 주소 보호용)
+  # HR_DEV_PASSPHRASE 는 운영 서버에 넣지 않는다 (개발·시험 전용)

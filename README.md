@@ -1,30 +1,27 @@
 # 파워넷 인사평가
 
-연 1회 정기평가를 처리하는 사내 웹 서비스. 기획·결정 문서는 `docs/` (도메인 → UX → UI → 기술 → PRD 순).
+연 1회 정기평가를 처리하는 사내 웹 서비스 (서울 본사, 약 120명). 기획·결정 문서는 `docs/` (도메인 → UX → UI → 기술 → PRD 순).
 
-## 개인 PC에서 실행
+- 사내 포털 앱으로 동작한다: Windows Server · Node.js 20 · `127.0.0.1` + 배정 포트 · 주소 `/hr-eval` (ADR-0019)
+- 로그인: 포털 로그인(1차, 사번) + 회사 메일 인증번호(2차) (ADR-0020)
+- 점수·업적 글·가점·등급은 암호화해 저장한다. 서버가 켜질 때마다 인사 관리자가 **보안 열쇠**를 열어야 한다 (ADR-0021)
 
-1. PostgreSQL 16을 띄우고 `.env.example`을 `.env.local`로 복사해 값을 채운다.
-2. `npm install`
-3. `npm run db:migrate` — 표 만들기
-4. `npm run seed:admins -- "이름:이메일" "이름:이메일"` — 처음 관리자 등록
-   `npm run seed:ceo -- "이름:이메일"` — 대표이사 등록 (등급 결과 보기 전용)
-5. `npm run dev` → http://localhost:3000 (MAIL_MODE=log면 인증번호가 터미널에 찍힌다)
+## 사내 서버 설치 (전산 담당자)
 
-확인: `npm run typecheck`, `npm test`, `npm run build:node`, `npm run build:cf`
-화면 확인(선택): 서버를 띄운 뒤 `npx tsx tests/e2e/01-login.e2e.ts`
+자세한 순서와 점검표: `docs/운영/02-사내-포털-설치.md`
 
-## Cloudflare에 올리기 (무료 플랜)
+1. PostgreSQL에 전용 DB·계정을 만들고 `DATABASE_URL`을 포털 환경 값에 넣는다 (`ax-app.yaml`의 env 목록 참고).
+2. `npm ci && npm run build`
+3. `npm run db:migrate` — 표 만들기 (처음 한 번, 판 올릴 때마다)
+4. `npm run seed:admins -- "이름:이메일:사번"` — 처음 관리자 등록 / `npm run seed:ceo -- "이름:이메일:사번"` — 대표이사(보기 전용)
+5. `node scripts/start.mjs --port <배정 포트>` → 포털에서 `/hr-eval` 열기 → `/hr-eval/health` 가 `{"status":"ok"}`
+6. 인사 관리자가 `/hr-eval/admin/vault`에서 보안 열쇠를 처음 만든다 (비밀 문구는 인사 담당자만 안다).
 
-1. Supabase(서울)에 프로젝트를 만들고 **Settings → Data API를 끈다**. 연결 문자열은 Transaction pooler(6543)를 쓴다.
-2. `DATABASE_URL=... npm run db:migrate` 후 `npm run seed:admins -- ...`
-3. 발송 전용 Worker: `cd workers/mailer && npx wrangler deploy` (루트에서 `npm install`을 먼저 한다)
-   비밀값: `npx wrangler secret put SMTP_HOST` (SMTP_PORT·SMTP_USER·SMTP_PASS·MAIL_FROM·CRON_SECRET 동일)
-4. 본 프로그램 비밀값: `npx wrangler secret put DATABASE_URL` (AUTH_SECRET·APP_URL·CRON_SECRET·MAIL_FROM 동일), `wrangler.jsonc`의 `MAIL_MODE`를 `smtp`로.
-5. `npm run deploy:cf`
+## 개발 PC에서 실행
 
-한 번에: `scripts/deploy-cf.sh` (자세한 순서는 `docs/운영/01-배포-가이드.md`)
+1. PostgreSQL 16, `.env.example` → `.env.local` 복사 후 값 채우기 (`MAIL_MODE=log`, `HR_DEV_PASSPHRASE`는 개발용만)
+2. `npm ci`, `npm run db:migrate`, `npm run seed:admins -- "이름:이메일:사번"`
+3. `npm run dev` → http://localhost:3000/hr-eval (인증번호는 터미널에 찍힌다)
 
-## 회사 서버로 옮길 때
-
-`npm run build:node` → `.next/standalone`(+ `.next/static` 복사)을 `node server.js`로 실행. 메일은 nodemailer로 바로 보낸다(SMTP_* 환경 값). 1분마다 `curl -X POST -H "Authorization: Bearer $CRON_SECRET" https://주소/api/cron/tick`을 cron에 등록.
+확인: `npm run typecheck`, `npm test`(계산 규칙·암호화·토큰), 화면 시험: 서버를 띄운 뒤 `npx tsx tests/e2e/01-login.e2e.ts` … `21-roles.e2e.ts`
+실제 직원 데이터는 개발 DB에 넣지 않는다 (가짜 명단만).
