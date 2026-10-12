@@ -7,6 +7,16 @@ import { chromium, type Browser, type Page } from "playwright-core";
 const BASE = process.env.E2E_BASE ?? "http://127.0.0.1:3000/hr-eval";
 const ROSTER = process.env.DEMO_ROSTER ?? "시험자료/시험용-명단.xlsx";
 const PASS = "시험용-보안열쇠-문구-1";
+// 발표·문서용 화면 캡처 폴더 (선택). 시험 모드 노란 줄은 가리고 찍는다
+const SHOTS = process.env.SHOTS;
+async function shot(p: Page, name: string) {
+  if (!SHOTS) return;
+  await p.addStyleTag({ content: '[data-testid="demo-bar"]{display:none!important}' });
+  await p.waitForTimeout(300);
+  await p.screenshot({ path: `${SHOTS}/${name}.png` });
+}
+/** 사람마다 점수를 다르게 주되 평가자 평균은 80점 (4명: 90·80·80·70, 2명: 90·70) */
+const scoreOf = (n: number, i: number) => String(n >= 4 ? [9, 8, 8, 7][i % 4] : n === 2 ? [9, 7][i] : 8);
 const T = "/tmp/hr-demo";
 mkdirSync(T, { recursive: true });
 // 시험 도구(Playwright)가 한글 경로 파일을 못 붙이는 문제가 있어 영문 경로로 복사해 올린다 (사람이 고를 때는 상관없음)
@@ -104,7 +114,12 @@ await check("안내 메일을 보내면 시험용 포털 메일함에 안내 메
 
 // ── 3. 대상자 11명 본인 평가 ──
 const targets = ["최팀장", "김대리", "박과장", "이주임", "윤사원", "오팀장", "강차장", "서대리", "장팀장", "임과장", "조사원"];
-for (const n of targets) {
+for (const [ti, n] of targets.entries()) {
+  if (ti === 8 && SHOTS) {
+    await admin.goto(`${BASE}/admin`);
+    await admin.waitForLoadState("networkidle");
+    await shot(admin, "01-progress");
+  }
   const p = await as(n);
   await p.goto(`${BASE}/me`);
   await p.getByText(/내 평가지 작성/).first().click();
@@ -133,7 +148,8 @@ async function scoreAll(p: Page, kind: "first" | "second" | "leader", score: str
   const links = await reviewLinks(p, kind);
   for (const href of links) {
     await p.goto(new URL(href, BASE).toString());
-    for (const i of await p.locator('input[aria-label$=" 점수"]:not([disabled])').all()) await i.fill(score);
+    const v = score === "vary" ? scoreOf(links.length, links.indexOf(href)) : score;
+    for (const i of await p.locator('input[aria-label$=" 점수"]:not([disabled])').all()) await i.fill(v);
     await p.getByRole("button", { name: "제출" }).click();
     await p.waitForTimeout(1200);
     if (await bad(p)) errors.push(`${kind} ${href}`);
@@ -145,22 +161,23 @@ const lead = await as("최팀장");
 const leadLinks = await reviewLinks(lead, "first");
 for (const [i, href] of leadLinks.entries()) {
   await lead.goto(new URL(href, BASE).toString());
-  for (const inp of await lead.locator('input[aria-label$=" 점수"]:not([disabled])').all()) await inp.fill(i === leadLinks.length - 1 ? "10" : "8");
+  for (const inp of await lead.locator('input[aria-label$=" 점수"]:not([disabled])').all()) await inp.fill(i === leadLinks.length - 1 ? "10" : scoreOf(leadLinks.length, i));
   await lead.getByRole("button", { name: "제출" }).click();
   await lead.waitForTimeout(1200);
 }
+await shot(lead, "02-average");
 await check("[1차] 평가자 평균이 80점을 벗어나면 마지막 사람 제출이 막히고 고칠 방법이 보인다", async () => /평균/.test(await lead.locator("main").innerText()) && leadLinks.length === 4);
-for (const inp of await lead.locator('input[aria-label$=" 점수"]:not([disabled])').all()) await inp.fill("8");
+for (const inp of await lead.locator('input[aria-label$=" 점수"]:not([disabled])').all()) await inp.fill(scoreOf(leadLinks.length, leadLinks.length - 1));
 await lead.getByRole("button", { name: "제출" }).click();
 await lead.waitForTimeout(1500);
-const n1 = (await scoreAll(await as("오팀장"), "first", "8")) + (await scoreAll(await as("장팀장"), "first", "8"));
+const n1 = (await scoreAll(await as("오팀장"), "first", "vary")) + (await scoreAll(await as("장팀장"), "first", "vary"));
 await lead.goto(`${BASE}/me`);
 await check("[1차] 팀장 3명이 팀원 8명의 1차 평가를 마친다", async () => n1 === 4 && /4명 중 4명 완료|팀원 4명/.test(await lead.locator("main").innerText()));
 await check("2차평가로 넘길 수 있다", async () => (await advance(admin)).includes("2차평가"));
 
 // ── 5. 2차 평가 · 팀장 평가 (임원 2명) ──
-const n2 = (await scoreAll(await as("정임원"), "second", "8")) + (await scoreAll(await as("한전무"), "second", "8"));
-const nl = (await scoreAll(await as("정임원"), "leader", "8")) + (await scoreAll(await as("한전무"), "leader", "8"));
+const n2 = (await scoreAll(await as("정임원"), "second", "vary")) + (await scoreAll(await as("한전무"), "second", "vary"));
+const nl = (await scoreAll(await as("정임원"), "leader", "vary")) + (await scoreAll(await as("한전무"), "leader", "vary"));
 await check("[2차] 임원 2명이 팀원 8명 2차 평가와 팀장 3명 평가를 마친다", async () => n2 === 8 && nl === 3);
 await check("최종평가로 넘길 수 있다", async () => (await advance(admin)).includes("최종평가"));
 
@@ -189,6 +206,7 @@ await check("가점 템플릿을 내려받아 채워 올리면 11명 반영된�
 await admin.goto(`${BASE}/admin/final`);
 await check("최종평가 화면에 점수·등급 초안이 보이고 김대리(가점 +1)가 5그룹 1위다", async () => {
   await admin.goto(`${BASE}/admin/final?group=5`);
+  await shot(admin, "03-final");
   const first = await admin.locator("tbody tr").first().innerText();
   return first.includes("김대리") && !(await bad(admin));
 });
@@ -196,6 +214,11 @@ const ceo = await as("박대표");
 await check("대표이사 화면에 등급 결과가 보인다 (업적 글은 없음)", async () => {
   await ceo.goto(`${BASE}/report`);
   const t = await ceo.locator("main").innerText();
+  if (SHOTS) {
+    await ceo.getByText("5그룹 대리이하").first().click();
+    await ceo.waitForTimeout(500);
+    await shot(ceo, "04-report");
+  }
   return t.includes("최종점수") && !t.includes("올해 업적");
 });
 await admin.goto(`${BASE}/admin/final`);
