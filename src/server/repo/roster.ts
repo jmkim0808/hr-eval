@@ -36,6 +36,7 @@ export async function replaceRoster(actor: Actor, year: number, people: RosterPe
         people.map((p) => ({
           cycleId: cycle!.id,
           email: p.email,
+          employeeNo: p.employeeNo,
           name: p.name,
           department: p.department,
           position: p.position,

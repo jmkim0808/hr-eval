@@ -8,6 +8,8 @@ import { getDb } from "@/server/db/client";
 import { auditLogs, bonusPoints, cyclePeople, evaluations, evaluationScores, finalResults, gradeAdjustments, reviewCycles } from "@/server/db/schema";
 import type { Actor } from "@/server/authz/actor";
 import { assert, can } from "@/server/authz/policy";
+import { dec, decNum } from "@/server/crypto/vault";
+import { decFinal } from "@/server/repo/final-codec";
 
 export type Sheet = { name: string; headers: string[]; rows: (string | number | null)[][] };
 const CONFIRMED = ["confirmed", "results_sent", "closed"];
@@ -25,7 +27,7 @@ export async function exportFinal(actor: Actor, cycleId: string): Promise<Result
   const db = getDb();
   const [c] = await db.select().from(reviewCycles).where(eq(reviewCycles.id, cycleId)).limit(1);
   if (!c || !CONFIRMED.includes(c.status)) return fail("not_confirmed", "평가등급을 확정한 뒤에 내려받을 수 있습니다.");
-  const rows = await db.select({ p: cyclePeople, f: finalResults }).from(finalResults).innerJoin(cyclePeople, eq(cyclePeople.id, finalResults.personId)).where(eq(finalResults.cycleId, cycleId));
+  const rows = (await db.select({ p: cyclePeople, f: finalResults }).from(finalResults).innerJoin(cyclePeople, eq(cyclePeople.id, finalResults.personId)).where(eq(finalResults.cycleId, cycleId))).map(({ p, f }) => ({ p, f: decFinal(f) }));
   rows.sort((a, b) => (a.p.gradeGroup ?? 0) - (b.p.gradeGroup ?? 0) || (a.f.groupRank ?? 1e9) - (b.f.groupRank ?? 1e9));
   await db.insert(auditLogs).values({ actorEmail: actor.email, action: "export.final", cycleId, detail: { rows: rows.length } });
   return ok({
@@ -65,8 +67,10 @@ export async function exportBackup(actor: Actor, cycleId: string): Promise<Resul
   const evOwner = new Map(evs.map((e) => [e.id, e.personId]));
   const scores = evs.length ? await db.select().from(evaluationScores).where(inArray(evaluationScores.evaluationId, evs.map((e) => e.id))) : [];
   const bonus = ids.length ? await db.select().from(bonusPoints).where(inArray(bonusPoints.personId, ids)) : [];
-  const fin = await db.select().from(finalResults).where(eq(finalResults.cycleId, cycleId));
-  const adj = await db.select().from(gradeAdjustments).where(eq(gradeAdjustments.cycleId, cycleId)).orderBy(gradeAdjustments.createdAt, gradeAdjustments.kind);
+  const fin = (await db.select().from(finalResults).where(eq(finalResults.cycleId, cycleId))).map(decFinal);
+  const adj = (await db.select().from(gradeAdjustments).where(eq(gradeAdjustments.cycleId, cycleId)).orderBy(gradeAdjustments.createdAt))
+    .map((a) => ({ ...a, personId: dec(a.subject ?? ""), fromGrade: dec(a.fromGrade), toGrade: dec(a.toGrade), kind: dec(a.kind) }))
+    .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime() || (a.kind === "manual" ? -1 : 1) - (b.kind === "manual" ? -1 : 1));
   const RATER: Record<string, string> = { self: "본인평가", first: "1차", second: "2차" };
   const bonusLabel = Object.fromEntries(BONUS_ITEMS.map((i) => [i.code, i.label]));
   const sheets: Sheet[] = [
@@ -87,14 +91,14 @@ export async function exportBackup(actor: Actor, cycleId: string): Promise<Resul
     {
       name: "평가지",
       headers: ["이름", `${c.year}년 개인역할 및 업적`, `${c.year + 1}년 개선 및 발전`, "본인 제출", "1차 제출", "2차 제출"],
-      rows: evs.map((e) => [name.get(e.personId) ?? "", e.achievementText, e.improvementText, ts(e.selfSubmittedAt), ts(e.firstSubmittedAt), ts(e.secondSubmittedAt)]),
+      rows: evs.map((e) => [name.get(e.personId) ?? "", dec(e.achievementText), dec(e.improvementText), ts(e.selfSubmittedAt), ts(e.firstSubmittedAt), ts(e.secondSubmittedAt)]),
     },
     {
       name: "점수",
       headers: ["이름", "평가", "항목", "점수", "관리자 대신 입력"],
-      rows: scores.map((s) => [name.get(evOwner.get(s.evaluationId) ?? "") ?? "", RATER[s.rater] ?? s.rater, ITEM_LABEL[s.itemCode] ?? s.itemCode, s.score, s.enteredBy]),
+      rows: scores.map((s) => [name.get(evOwner.get(s.evaluationId) ?? "") ?? "", RATER[s.rater] ?? s.rater, ITEM_LABEL[s.itemCode] ?? s.itemCode, decNum(s.score), s.enteredBy]),
     },
-    { name: "가점", headers: ["이름", "항목", "점수", "넣은 사람"], rows: bonus.map((x) => [name.get(x.personId) ?? "", bonusLabel[x.item] ?? x.item, Number(x.points), x.updatedBy]) },
+    { name: "가점", headers: ["이름", "항목", "점수", "넣은 사람"], rows: bonus.map((x) => [name.get(x.personId) ?? "", bonusLabel[x.item] ?? x.item, decNum(x.points), x.updatedBy]) },
     {
       name: "최종평가",
       headers: ["이름", "그룹", "순위", "역량 점수", "업적 점수", "1차 점수", "2차 점수", "가점", "최종점수", "초안 등급", "평가등급", "표시", "상위 %", "점수 빈칸"],

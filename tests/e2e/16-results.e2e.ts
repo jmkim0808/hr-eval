@@ -1,6 +1,6 @@
 // PRD 16 확인 문장을 화면에서 점검한다. 가짜 명단.
 import { readFileSync } from "node:fs";
-import { BASE, LOG, browser, check, login, logSize, sql, summary } from "./helpers";
+import { BASE, LOG, browser, check, login, logSize, sql, summary, E } from "./helpers";
 
 await sql`delete from email_outbox`;
 await sql`delete from cycle_people`;
@@ -18,7 +18,7 @@ const MEMBER = ["responsibility", "teamwork", "discipline", "objectivity", "exec
 const LEADER = ["responsibility", "teamwork", "discipline", "objectivity", "knowledge", "information", "contribution", "leadership", "communication", "planning", "achievement"];
 async function scores(personId: string, rater: "first" | "second", v: number, codes = MEMBER) {
   const [ev] = await sql`insert into evaluations (person_id, version) values (${personId}, 1) on conflict (person_id) do update set version = evaluations.version returning id`;
-  for (const c of codes) await sql`insert into evaluation_scores (evaluation_id, rater, item_code, score) values (${ev!.id}, ${rater}, ${c}, ${v})`;
+  for (const c of codes) await sql`insert into evaluation_scores (evaluation_id, rater, item_code, score) values (${ev!.id}, ${rater}, ${c}, ${E(v)})`;
 }
 const ex = await person({ email: "exec@powernet.test", name: "정임원", position: "상무", department: "", is_executive: true, is_target: false });
 const ld = await person({ email: "lead@powernet.test", name: "최팀장", position: "부장", is_team_leader: true, grade_group: 1, form_type: "leader", first_reviewer_id: ex });
@@ -30,7 +30,7 @@ for (const [name, f, s] of [["일번", 10, 10], ["이번", 9, 9], ["삼번", 9, 
   await scores(ids[name]!, "first", f);
   await scores(ids[name]!, "second", s);
 }
-for (const [item, v] of [["certificate", 1.5], ["discipline", -0.5]] as const) await sql`insert into bonus_points (person_id, item, points) values (${ids["사번"]!}, ${item}, ${v})`;
+for (const [item, v] of [["certificate", 1.5], ["discipline", -0.5]] as const) await sql`insert into bonus_points (person_id, item, points) values (${ids["사번"]!}, ${item}, ${E(v)})`;
 
 const b = await browser();
 const ap = await (await b.newContext({ viewport: { width: 1300, height: 1000 } })).newPage();
@@ -63,7 +63,7 @@ await ap.getByRole("button", { name: /명에게 발송/ }).click();
 await ap.waitForTimeout(2500);
 const mail = readFileSync(LOG, "utf8").slice(mark).split("[mail:log]").find((m) => m.includes("사번 님"));
 await check("받은 메일에 점수·등급이 없고 \"결과가 나왔습니다\"와 링크만 있다", async () =>
-  !!mail && mail.includes("결과가 나왔습니다") && mail.includes("/login?email=") && !/\d+\.\d|점수|등급|상위|[SABCD] /.test(mail.replace(/\d{4}년/g, "")),
+  !!mail && mail.includes("결과가 나왔습니다") && mail.includes(`${BASE}/`) && !mail.includes("%40") && !/\d+\.\d|점수|등급|상위|[SABCD] /.test(mail.replace(/\d{4}년/g, "").replace(/https?:\/\/\S+/g, "")) // 링크 주소의 숫자는 빼고 본다,
 );
 
 await sp.goto(`${BASE}/me`);

@@ -1,6 +1,6 @@
 // PRD 15 확인 문장을 화면에서 점검한다. 가짜 명단.
 import ExcelJS from "exceljs";
-import { BASE, browser, check, login, sql, summary } from "./helpers";
+import { BASE, browser, check, login, sql, summary, E } from "./helpers";
 
 await sql`delete from email_outbox`;
 await sql`delete from cycle_people`;
@@ -17,8 +17,8 @@ const person = async (v: Record<string, unknown>) => {
 const MEMBER = ["responsibility", "teamwork", "discipline", "objectivity", "execution", "knowledge", "information", "contribution", "communication", "trust", "achievement"];
 const LEADER = ["responsibility", "teamwork", "discipline", "objectivity", "knowledge", "information", "contribution", "leadership", "communication", "planning", "achievement"];
 async function scores(personId: string, rater: "first" | "second", v: number, codes = MEMBER, text = "") {
-  const [ev] = await sql`insert into evaluations (person_id, achievement_text, version) values (${personId}, ${text}, 1) on conflict (person_id) do update set version = evaluations.version returning id`;
-  for (const c of codes) await sql`insert into evaluation_scores (evaluation_id, rater, item_code, score) values (${ev!.id}, ${rater}, ${c}, ${v})`;
+  const [ev] = await sql`insert into evaluations (person_id, achievement_text, version) values (${personId}, ${E(text)}, 1) on conflict (person_id) do update set version = evaluations.version returning id`;
+  for (const c of codes) await sql`insert into evaluation_scores (evaluation_id, rater, item_code, score) values (${ev!.id}, ${rater}, ${c}, ${E(v)})`;
 }
 const ex = await person({ email: "exec@powernet.test", name: "정임원", position: "상무", department: "", is_executive: true, is_target: false });
 const ld = await person({ email: "lead@powernet.test", name: "최팀장", position: "부장", is_team_leader: true, grade_group: 1, form_type: "leader", first_reviewer_id: ex });

@@ -8,20 +8,22 @@ import { assert, can } from "@/server/authz/policy";
 
 export async function listAdmins(actor: Actor) {
   assert(can.manageCycle(actor));
-  return getDb().select({ email: appUsers.email, name: appUsers.name, since: appUsers.createdAt }).from(appUsers).where(and(eq(appUsers.role, "admin"), eq(appUsers.active, true))).orderBy(asc(appUsers.createdAt));
+  return getDb().select({ email: appUsers.email, name: appUsers.name, employeeNo: appUsers.employeeNo, since: appUsers.createdAt }).from(appUsers).where(and(eq(appUsers.role, "admin"), eq(appUsers.active, true))).orderBy(asc(appUsers.createdAt));
 }
 
-export async function addAdmin(actor: Actor, email: string, name: string): Promise<Result> {
+export async function addAdmin(actor: Actor, email: string, name: string, employeeNo: string): Promise<Result> {
   assert(can.manageCycle(actor));
   const db = getDb();
   const [u] = await db.select().from(appUsers).where(eq(appUsers.email, email)).limit(1);
+  const [same] = await db.select({ email: appUsers.email }).from(appUsers).where(eq(appUsers.employeeNo, employeeNo)).limit(1);
+  if (same && same.email !== email) return fail("employee_no", "이미 다른 계정에서 쓰는 사번입니다.");
   if (u?.role === "ceo" && u.active) return fail("ceo", "대표이사 계정은 관리자로 바꿀 수 없습니다.");
   if (u?.role === "admin" && u.active) return fail("exists", "이미 관리자입니다.");
   const display = name.trim() || email.split("@")[0]!;
   await db
     .insert(appUsers)
-    .values({ email, name: display, role: "admin" })
-    .onConflictDoUpdate({ target: appUsers.email, set: { name: display, role: "admin", active: true, updatedAt: new Date() } });
+    .values({ email, name: display, employeeNo, role: "admin" })
+    .onConflictDoUpdate({ target: appUsers.email, set: { name: display, employeeNo, role: "admin", active: true, updatedAt: new Date() } });
   await db.insert(auditLogs).values({ actorEmail: actor.email, action: "admin.add", detail: { email } });
   return ok();
 }

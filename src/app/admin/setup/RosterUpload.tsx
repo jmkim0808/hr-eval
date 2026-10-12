@@ -28,19 +28,20 @@ export function RosterUpload({ locked }: { locked: boolean }) {
       ws.addRow([...ROSTER_HEADERS]);
       ws.getRow(1).font = { bold: true };
       ws.columns = ROSTER_HEADERS.map((h) => ({ width: h === "이메일" || h === "담당 임원" ? 28 : 14 }));
-      ws.addRow(["(예시) 정하늘", "haneul@powernet.co.kr", "", "상무", "2010-03-02", "아니오", ""].map((v) => safeCell(v)));
-      ws.addRow(["(예시) 최성호", "sungho@powernet.co.kr", "영업1팀", "부장", "2015-07-01", "예", "haneul@powernet.co.kr"].map((v) => safeCell(v)));
-      ws.addRow(["(예시) 김민수", "minsu@powernet.co.kr", "영업1팀", "대리", "2021-03-02", "아니오", "haneul@powernet.co.kr"].map((v) => safeCell(v)));
+      ws.addRow(["E0001", "(예시) 정하늘", "haneul@powernet.co.kr", "", "상무", "2010-03-02", "아니오", ""].map((v) => safeCell(v)));
+      ws.addRow(["E0002", "(예시) 최성호", "sungho@powernet.co.kr", "영업1팀", "부장", "2015-07-01", "예", "haneul@powernet.co.kr"].map((v) => safeCell(v)));
+      ws.addRow(["E0003", "(예시) 김민수", "minsu@powernet.co.kr", "영업1팀", "대리", "2021-03-02", "아니오", "haneul@powernet.co.kr"].map((v) => safeCell(v)));
       const help = wb.addWorksheet("작성 안내");
       [
         ["제목 줄(1행)은 바꾸지 마세요. 예시 줄은 지우고 작성하세요."],
         ["임원(이사·상무·전무·부사장·사장)도 명단에 넣으세요. 평가 대상이 아니라 평가자로 쓰입니다. 부서·담당 임원은 비워 둡니다."],
+        ["사번: 포털 로그인 사번과 같아야 합니다. 포털로 들어온 사람을 사번으로 찾습니다."],
         ["팀장 여부: 예 / 아니오"],
         ["담당 임원: 그 사람의 2차 평가자(팀장은 평가자)인 임원의 이메일"],
         ["입사일: 2021-03-02 형식. 그해 7월 1일 이후 입사자는 평가에서 자동으로 빠집니다."],
       ].forEach((r) => help.addRow(r));
       help.getColumn(1).width = 110;
-    });
+    }, { target: "인사평가 직원 명단 템플릿 (빈 양식)", rows: 0 });
   }
 
   async function onFile(file: File) {
@@ -57,9 +58,9 @@ export function RosterUpload({ locked }: { locked: boolean }) {
       ws.eachRow((row, n) => {
         if (n === 1) return;
         const c = (i: number) => cellText(row.getCell(i).value);
-        const values = [1, 2, 3, 4, 5, 6, 7].map(c);
-        if (values.every((v) => !v) || values[0]!.startsWith("(예시)")) return;
-        rows.push({ rowNo: n, name: values[0]!, email: values[1]!, department: values[2]!, position: values[3]!, hireDate: values[4]!, isTeamLeader: values[5]!, executiveEmail: values[6]! });
+        const values = [1, 2, 3, 4, 5, 6, 7, 8].map(c);
+        if (values.every((v) => !v) || values[1]!.startsWith("(예시)")) return;
+        rows.push({ rowNo: n, employeeNo: values[0]!, name: values[1]!, email: values[2]!, department: values[3]!, position: values[4]!, hireDate: values[5]!, isTeamLeader: values[6]!, executiveEmail: values[7]! });
       });
     } catch {
       return setState({ kind: "error", message: "엑셀 파일을 읽을 수 없습니다." });

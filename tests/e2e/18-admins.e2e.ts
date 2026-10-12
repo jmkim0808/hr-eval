@@ -1,9 +1,9 @@
 // PRD 18 확인 문장을 화면에서 점검한다.
-import { BASE, browser, check, login, sql, summary } from "./helpers";
+import { BASE, browser, check, employeeNoOf, login, sql, summary } from "./helpers";
 
 await sql`delete from auth_codes`;
 await sql`update app_users set active = false where role = 'admin' and email <> 'part@powernet.test'`;
-await sql`delete from app_users where email = 'newadmin@powernet.test'`;
+await sql`delete from app_users where email = 'newadmin@powernet.test' or employee_no = 'A9001'`;
 await sql`delete from audit_logs where detail->>'email' = 'newadmin@powernet.test'`;
 
 const b = await browser();
@@ -15,6 +15,18 @@ await check("관리자가 1명만 남으면 [해제]가 눌리지 않고 \"마�
   (await row("part@powernet.test").getByRole("button", { name: "해제" }).isDisabled()) && (await page.getByText("마지막 관리자는 해제할 수 없습니다").count()) === 1,
 );
 
+await page.fill("#admin-email", "newadmin@powernet.test");
+await page.getByRole("button", { name: "관리자 추가" }).click();
+await page.waitForTimeout(800);
+await check("사번을 비우면 \"사번을 넣어 주세요\"가 보인다 (포털 로그인은 사번으로 사람을 찾는다)", async () => (await page.getByText(/사번을 넣어 주세요/).count()) === 1);
+
+const partNo = await employeeNoOf("part@powernet.test");
+await page.fill("#admin-no", partNo);
+await page.getByRole("button", { name: "관리자 추가" }).click();
+await page.waitForTimeout(800);
+await check("다른 계정이 쓰는 사번이면 추가되지 않는다", async () => (await row("newadmin@powernet.test").count()) === 0 && (await page.getByText("이미 다른 계정에서 쓰는 사번입니다").count()) === 1);
+
+await page.fill("#admin-no", "A9001");
 await page.fill("#admin-email", "not-an-email");
 await page.getByRole("button", { name: "관리자 추가" }).click();
 await page.waitForTimeout(800);

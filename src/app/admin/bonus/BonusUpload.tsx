@@ -43,7 +43,7 @@ export function BonusUpload({ roster, locked, cutoff }: { roster: (Pick<BonusRow
         [`가점 인정 기준일: ${cutoff}`],
       ].forEach((r) => help.addRow(r));
       help.getColumn(1).width = 100;
-    });
+    }, { target: "인사평가 가점 템플릿 (대상자 명단 포함)", rows: roster.length });
   }
 
   async function onFile(file: File) {

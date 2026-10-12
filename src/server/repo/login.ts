@@ -4,7 +4,7 @@ import { and, desc, eq, gt, isNotNull, isNull, ne, sql } from "drizzle-orm";
 import type { Db } from "@/server/db/client";
 import { appUsers, authCodes, cyclePeople, reviewCycles, sessions } from "@/server/db/schema";
 
-export type LoginIdentity = { email: string; name: string; role: "admin" | "ceo" | null; personId: string | null };
+export type LoginIdentity = { email: string; name: string; role: "admin" | "ceo" | null; personId: string | null; employeeNo: string | null };
 
 /**
  * 들어올 수 있는 사람인지: 관리자·대표이사, 또는 안내 이메일을 보낸 뒤의 평가 명단(직원·팀장·임원).
@@ -12,12 +12,12 @@ export type LoginIdentity = { email: string; name: string; role: "admin" | "ceo"
  */
 export async function findLoginIdentity(db: Db, email: string): Promise<LoginIdentity | null> {
   const [u] = await db
-    .select({ email: appUsers.email, name: appUsers.name, role: appUsers.role })
+    .select({ email: appUsers.email, name: appUsers.name, role: appUsers.role, employeeNo: appUsers.employeeNo })
     .from(appUsers)
     .where(and(eq(appUsers.email, email), eq(appUsers.active, true)))
     .limit(1);
   const [p] = await db
-    .select({ id: cyclePeople.id, name: cyclePeople.name, blocked: cyclePeople.accessBlocked })
+    .select({ id: cyclePeople.id, name: cyclePeople.name, blocked: cyclePeople.accessBlocked, employeeNo: cyclePeople.employeeNo })
     .from(cyclePeople)
     .innerJoin(reviewCycles, eq(reviewCycles.id, cyclePeople.cycleId))
     .where(and(eq(cyclePeople.email, email), ne(reviewCycles.status, "setup")))
@@ -25,7 +25,28 @@ export async function findLoginIdentity(db: Db, email: string): Promise<LoginIde
     .limit(1);
   const person = p && !p.blocked ? p : null;
   if (!u && !person) return null;
-  return { email, name: u?.name ?? person!.name, role: u?.role ?? null, personId: person?.id ?? null };
+  return { email, name: u?.name ?? person!.name, role: u?.role ?? null, personId: person?.id ?? null, employeeNo: u?.employeeNo ?? person?.employeeNo ?? null };
+}
+
+/**
+ * 포털 사번으로 우리 쪽 사람을 찾아 인증번호를 보낼 메일 주소를 정한다 (ADR-0020).
+ * 관리자·대표이사 계정이 먼저, 없으면 안내 이메일을 보낸 뒤의 평가 명단.
+ */
+export async function findEmailByEmployeeNo(db: Db, employeeNo: string): Promise<{ email: string; name: string } | null> {
+  const [u] = await db
+    .select({ email: appUsers.email, name: appUsers.name })
+    .from(appUsers)
+    .where(and(eq(appUsers.employeeNo, employeeNo), eq(appUsers.active, true)))
+    .limit(1);
+  if (u) return u;
+  const [p] = await db
+    .select({ email: cyclePeople.email, name: cyclePeople.name, blocked: cyclePeople.accessBlocked })
+    .from(cyclePeople)
+    .innerJoin(reviewCycles, eq(reviewCycles.id, cyclePeople.cycleId))
+    .where(and(eq(cyclePeople.employeeNo, employeeNo), ne(reviewCycles.status, "setup")))
+    .orderBy(desc(reviewCycles.year))
+    .limit(1);
+  return p && !p.blocked ? { email: p.email, name: p.name } : null;
 }
 
 export async function countCodeRequestsSince(db: Db, by: { email?: string; ip?: string }, since: Date) {

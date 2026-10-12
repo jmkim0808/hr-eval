@@ -6,6 +6,8 @@ import { getDb } from "@/server/db/client";
 import { AUTH } from "@/server/auth/policy";
 import { sessionHash } from "@/server/auth/service";
 import * as repo from "@/server/repo/login";
+import { isOpen } from "@/server/crypto/vault";
+import { devAutoUnlock } from "@/server/repo/vault";
 
 export const SESSION_COOKIE = "hr_session";
 
@@ -15,6 +17,8 @@ export type Actor = {
   roles: { admin: boolean; ceo: boolean };
   /** 올해 평가 명단에서의 나 (관리자·대표이사만이면 null) */
   personId: string | null;
+  /** 사번 — 포털 로그인 사람과 같은지 화면에서 확인한다 */
+  employeeNo: string | null;
 };
 
 export const getActor = cache(async (): Promise<Actor | null> => {
@@ -32,15 +36,24 @@ export const getActor = cache(async (): Promise<Actor | null> => {
   const who = await repo.findLoginIdentity(db, s.email);
   if (!who) return null;
   await repo.touchSession(db, hash);
-  return { email: who.email, name: who.name, roles: { admin: who.role === "admin", ceo: who.role === "ceo" }, personId: who.personId };
+  return { email: who.email, name: who.name, roles: { admin: who.role === "admin", ceo: who.role === "ceo" }, personId: who.personId, employeeNo: who.employeeNo };
 });
 
-/** 로그인하지 않았거나 30분이 지났으면 이메일 인증 화면으로 보낸다. */
-export async function requireActor(): Promise<Actor> {
+type Opts = { allowLocked?: boolean };
+
+/**
+ * 로그인하지 않았거나 30분이 지났으면 2차 인증 화면으로 보낸다.
+ * 보안 열쇠가 잠겨 있으면(서버 재시작 뒤) 관리자는 열쇠 화면, 나머지는 안내 화면으로 보낸다 (ADR-0021).
+ */
+export async function requireActor(opts: Opts = {}): Promise<Actor> {
   const a = await getActor();
   if (!a) {
     const hadSession = (await cookies()).has(SESSION_COOKIE);
     redirect(hadSession ? "/login?expired=1" : "/login");
+  }
+  if (!opts.allowLocked && !isOpen()) {
+    await devAutoUnlock();
+    if (!isOpen()) redirect(a.roles.admin ? "/admin/vault" : "/locked");
   }
   return a;
 }
@@ -58,8 +71,8 @@ export async function requireReportViewer(): Promise<Actor> {
   return a;
 }
 
-export async function requireAdmin(): Promise<Actor> {
-  const a = await requireActor();
+export async function requireAdmin(opts: Opts = {}): Promise<Actor> {
+  const a = await requireActor(opts);
   if (!a.roles.admin) redirect("/");
   return a;
 }

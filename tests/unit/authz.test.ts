@@ -3,9 +3,9 @@ import { describe, expect, it } from "vitest";
 import type { Actor } from "@/server/authz/actor";
 import { can } from "@/server/authz/policy";
 
-const admin: Actor = { email: "a@x", name: "관리자", roles: { admin: true, ceo: false }, personId: "p-admin" };
-const ceo: Actor = { email: "c@x", name: "대표", roles: { admin: false, ceo: true }, personId: null };
-const staff: Actor = { email: "s@x", name: "직원", roles: { admin: false, ceo: false }, personId: "p-staff" };
+const admin: Actor = { email: "a@x", name: "관리자", roles: { admin: true, ceo: false }, personId: "p-admin", employeeNo: "A1" };
+const ceo: Actor = { email: "c@x", name: "대표", roles: { admin: false, ceo: true }, personId: null, employeeNo: "C1" };
+const staff: Actor = { email: "s@x", name: "직원", roles: { admin: false, ceo: false }, personId: "p-staff", employeeNo: "S1" };
 
 describe("관리자 화면", () => {
   it("관리자만 진행 현황·평가 시작 설정을 쓸 수 있다", () => {

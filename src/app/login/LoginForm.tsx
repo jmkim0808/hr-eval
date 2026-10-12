@@ -1,31 +1,55 @@
 "use client";
 
-import { CircleX, Clock, LogIn, Mail, ShieldCheck } from "lucide-react";
-import { useActionState, useEffect, useState } from "react";
+import { CircleX, Clock, LogIn, Mail, ShieldCheck, UserX } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useEffect, useState, useTransition } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { FieldError, Input, Label } from "@/components/ui/input";
-import { sendCodeAction, verifyCodeAction, type LoginState, type VerifyState } from "./actions";
+import { portalToken } from "@/lib/portal";
+import { portalCheckAction, portalSendCodeAction, portalVerifyAction, type PortalState } from "./actions";
 
 const RESEND_SECONDS = 60;
 
-export function LoginForm({ expired, initialEmail }: { expired: boolean; initialEmail: string }) {
-  const [sendState, sendAction, sending] = useActionState(sendCodeAction, { step: "email", email: initialEmail } as LoginState);
-  const [verifyState, verifyAction, verifying] = useActionState(verifyCodeAction, {} as VerifyState);
+// 1차: 포털 로그인(브라우저의 ax_access_token) → 2차: 회사 메일로 받은 인증번호 (ADR-0020)
+export function LoginForm({ expired }: { expired: boolean }) {
+  const router = useRouter();
+  const [state, setState] = useState<PortalState | null>(null);
+  const [sentAt, setSentAt] = useState(0);
+  const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
+  const [pending, start] = useTransition();
 
-  const step = sendState.step;
-  const sentAt = sendState.sentAt ?? 0;
+  useEffect(() => {
+    start(async () => setState(await portalCheckAction(portalToken())));
+  }, []);
+
   const wait = Math.max(0, RESEND_SECONDS - Math.floor((now - sentAt) / 1000));
   useEffect(() => {
-    if (step !== "code" || wait === 0) return;
+    if (!sentAt || wait === 0) return;
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
-  }, [step, wait]);
+  }, [sentAt, wait]);
 
-  // 가장 최근에 일어난 일의 안내만 보인다 (다시 보내기 뒤에는 이전 오류를 지움).
-  const error = step === "code" ? ((verifyState.at ?? 0) > sentAt ? verifyState.error : sendState.error) : sendState.error;
+  function send() {
+    start(async () => {
+      const r = await portalSendCodeAction(portalToken());
+      if (r.ok) {
+        setSentAt(r.sentAt);
+        setNow(Date.now());
+        setError(null);
+      } else setError(r.message);
+    });
+  }
+
+  function verify(form: FormData) {
+    start(async () => {
+      const r = await portalVerifyAction(portalToken(), form.get("code"));
+      if (r.ok) router.replace("/");
+      else setError(r.message);
+    });
+  }
 
   return (
     <Card className="w-full max-w-sm">
@@ -33,8 +57,8 @@ export function LoginForm({ expired, initialEmail }: { expired: boolean; initial
         <div className="mb-2 flex size-10 items-center justify-center rounded-lg bg-accent text-accent-foreground">
           <ShieldCheck className="size-5" aria-hidden="true" />
         </div>
-        <CardTitle>이메일 인증</CardTitle>
-        <CardDescription>회사 이메일로 받은 인증번호로 들어갑니다.</CardDescription>
+        <CardTitle>2차 인증</CardTitle>
+        <CardDescription>포털 로그인에 더해, 회사 메일로 받은 인증번호를 한 번 더 확인합니다.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {expired && (
@@ -43,33 +67,38 @@ export function LoginForm({ expired, initialEmail }: { expired: boolean; initial
             <AlertDescription>30분 동안 사용하지 않아 다시 인증이 필요합니다.</AlertDescription>
           </Alert>
         )}
-
-        {step === "email" ? (
-          <form action={sendAction} className="space-y-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="email">회사 이메일</Label>
-              <Input id="email" name="email" type="email" autoComplete="email" required defaultValue={sendState.email} aria-invalid={!!sendState.error || undefined} />
-              <FieldError>
-                {sendState.error && <CircleX className="size-3.5" aria-hidden="true" />}
-                {sendState.error}
-              </FieldError>
-            </div>
-            <Button className="w-full" disabled={sending}>
+        {!state && <p className="text-caption text-muted-foreground">포털 로그인을 확인하는 중…</p>}
+        {state?.kind === "error" && (
+          <Alert variant={state.code === "not_registered" ? "warning" : "destructive"} data-testid="portal-error">
+            {state.code === "not_registered" ? <UserX aria-hidden="true" /> : <CircleX aria-hidden="true" />}
+            <AlertDescription>{state.message}</AlertDescription>
+          </Alert>
+        )}
+        {state?.kind === "ready" && !sentAt && (
+          <>
+            <p className="text-body">
+              <b>{state.name}</b> 님, 등록된 회사 메일 <b className="tabular-nums">{state.maskedEmail}</b>로 인증번호를 보냅니다.
+            </p>
+            <FieldError>
+              {error && <CircleX className="size-3.5" aria-hidden="true" />}
+              {error}
+            </FieldError>
+            <Button className="w-full" disabled={pending} onClick={send}>
               <Mail aria-hidden="true" />
-              {sending ? "보내는 중" : "인증번호 받기"}
+              {pending ? "보내는 중" : "인증번호 받기"}
             </Button>
-          </form>
-        ) : (
+          </>
+        )}
+        {state?.kind === "ready" && sentAt > 0 && (
           <>
             <Alert variant="info">
               <Mail aria-hidden="true" />
               <AlertDescription>
-                <span>{sendState.message ?? "인증번호를 보냈습니다. 메일함을 확인하세요."}</span>
-                <span className="text-caption">{sendState.email}</span>
+                <span>인증번호를 보냈습니다. 메일함을 확인하세요.</span>
+                <span className="text-caption">{state.maskedEmail}</span>
               </AlertDescription>
             </Alert>
-            <form action={verifyAction} className="space-y-4">
-              <input type="hidden" name="email" value={sendState.email} />
+            <form action={verify} className="space-y-4">
               <div className="space-y-1.5">
                 <Label htmlFor="code">인증번호 6자리</Label>
                 <Input id="code" name="code" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9 ]*" maxLength={7} required autoFocus className="text-center text-section-title tracking-[0.4em]" aria-invalid={!!error || undefined} />
@@ -78,18 +107,16 @@ export function LoginForm({ expired, initialEmail }: { expired: boolean; initial
                   {error}
                 </FieldError>
               </div>
-              <Button className="w-full" disabled={verifying}>
+              <Button className="w-full" disabled={pending}>
                 <LogIn aria-hidden="true" />
-                {verifying ? "확인 중" : "인증하기"}
+                {pending ? "확인 중" : "인증하기"}
               </Button>
             </form>
-            <form action={sendAction} className="flex justify-center">
-              <input type="hidden" name="email" value={sendState.email} />
-              <input type="hidden" name="resend" value="1" />
-              <Button variant="ghost" size="sm" disabled={wait > 0 || sending}>
+            <div className="flex justify-center">
+              <Button variant="ghost" size="sm" disabled={wait > 0 || pending} onClick={send}>
                 {wait > 0 ? `다시 보내기 (${wait}초 뒤)` : "다시 보내기"}
               </Button>
-            </form>
+            </div>
           </>
         )}
       </CardContent>

@@ -1,5 +1,5 @@
 // PRD 04 확인 문장을 화면에서 점검한다. 가짜 명단.
-import { BASE, browser, check, login, sql, summary } from "./helpers";
+import { BASE, browser, check, login, sql, summary, D, employeeNoOf, portalTokenFor, setPortalToken } from "./helpers";
 
 await sql`delete from email_outbox`;
 await sql`delete from cycle_people`;
@@ -22,10 +22,15 @@ const b = await browser();
 const ctx = await b.newContext({ viewport: { width: 1300, height: 1000 } });
 const page = await ctx.newPage();
 
-// 안내 메일 링크로 들어오기
+// 포털에서 인사평가를 열면 (1차: 포털 로그인) → 2차 인증 화면
 await sql`delete from auth_codes where email = 'kim@powernet.test'`;
-await page.goto(`${BASE}/login?email=kim%40powernet.test`);
-await check("안내 메일 링크로 들어오면 이메일 칸이 채워져 있다", async () => (await page.inputValue('input[name="email"]')) === "kim@powernet.test");
+await setPortalToken(page, portalTokenFor(await employeeNoOf("kim@powernet.test")));
+await page.goto(`${BASE}/`);
+await page.waitForURL(/\/login/);
+await page.waitForSelector("text=인증번호 받기", { timeout: 8000 }).catch(() => null);
+await check("포털에서 열면 2차 인증 화면에 내 이름과 가린 회사 메일(k***@…)이 보이고 이메일을 직접 넣지 않는다", async () =>
+  (await page.getByText("k***@powernet.test").count()) >= 1 && (await page.locator('input[name="email"]').count()) === 0,
+);
 await login(page, "kim@powernet.test");
 await page.goto(`${BASE}/`);
 await page.waitForURL(`${BASE}/me`);
@@ -99,7 +104,7 @@ await check("기간이 지나도 계속 쓸 수 있고 \"기한 지남\"이 보�
   await w1.waitForSelector("text=/저장됨/", { timeout: 8000 });
   await w1.waitForTimeout(1600);
   const [r] = await sql`select improvement_text from evaluations where person_id = ${me!.id}`;
-  return shown && r!.improvement_text === "기한 뒤에도 고침";
+  return shown && r!.improvement_text.startsWith("e1:") && D(r!.improvement_text) === "기한 뒤에도 고침"; // DB에는 암호문만
 });
 await w1.screenshot({ path: "/tmp/hr-e2e/04-form.png", fullPage: true });
 

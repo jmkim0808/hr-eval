@@ -7,6 +7,7 @@ import { getDb } from "@/server/db/client";
 import { auditLogs, cyclePeople, evaluations, evaluationScores, reviewCycles } from "@/server/db/schema";
 import type { Actor } from "@/server/authz/actor";
 import { can } from "@/server/authz/policy";
+import { dec, decNum, enc, encNum } from "@/server/crypto/vault";
 
 export type SelfStatus = "not_started" | "writing" | "submitted";
 
@@ -39,7 +40,7 @@ async function loadForm(personId: string) {
       .select({ item: evaluationScores.itemCode, score: evaluationScores.score })
       .from(evaluationScores)
       .where(and(eq(evaluationScores.evaluationId, ev.id), eq(evaluationScores.rater, "self")));
-    for (const r of rows) scores[r.item] = r.score;
+    for (const r of rows) scores[r.item] = decNum(r.score)!;
   }
   const { person, cycle } = row;
   const status: SelfStatus = ev?.selfSubmittedAt ? "submitted" : ev && (ev.achievementText || ev.improvementText || Object.keys(scores).length) ? "writing" : "not_started";
@@ -51,7 +52,7 @@ async function loadForm(personId: string) {
     submittedAt: ev?.selfSubmittedAt ?? null,
     updatedAt: ev?.updatedAt ?? null,
     version: ev?.version ?? 0,
-    draft: { scores, achievement: ev?.achievementText ?? "", improvement: ev?.improvementText ?? "" } satisfies SelfDraft,
+    draft: { scores, achievement: dec(ev?.achievementText ?? ""), improvement: dec(ev?.improvementText ?? "") } satisfies SelfDraft,
   };
 }
 
@@ -79,7 +80,7 @@ export async function saveSelf(actor: Actor, personId: string, version: number, 
       if (version !== 0) return fail("conflict", "다른 창에서 고친 내용이 있습니다.");
       const [ins] = await tx
         .insert(evaluations)
-        .values({ personId, formVersion: FORM_VERSION, achievementText: clean.achievement, improvementText: clean.improvement, version: 1, selfSubmittedAt: submit ? now : null })
+        .values({ personId, formVersion: FORM_VERSION, achievementText: enc(clean.achievement), improvementText: enc(clean.improvement), version: 1, selfSubmittedAt: submit ? now : null })
         .returning({ id: evaluations.id });
       evId = ins!.id;
     } else {
@@ -88,8 +89,8 @@ export async function saveSelf(actor: Actor, personId: string, version: number, 
       await tx
         .update(evaluations)
         .set({
-          achievementText: clean.achievement,
-          improvementText: clean.improvement,
+          achievementText: enc(clean.achievement),
+          improvementText: enc(clean.improvement),
           version: ev.version + 1,
           updatedAt: now,
           ...(submit ? { selfSubmittedAt: now } : {}),
@@ -98,7 +99,7 @@ export async function saveSelf(actor: Actor, personId: string, version: number, 
     }
     await tx.delete(evaluationScores).where(and(eq(evaluationScores.evaluationId, evId), eq(evaluationScores.rater, "self")));
     const entries = Object.entries(clean.scores);
-    if (entries.length) await tx.insert(evaluationScores).values(entries.map(([itemCode, score]) => ({ evaluationId: evId, rater: "self" as const, itemCode, score })));
+    if (entries.length) await tx.insert(evaluationScores).values(entries.map(([itemCode, score]) => ({ evaluationId: evId, rater: "self" as const, itemCode, score: encNum(score)! })));
     if (submit) await tx.insert(auditLogs).values({ actorEmail: actor.email, action: "self.submit", personId, detail: {} });
     return ok({ version: version + 1, savedAt: now.toISOString() });
   });

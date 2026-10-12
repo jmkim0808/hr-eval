@@ -9,6 +9,8 @@ import { getDb, type Db } from "@/server/db/client";
 import { appUsers, auditLogs, bonusPoints, cyclePeople, evaluations, evaluationScores, finalResults, reviewCycles } from "@/server/db/schema";
 import type { Actor } from "@/server/authz/actor";
 import { assert, can } from "@/server/authz/policy";
+import { decNum, encNum } from "@/server/crypto/vault";
+import { decFinal, encFinal, type FinalPlain } from "@/server/repo/final-codec";
 
 type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
 const n2 = (x: number | null) => (x === null ? null : x.toFixed(2));
@@ -27,18 +29,18 @@ export async function recomputeFinal(db: Db | Tx, cycleId: string) {
   const sc = new Map<string, { first: Record<string, number>; second: Record<string, number> }>();
   for (const s of scores) {
     const e = sc.get(s.evaluationId) ?? { first: {}, second: {} };
-    e[s.rater as "first" | "second"][s.itemCode] = s.score;
+    e[s.rater as "first" | "second"][s.itemCode] = decNum(s.score)!;
     sc.set(s.evaluationId, e);
   }
   const bn = new Map<string, Partial<Record<BonusCode, number>>>();
-  for (const b of bonus) bn.set(b.personId, { ...(bn.get(b.personId) ?? {}), [b.item]: Number(b.points) });
+  for (const b of bonus) bn.set(b.personId, { ...(bn.get(b.personId) ?? {}), [b.item]: decNum(b.points) ?? 0 });
 
   const computed = people.map((p) => {
     const s = (p.evId && sc.get(p.evId)) || { first: {}, second: {} };
     return { p, r: computeScores(p.formType!, s.first, s.second, bonusTotal(bn.get(p.id) ?? {})) };
   });
-  const before = new Map((await db.select({ id: finalResults.personId, draft: finalResults.draftGrade }).from(finalResults).where(eq(finalResults.cycleId, cycleId))).map((r) => [r.id, r.draft]));
-  const rows: (typeof finalResults.$inferInsert)[] = [];
+  const before = new Map((await db.select().from(finalResults).where(eq(finalResults.cycleId, cycleId))).map((r) => [r.personId, decFinal(r).draftGrade]));
+  const rows: FinalPlain[] = [];
   const groups = new Map<number, typeof computed>();
   for (const c of computed) groups.set(c.p.group ?? 0, [...(groups.get(c.p.group ?? 0) ?? []), c]);
   for (const list of groups.values()) {
@@ -63,11 +65,11 @@ export async function recomputeFinal(db: Db | Tx, cycleId: string) {
         displayPercentile: d.percentile === null ? null : d.percentile.toFixed(1),
         recalcFrom: before.get(p.id) && d.grade && before.get(p.id) !== d.grade ? before.get(p.id)! : null,
         updatedAt: new Date(),
-      });
+      } as FinalPlain);
     }
   }
   await db.delete(finalResults).where(eq(finalResults.cycleId, cycleId));
-  await db.insert(finalResults).values(rows);
+  await db.insert(finalResults).values(rows.map((r) => encFinal(r) as typeof finalResults.$inferInsert));
   // 이미 적용한 등급조정은 유지한다 (ADR-0016)
   await replayAdjustments(db, cycleId);
 }
@@ -103,6 +105,7 @@ export async function listFinal(actor: Actor, cycleId: string): Promise<FinalRow
     .where(eq(finalResults.cycleId, cycleId));
   const num = (x: string | null) => (x === null ? null : Number(x));
   return rows
+    .map(({ p, f: raw }) => ({ p, f: decFinal(raw) }))
     .map(({ p, f }) => ({
       id: p.id,
       name: p.name,
@@ -149,7 +152,7 @@ export async function getFillForm(actor: Actor, personId: string) {
   const admins = emails.length ? await db.select({ email: appUsers.email, name: appUsers.name }).from(appUsers).where(inArray(appUsers.email, emails)) : [];
   const nameOf = new Map(admins.map((a) => [a.email, a.name]));
   const cell = (rater: "first" | "second") =>
-    Object.fromEntries(scores.filter((s) => s.rater === rater).map((s) => [s.itemCode, { score: s.score, proxy: s.enteredBy ? (nameOf.get(s.enteredBy) ?? s.enteredBy) : null }])) as Record<string, { score: number; proxy: string | null }>;
+    Object.fromEntries(scores.filter((s) => s.rater === rater).map((s) => [s.itemCode, { score: decNum(s.score)!, proxy: s.enteredBy ? (nameOf.get(s.enteredBy) ?? s.enteredBy) : null }])) as Record<string, { score: number; proxy: string | null }>;
   return { person: { id: row.p.id, name: row.p.name, department: row.p.department, formType: row.p.formType, cycleId: row.p.cycleId }, first: cell("first"), second: cell("second") };
 }
 
@@ -176,7 +179,7 @@ export async function fillBlankScores(actor: Actor, personId: string, input: { f
   await db.transaction(async (tx) => {
     let [ev] = await tx.select().from(evaluations).where(eq(evaluations.personId, personId)).limit(1);
     if (!ev) [ev] = await tx.insert(evaluations).values({ personId, version: 1 }).returning();
-    await tx.insert(evaluationScores).values(rows.map((r) => ({ evaluationId: ev!.id, ...r, enteredBy: actor.email })));
+    await tx.insert(evaluationScores).values(rows.map((r) => ({ evaluationId: ev!.id, ...r, score: encNum(r.score)!, enteredBy: actor.email })));
     await tx.update(evaluations).set({ version: ev!.version + 1, updatedAt: new Date() }).where(eq(evaluations.id, ev!.id));
     await tx.insert(auditLogs).values({ actorEmail: actor.email, action: "score.proxy", cycleId: c.id, personId, detail: { count: rows.length } });
     await recomputeFinal(tx, c.id);

@@ -29,9 +29,6 @@
     "paths": {
       "@/*": [
         "./src/*"
-      ],
-      "@platform/mail-transport": [
-        "./src/platform/node/mail-transport.ts"
       ]
     }
   },
@@ -47,7 +44,6 @@
   ],
   "exclude": [
     "node_modules",
-    ".open-next",
     "docs"
   ]
 }

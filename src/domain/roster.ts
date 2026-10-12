@@ -1,7 +1,7 @@
 // 직원 명단 템플릿 규칙 (PRD 02). 브라우저와 서버가 같은 규칙으로 검사한다 (ADR-0008).
 import { z } from "zod";
 
-export const ROSTER_HEADERS = ["이름", "이메일", "부서", "직급", "입사일", "팀장 여부", "담당 임원"] as const;
+export const ROSTER_HEADERS = ["사번", "이름", "이메일", "부서", "직급", "입사일", "팀장 여부", "담당 임원"] as const;
 export const ROSTER_MAX_ROWS = 1000;
 export const ROSTER_MAX_BYTES = 1024 * 1024;
 
@@ -17,10 +17,11 @@ export const POSITION_GROUP: Record<string, 2 | 3 | 4 | 5> = {
   사원: 5,
 };
 
-export type RawRosterRow = { rowNo: number; name: string; email: string; department: string; position: string; hireDate: string; isTeamLeader: string; executiveEmail: string };
+export type RawRosterRow = { rowNo: number; employeeNo: string; name: string; email: string; department: string; position: string; hireDate: string; isTeamLeader: string; executiveEmail: string };
 
 export const rawRowSchema = z.object({
   rowNo: z.number().int().min(2),
+  employeeNo: z.string().max(30),
   name: z.string().max(50),
   email: z.string().max(254),
   department: z.string().max(50),
@@ -33,6 +34,8 @@ export const rawRowsSchema = z.array(rawRowSchema).max(ROSTER_MAX_ROWS);
 
 export type RosterPerson = {
   rowNo: number;
+  /** 사번 — 포털 로그인(토큰의 sub)과 맞춰 본인을 찾는다 (ADR-0020) */
+  employeeNo: string;
   name: string;
   email: string;
   department: string;
@@ -85,6 +88,7 @@ export function checkRoster(rows: RawRosterRow[], cycleYear: number): RosterChec
   const issues: RosterIssue[] = [];
   const cutoff = `${cycleYear}-06-30`;
   const seen = new Map<string, number>();
+  const seenNo = new Map<string, number>();
   const people: RosterPerson[] = [];
   const bad = new Set<number>();
   const add = (r: { rowNo: number; name: string }, reason: string) => {
@@ -95,11 +99,16 @@ export function checkRoster(rows: RawRosterRow[], cycleYear: number): RosterChec
   for (const r of rows) {
     const name = r.name.trim();
     const email = r.email.trim().toLowerCase();
+    const employeeNo = r.employeeNo.trim();
     const department = r.department.trim();
     const position = r.position.trim();
     const isExecutive = (EXECUTIVE_POSITIONS as readonly string[]).includes(position);
     const row = { rowNo: r.rowNo, name };
     if (!name) add(row, "이름이 비어 있습니다");
+    if (!employeeNo) add(row, "사번이 비어 있습니다");
+    else if (!/^[A-Za-z0-9-]{1,30}$/.test(employeeNo)) add(row, "사번은 영문·숫자·- 만 쓸 수 있습니다");
+    else if (seenNo.has(employeeNo)) add(row, `사번이 ${seenNo.get(employeeNo)}번째 줄과 같습니다`);
+    if (employeeNo) seenNo.set(employeeNo, r.rowNo);
     if (!email) add(row, "이메일이 비어 있습니다");
     else if (!emailOk(email)) add(row, "이메일 형식 오류");
     else if (seen.has(email)) add(row, `이메일이 ${seen.get(email)}번째 줄과 같습니다`);
@@ -117,6 +126,7 @@ export function checkRoster(rows: RawRosterRow[], cycleYear: number): RosterChec
     const isTarget = !isExecutive && !excludedReason;
     people.push({
       rowNo: r.rowNo,
+      employeeNo,
       name,
       email,
       department,

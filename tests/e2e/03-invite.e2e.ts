@@ -69,8 +69,8 @@ await check("[다시 보내기]를 누르면 실패한 사람에게 다시 보�
 
 const mail = readFileSync(LOG, "utf8").slice(mark);
 const one = mail.split("[mail:log]").find((m) => m.includes("직원01 님"))!;
-await check("받은 메일에는 개인작성 기간, 가점 인정 기준일, 들어오는 링크가 있고 점수는 없다", async () =>
-  one.includes("개인작성 기간 11/3 ~ 11/7") && one.includes("가점 인정 기준일은 11/14") && one.includes("/login?email=m1%40powernet.test") && !/점수|등급/.test(one),
+await check("받은 메일에는 개인작성 기간, 가점 인정 기준일, 포털 링크·2차 인증 안내가 있고 점수와 이메일 링크는 없다", async () =>
+  one.includes("개인작성 기간 11/3 ~ 11/7") && one.includes("가점 인정 기준일은 11/14") && one.includes(`${BASE}/`) && !one.includes("m1%40") && one.includes("2차 인증") && !/점수|등급/.test(one), // 링크에 이메일을 넣지 않는다 (포털 로그인 → 2차 인증)
 );
 await check("발송한 뒤에는 명단을 다시 올릴 수 없다", async () =>
   (await page.getByRole("button", { name: "템플릿 올리기" }).isDisabled()) && (await page.getByText("안내 이메일을 보낸 뒤에는 명단을 다시 올릴 수 없습니다").count()) === 1,

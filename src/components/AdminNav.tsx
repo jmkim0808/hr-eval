@@ -9,6 +9,7 @@ const items = [
   { href: "/admin/results", label: "결과 발송" },
   { href: "/admin/setup", label: "평가 시작 설정" },
   { href: "/admin/settings", label: "관리자 설정" },
+  { href: "/admin/vault", label: "보안 열쇠" },
 ] as const;
 
 export function AdminNav({ current }: { current: string }) {

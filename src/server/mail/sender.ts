@@ -1,5 +1,5 @@
 // 메일은 여기로만 보낸다 (docs/tech/03-규칙.md 18~20). 본문에 점수·등급·업적 글을 넣지 않는다.
-import { smtpTransport } from "@platform/mail-transport";
+import { smtpTransport } from "@/platform/node/mail-transport";
 import { env } from "@/platform/env";
 import type { MailMessage } from "./types";
 

@@ -7,6 +7,7 @@ import { fail, ok, type Result } from "@/lib/result";
 import { getDb } from "@/server/db/client";
 import { auditLogs, cyclePeople, evaluations, evaluationScores, reviewCycles } from "@/server/db/schema";
 import type { Actor } from "@/server/authz/actor";
+import { dec, decNum, encNum } from "@/server/crypto/vault";
 
 export type ReviewStatus = "todo" | "writing" | "done";
 export type GroupPerson = { id: string; name: string; department: string; position: string; status: ReviewStatus; visible: boolean };
@@ -84,7 +85,7 @@ export async function getReview(actor: Actor, kind: ReviewKind, personId: string
         .from(evaluationScores)
         .where(and(eq(evaluationScores.evaluationId, ev.id), inArray(evaluationScores.rater, raters)))
     : [];
-  const pick = (r: string) => Object.fromEntries(scores.filter((s) => s.rater === r).map((s) => [s.item, s.score])) as Record<string, number>;
+  const pick = (r: string) => Object.fromEntries(scores.filter((s) => s.rater === r).map((s) => [s.item, decNum(s.score)!])) as Record<string, number>;
   const submittedAt = rater === "first" ? ev?.firstSubmittedAt : ev?.secondSubmittedAt;
   return {
     kind,
@@ -92,7 +93,7 @@ export async function getReview(actor: Actor, kind: ReviewKind, personId: string
     cycle: { year: cycle.year, status: cycle.status, firstStart: cycle.firstStart, firstEnd: cycle.firstEnd, secondStart: cycle.secondStart, secondEnd: cycle.secondEnd },
     visible,
     editable: visible && canScore(kind, cycle.status),
-    self: visible ? { scores: pick("self"), achievement: ev?.achievementText ?? "", improvement: ev?.improvementText ?? "", submitted: !!ev?.selfSubmittedAt } : null,
+    self: visible ? { scores: pick("self"), achievement: dec(ev?.achievementText ?? ""), improvement: dec(ev?.improvementText ?? ""), submitted: !!ev?.selfSubmittedAt } : null,
     firstScores: seesFirstScores(kind) && visible ? pick("first") : null,
     firstSubmitted: seesFirstScores(kind) ? !!ev?.firstSubmittedAt : false,
     mine: pick(rater),
@@ -119,7 +120,7 @@ export async function bundleTotals(actor: Actor, kind: ReviewKind): Promise<Bund
   const by = new Map<string, { form: FormType; s: Record<string, number> }>();
   for (const r of rows) {
     const e = by.get(r.personId) ?? { form: r.formType as FormType, s: {} };
-    e.s[r.item] = r.score;
+    e.s[r.item] = decNum(r.score)!;
     by.set(r.personId, e);
   }
   return group.people.map((p) => {
@@ -172,7 +173,7 @@ export async function saveReview(actor: Actor, kind: ReviewKind, personId: strin
     }
     await tx.delete(evaluationScores).where(and(eq(evaluationScores.evaluationId, evId), eq(evaluationScores.rater, rater)));
     const entries = Object.entries(scores);
-    if (entries.length) await tx.insert(evaluationScores).values(entries.map(([itemCode, score]) => ({ evaluationId: evId, rater, itemCode, score })));
+    if (entries.length) await tx.insert(evaluationScores).values(entries.map(([itemCode, score]) => ({ evaluationId: evId, rater, itemCode, score: encNum(score)! })));
     if (submit) await tx.insert(auditLogs).values({ actorEmail: actor.email, action: `review.${kind}.submit`, personId, detail: {} });
     return ok({ version: version + 1, savedAt: now.toISOString() });
   });

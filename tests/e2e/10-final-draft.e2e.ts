@@ -1,5 +1,5 @@
 // PRD 10 확인 문장을 화면에서 점검한다. 가짜 명단.
-import { BASE, browser, check, login, sql, summary } from "./helpers";
+import { BASE, browser, check, login, sql, summary, E } from "./helpers";
 
 await sql`delete from email_outbox`;
 await sql`delete from cycle_people`;
@@ -17,8 +17,8 @@ const MEMBER = ["responsibility", "teamwork", "discipline", "objectivity", "exec
 async function scores(personId: string, rater: "first" | "second", items: number[], ach: number) {
   const [ev] = await sql`insert into evaluations (person_id, self_submitted_at, version) values (${personId}, now(), 1) on conflict (person_id) do update set version = evaluations.version returning id`;
   await sql`update evaluations set ${sql(rater === "first" ? { first_submitted_at: new Date() } : { second_submitted_at: new Date() })} where id = ${ev!.id}`;
-  for (let i = 0; i < MEMBER.length; i++) await sql`insert into evaluation_scores (evaluation_id, rater, item_code, score) values (${ev!.id}, ${rater}, ${MEMBER[i]!}, ${items[i]!})`;
-  await sql`insert into evaluation_scores (evaluation_id, rater, item_code, score) values (${ev!.id}, ${rater}, 'achievement', ${ach})`;
+  for (let i = 0; i < MEMBER.length; i++) await sql`insert into evaluation_scores (evaluation_id, rater, item_code, score) values (${ev!.id}, ${rater}, ${MEMBER[i]!}, ${E(items[i]!)})`;
+  await sql`insert into evaluation_scores (evaluation_id, rater, item_code, score) values (${ev!.id}, ${rater}, 'achievement', ${E(ach)})`;
 }
 const ex = await person({ email: "exec@powernet.test", name: "정임원", position: "상무", department: "", is_executive: true, is_target: false });
 const ld = await person({ email: "lead@powernet.test", name: "최팀장", position: "부장", is_team_leader: true, grade_group: 1, form_type: "leader", first_reviewer_id: ex });
@@ -47,7 +47,7 @@ for (const [name, f, s, fa, sa, b, hire] of g5) {
   if (b) {
     for (const item of ["certificate", "award", "invention", "education", "discipline", "internal_control", "multi_rater"]) {
       const v = item === "discipline" ? Math.min(b, 0) : item === "certificate" ? Math.max(b, 0) : 0;
-      await sql`insert into bonus_points (person_id, item, points) values (${id}, ${item}, ${v})`;
+      await sql`insert into bonus_points (person_id, item, points) values (${id}, ${item}, ${E(v)})`;
     }
   }
 }

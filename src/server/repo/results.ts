@@ -7,6 +7,8 @@ import { getDb } from "@/server/db/client";
 import { auditLogs, bonusPoints, cyclePeople, emailOutbox, finalResults, reviewCycles } from "@/server/db/schema";
 import type { Actor } from "@/server/authz/actor";
 import { assert, can } from "@/server/authz/policy";
+import { decNum } from "@/server/crypto/vault";
+import { decFinal } from "@/server/repo/final-codec";
 
 /** 확정 뒤 결과 알림을 쌓고 단계를 "결과 발송"으로 */
 export async function sendResultNotices(actor: Actor, cycleId: string, version: number): Promise<Result<{ batchId: string; count: number }>> {
@@ -49,9 +51,10 @@ export async function getMyResult(actor: Actor): Promise<{ status: "not_yet" } |
     .leftJoin(finalResults, eq(finalResults.personId, cyclePeople.id))
     .where(eq(cyclePeople.id, actor.personId))
     .limit(1);
-  if (!row || !row.f || !row.f.finalScore || !row.f.finalGrade || !can.viewOwnResult(actor, row.p.id, row.c.status)) return { status: "not_yet" };
+  const f = row?.f ? decFinal(row.f) : null;
+  if (!row || !f || !f.finalScore || !f.finalGrade || !can.viewOwnResult(actor, row.p.id, row.c.status)) return { status: "not_yet" };
   const bonus = await db.select().from(bonusPoints).where(eq(bonusPoints.personId, row.p.id));
-  const by = new Map(bonus.map((b) => [b.item as BonusCode, Number(b.points)]));
+  const by = new Map(bonus.map((b) => [b.item as BonusCode, decNum(b.points) ?? 0]));
   const items = BONUS_ITEMS.filter((i) => !("leaderOnly" in i) || row.p.formType === "leader").map((i) => ({ label: i.label, points: by.get(i.code) ?? 0 }));
   const groupSize = (await db.select({ id: cyclePeople.id }).from(cyclePeople).where(and(eq(cyclePeople.cycleId, row.c.id), eq(cyclePeople.isTarget, true), eq(cyclePeople.gradeGroup, row.p.gradeGroup ?? 0)))).length;
   await db.insert(auditLogs).values({ actorEmail: actor.email, action: "result.view", cycleId: row.c.id, personId: row.p.id, detail: {} });
@@ -61,13 +64,13 @@ export async function getMyResult(actor: Actor): Promise<{ status: "not_yet" } |
       year: row.c.year,
       name: row.p.name,
       isLeader: row.p.formType === "leader",
-      first: row.f.firstTotal === null ? null : Number(row.f.firstTotal),
-      second: row.f.secondTotal === null ? null : Number(row.f.secondTotal),
+      first: f.firstTotal === null ? null : Number(f.firstTotal),
+      second: f.secondTotal === null ? null : Number(f.secondTotal),
       bonus: items,
-      bonusTotal: Number(row.f.bonusTotal ?? 0),
-      final: Number(row.f.finalScore),
-      grade: row.f.finalGrade,
-      percentile: Number(row.f.displayPercentile ?? 0),
+      bonusTotal: Number(f.bonusTotal ?? 0),
+      final: Number(f.finalScore),
+      grade: f.finalGrade,
+      percentile: Number(f.displayPercentile ?? 0),
       groupSize,
     },
   };

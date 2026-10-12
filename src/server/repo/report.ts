@@ -5,6 +5,7 @@ import { getDb } from "@/server/db/client";
 import { cyclePeople, finalResults, reviewCycles } from "@/server/db/schema";
 import type { Actor } from "@/server/authz/actor";
 import { assert, can } from "@/server/authz/policy";
+import { decFinal } from "@/server/repo/final-codec";
 
 const OPEN = ["final_review", "confirmed", "results_sent", "closed"];
 
@@ -19,14 +20,10 @@ export async function getReport(actor: Actor) {
     .select({
       id: cyclePeople.id,
       group: cyclePeople.gradeGroup,
-      rank: finalResults.groupRank,
       name: cyclePeople.name,
       department: cyclePeople.department,
       position: cyclePeople.position,
-      final: finalResults.finalScore,
-      grade: finalResults.finalGrade,
-      draft: finalResults.draftGrade,
-      change: finalResults.changeKind,
+      f: finalResults,
     })
     .from(finalResults)
     .innerJoin(cyclePeople, eq(cyclePeople.id, finalResults.personId))
@@ -34,7 +31,10 @@ export async function getReport(actor: Actor) {
   return {
     cycle,
     rows: rows
-      .map((r) => ({ ...r, group: r.group ?? 0, final: r.final === null ? null : Number(r.final) }))
+      .map(({ f: raw, ...r }) => {
+        const f = decFinal(raw);
+        return { ...r, group: r.group ?? 0, rank: f.groupRank, final: f.finalScore === null ? null : Number(f.finalScore), grade: f.finalGrade, draft: f.draftGrade, change: f.changeKind };
+      })
       .sort((a, b) => a.group - b.group || (a.rank ?? 1e9) - (b.rank ?? 1e9)) as ReportRow[],
   };
 }

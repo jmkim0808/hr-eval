@@ -3,7 +3,7 @@ import { checkRoster, normalizeDate, type RawRosterRow } from "@/domain/roster";
 
 let n = 1;
 const row = (p: Partial<RawRosterRow>): RawRosterRow => ({
-  rowNo: ++n, name: "이름", email: `p${n}@x.test`, department: "영업1팀", position: "대리", hireDate: "2021-03-02", isTeamLeader: "아니오", executiveEmail: "exec@x.test", ...p,
+  rowNo: ++n, employeeNo: `E${n}`, name: "이름", email: `p${n}@x.test`, department: "영업1팀", position: "대리", hireDate: "2021-03-02", isTeamLeader: "아니오", executiveEmail: "exec@x.test", ...p,
 });
 const exec = () => row({ name: "정임원", email: "exec@x.test", department: "", position: "상무", executiveEmail: "" });
 const leader = () => row({ name: "최팀장", email: "lead@x.test", position: "부장", isTeamLeader: "예" });
@@ -39,5 +39,12 @@ describe("직원 명단 검사 (PRD 02)", () => {
     expect(normalizeDate("44257")).toBe("2021-03-02");
     expect(normalizeDate("2021.3.2")).toBe("2021-03-02");
     expect(normalizeDate("2021-02-30")).toBeNull();
+  });
+});
+
+describe("사번 (포털 로그인용, ADR-0020)", () => {
+  it("사번이 비거나 겹치면 확인 필요", () => {
+    const r = checkRoster([exec(), leader(), row({ employeeNo: "" }), row({ employeeNo: "DUP" }), row({ employeeNo: "DUP" })], 2026);
+    expect(r.issues.filter((i) => i.reason.includes("사번")).map((i) => i.reason)).toEqual(["사번이 비어 있습니다", expect.stringContaining("번째 줄과 같습니다")]);
   });
 });

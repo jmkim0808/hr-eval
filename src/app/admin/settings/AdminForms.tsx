@@ -10,15 +10,19 @@ import { addAdminAction, removeAdminAction, type AddState } from "./actions";
 export function AddAdminForm() {
   const [state, action, pending] = useActionState(addAdminAction, {} as AddState);
   return (
-    <form action={action} className="flex flex-col gap-3" noValidate>
+    <form action={action} key={state.at ?? 0} className="flex flex-col gap-3" noValidate>
       <div className="flex flex-wrap items-end gap-3">
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="admin-email">이메일</Label>
-          <Input id="admin-email" name="email" type="email" autoComplete="off" className="w-72" required aria-invalid={!!state.message && !state.ok} />
+          <Input id="admin-email" name="email" type="email" autoComplete="off" className="w-72" required defaultValue={state.values?.email} aria-invalid={!!state.message && !state.ok} />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="admin-no">사번 (포털 로그인)</Label>
+          <Input id="admin-no" name="employeeNo" autoComplete="off" className="w-32" required defaultValue={state.values?.employeeNo} />
         </div>
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="admin-name">이름 (화면 표시용, 선택)</Label>
-          <Input id="admin-name" name="name" className="w-44" />
+          <Input id="admin-name" name="name" className="w-44" defaultValue={state.values?.name} />
         </div>
         <Button type="submit" disabled={pending}>
           <UserPlus aria-hidden="true" />

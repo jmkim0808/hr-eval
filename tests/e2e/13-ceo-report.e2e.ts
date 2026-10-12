@@ -1,5 +1,5 @@
 // PRD 13 확인 문장을 화면에서 점검한다. 가짜 명단.
-import { BASE, browser, check, login, sql, summary } from "./helpers";
+import { BASE, browser, check, login, sql, summary, E } from "./helpers";
 
 await sql`delete from email_outbox`;
 await sql`delete from cycle_people`;
@@ -16,8 +16,8 @@ const person = async (v: Record<string, unknown>) => {
 };
 const ITEMS = ["responsibility", "teamwork", "discipline", "objectivity", "execution", "knowledge", "information", "contribution", "communication", "trust", "achievement"];
 async function scores(personId: string, rater: "first" | "second", v: number) {
-  const [ev] = await sql`insert into evaluations (person_id, achievement_text, version) values (${personId}, '비밀 업적 글', 1) on conflict (person_id) do update set version = evaluations.version returning id`;
-  for (const c of ITEMS) await sql`insert into evaluation_scores (evaluation_id, rater, item_code, score) values (${ev!.id}, ${rater}, ${c}, ${v})`;
+  const [ev] = await sql`insert into evaluations (person_id, achievement_text, version) values (${personId}, ${E('비밀 업적 글')}, 1) on conflict (person_id) do update set version = evaluations.version returning id`;
+  for (const c of ITEMS) await sql`insert into evaluation_scores (evaluation_id, rater, item_code, score) values (${ev!.id}, ${rater}, ${c}, ${E(v)})`;
 }
 const ex = await person({ email: "exec@powernet.test", name: "정임원", position: "상무", department: "", is_executive: true, is_target: false });
 const ld = await person({ email: "lead@powernet.test", name: "최팀장", position: "부장", is_team_leader: true, grade_group: 1, form_type: "leader", first_reviewer_id: ex });
@@ -27,7 +27,7 @@ for (let i = 0; i < 10; i++) {
   const id = await person({ email: `${names[i]}@powernet.test`, name: names[i], grade_group: 5, form_type: "member", first_reviewer_id: ld, second_reviewer_id: ex });
   await scores(id, "first", sc[i]![0]);
   await scores(id, "second", sc[i]![1]);
-  await sql`insert into bonus_points (person_id, item, points) values (${id}, 'certificate', 1.25)`;
+  await sql`insert into bonus_points (person_id, item, points) values (${id}, 'certificate', ${E(1.25)})`;
 }
 
 const b = await browser();

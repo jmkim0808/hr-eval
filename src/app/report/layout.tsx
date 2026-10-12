@@ -7,7 +7,7 @@ export default async function ReportLayout({ children }: { children: React.React
   const a = await requireReportViewer();
   return (
     <>
-      <AppHeader viewer={a.name} />
+      <AppHeader viewer={a.name} employeeNo={a.employeeNo} />
       {children}
     </>
   );

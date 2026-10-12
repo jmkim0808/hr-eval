@@ -1,6 +1,6 @@
 // PRD 06 확인 문장을 화면에서 점검한다. 가짜 명단.
 import { readFileSync } from "node:fs";
-import { BASE, LOG, browser, check, login, logSize, sql, summary } from "./helpers";
+import { BASE, LOG, browser, check, login, logSize, sql, summary, E } from "./helpers";
 
 await sql`delete from email_outbox`;
 await sql`delete from cycle_people`;
@@ -22,8 +22,8 @@ for (const [email, name] of [["kim@powernet.test", "김대리"], ["lee@powernet.
     values (${cycleId}, ${email}, ${name}, '영업1팀', '대리', '2020-01-01', 5, 'member', ${ld!.id}, ${ex!.id}) returning id`;
   ids[name] = r!.id;
 }
-await sql`insert into evaluations (person_id, achievement_text, improvement_text, self_submitted_at, version) values (${ids["김대리"]!}, '업적', '개선', now(), 2)`;
-await sql`insert into evaluations (person_id, achievement_text, self_submitted_at, version) values (${ld!.id}, '팀 업적', now(), 2)`;
+await sql`insert into evaluations (person_id, achievement_text, improvement_text, self_submitted_at, version) values (${ids["김대리"]!}, ${E('업적')}, ${E('개선')}, now(), 2)`;
+await sql`insert into evaluations (person_id, achievement_text, self_submitted_at, version) values (${ld!.id}, ${E('팀 업적')}, now(), 2)`;
 
 const b = await browser();
 const a1 = await (await b.newContext({ viewport: { width: 1300, height: 1000 } })).newPage();

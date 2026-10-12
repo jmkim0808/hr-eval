@@ -15,20 +15,20 @@ export function otpMail(to: string, code: string): MailMessage {
   const html = wrap("이메일 인증번호", [
     `<span style="font-size:22px;font-weight:700;letter-spacing:4px">${esc(code)}</span>`,
     "10분 안에 입력해 주세요. 요청하지 않았다면 이 메일을 무시하세요.",
-    `<a href="${esc(env.appUrl)}/login">${esc(env.appUrl)}/login</a>`,
+    "이 번호는 인사평가 2차 인증에만 씁니다. 다른 사람에게 알려 주지 마세요.",
   ]);
   return { to, subject, text, html };
 }
 
 /** 안내 이메일: 기간과 링크만 (점수 없음) */
 export function inviteMail(to: string, p: Record<string, string>): MailMessage {
-  const link = `${env.appUrl}/login?email=${encodeURIComponent(to)}`;
+  const link = `${env.appUrl}/`; // 포털 로그인 → 2차 인증 → 내 할 일
   const subject = `[파워넷 인사평가] ${p.year}년 정기평가가 시작되었습니다`;
   const lines = [
     `${p.name} 님, ${p.year}년 정기평가가 시작되었습니다.`,
     `개인작성 기간 ${p.selfRange} 안에 평가지를 작성해 제출해 주세요. 기간 안에서는 제출한 뒤에도 고칠 수 있습니다.`,
     `가점 인정 기준일은 ${p.bonusCutoff}입니다.`,
-    `아래 링크로 들어와 이메일 인증을 하면 내 할 일이 열립니다.`,
+    `사내 포털에서 인사평가를 열거나 아래 링크로 들어와 2차 인증(메일 인증번호)을 하면 내 할 일이 열립니다.`,
   ];
   return {
     to,
@@ -49,7 +49,7 @@ export function renderOutbox(kind: string, to: string, payload: Record<string, s
 
 /** 독촉 이메일: 할 일·기한·링크만 (점수 없음) */
 export function reminderMail(to: string, p: Record<string, string>): MailMessage {
-  const link = `${env.appUrl}/login?email=${encodeURIComponent(to)}`;
+  const link = `${env.appUrl}/`; // 포털 로그인 → 2차 인증 → 내 할 일
   const subject = `[파워넷 인사평가] ${p.task} 기한은 ${p.due}입니다`;
   const lines = [`${p.name} 님, ${p.year}년 정기평가의 ${p.task}이(가) 아직 제출되지 않았습니다.`, `${p.due}까지 아래 링크로 들어와 제출해 주세요.`];
   return {
@@ -62,9 +62,9 @@ export function reminderMail(to: string, p: Record<string, string>): MailMessage
 
 /** 단계 안내: 다음 단계 평가자에게 할 일·기간·링크만 (점수 없음) */
 export function stageNoticeMail(to: string, p: Record<string, string>): MailMessage {
-  const link = `${env.appUrl}/login?email=${encodeURIComponent(to)}`;
+  const link = `${env.appUrl}/`; // 포털 로그인 → 2차 인증 → 내 할 일
   const subject = `[파워넷 인사평가] ${p.task} 기간이 시작되었습니다 (${p.range})`;
-  const lines = [`${p.name} 님, ${p.year}년 정기평가의 ${p.task} 기간이 시작되었습니다.`, `기간 ${p.range} 안에 ${p.who} ${p.count}명의 평가를 마쳐 주세요.`, "아래 링크로 들어와 이메일 인증을 하면 내 할 일이 열립니다."];
+  const lines = [`${p.name} 님, ${p.year}년 정기평가의 ${p.task} 기간이 시작되었습니다.`, `기간 ${p.range} 안에 ${p.who} ${p.count}명의 평가를 마쳐 주세요.`, "사내 포털에서 인사평가를 열거나 아래 링크로 들어와 2차 인증(메일 인증번호)을 하면 내 할 일이 열립니다."];
   return {
     to,
     subject,
@@ -75,7 +75,7 @@ export function stageNoticeMail(to: string, p: Record<string, string>): MailMess
 
 /** 관리자 알림 (확정 취소 등). 점수·등급은 담지 않는다 */
 export function adminAlertMail(to: string, p: Record<string, string>): MailMessage {
-  const link = `${env.appUrl}/admin/final`;
+  const link = `${env.appUrl}${p.path ?? "/admin/final"}`;
   const subject = `[파워넷 인사평가] ${p.title}`;
   const lines = [`${p.year}년 정기평가: ${p.title}`, `처리한 사람: ${p.actor}`, ...(p.reason ? [`사유: ${p.reason}`] : [])];
   return { to, subject, text: `${lines.join("\n")}\n${link}\n\n㈜파워넷 인사평가 · 대외비`, html: wrap(p.title!, [...lines.map(esc), `<a href="${esc(link)}">${esc(link)}</a>`]) };
@@ -83,9 +83,9 @@ export function adminAlertMail(to: string, p: Record<string, string>): MailMessa
 
 /** 평가결과 알림: "결과가 나왔습니다"와 링크만 (점수·등급 없음, ADR-0007) */
 export function resultNoticeMail(to: string, p: Record<string, string>): MailMessage {
-  const link = `${env.appUrl}/login?email=${encodeURIComponent(to)}`;
+  const link = `${env.appUrl}/`; // 포털 로그인 → 2차 인증 → 내 할 일
   const subject = `[파워넷 인사평가] ${p.year}년 정기평가 결과가 나왔습니다`;
-  const lines = [`${p.name} 님, ${p.year}년 정기평가 결과가 나왔습니다.`, "아래 링크로 들어와 이메일 인증을 하면 내 평가결과를 볼 수 있습니다."];
+  const lines = [`${p.name} 님, ${p.year}년 정기평가 결과가 나왔습니다.`, "사내 포털에서 인사평가를 열거나 아래 링크로 들어와 2차 인증(메일 인증번호)을 하면 내 평가결과를 볼 수 있습니다."];
   return { to, subject, text: `${lines.join("\n")}\n${link}\n\n㈜파워넷 인사평가 · 대외비`, html: wrap("평가결과 알림", [...lines.map(esc), `<a href="${esc(link)}">${esc(link)}</a>`]) };
 }
 

@@ -27,6 +27,8 @@ const timestamps = {
 export const appUsers = pgTable("app_users", {
   id: uuid("id").primaryKey().defaultRandom(),
   email: text("email").notNull().unique(),
+  /** 사번 — 포털 로그인으로 본인을 찾는다 (ADR-0020) */
+  employeeNo: text("employee_no").unique(),
   name: text("name").notNull(),
   role: text("role", { enum: ["admin", "ceo"] }).notNull(),
   active: boolean("active").notNull().default(true),
@@ -69,6 +71,8 @@ export const cyclePeople = pgTable(
       .notNull()
       .references(() => reviewCycles.id, { onDelete: "cascade" }),
     email: text("email").notNull(),
+    /** 사번 — 포털 로그인으로 본인을 찾는다 (ADR-0020) */
+    employeeNo: text("employee_no"),
     name: text("name").notNull(),
     department: text("department").notNull().default(""),
     position: text("position").notNull().default(""),
@@ -85,7 +89,7 @@ export const cyclePeople = pgTable(
     rowNo: integer("row_no").notNull().default(0),
     ...timestamps,
   },
-  (t) => [unique("cycle_people_cycle_email").on(t.cycleId, t.email)],
+  (t) => [unique("cycle_people_cycle_email").on(t.cycleId, t.email), unique("cycle_people_cycle_employee_no").on(t.cycleId, t.employeeNo)],
 );
 
 /** 보낼 메일 목록 — 점수·등급·업적 글을 담지 않는다 */
@@ -181,7 +185,8 @@ export const evaluationScores = pgTable(
       .references(() => evaluations.id, { onDelete: "cascade" }),
     rater: text("rater", { enum: ["self", "first", "second"] }).notNull(),
     itemCode: text("item_code").notNull(),
-    score: smallint("score").notNull(),
+    /** 암호화 (ADR-0021) */
+    score: text("score").notNull(),
     enteredBy: text("entered_by"),
   },
   (t) => [primaryKey({ columns: [t.evaluationId, t.rater, t.itemCode] })],
@@ -195,7 +200,8 @@ export const bonusPoints = pgTable(
       .notNull()
       .references(() => cyclePeople.id, { onDelete: "cascade" }),
     item: text("item", { enum: ["certificate", "award", "invention", "education", "discipline", "internal_control", "multi_rater"] }).notNull(),
-    points: numeric("points", { precision: 6, scale: 2 }).notNull(),
+    /** 암호화 (ADR-0021) */
+    points: text("points").notNull(),
     note: text("note"),
     updatedBy: text("updated_by"),
     ...timestamps,
@@ -212,20 +218,21 @@ export const finalResults = pgTable("final_results", {
     .notNull()
     .references(() => reviewCycles.id, { onDelete: "cascade" }),
   blank: boolean("blank").notNull().default(false),
-  competencyScore: numeric("competency_score", { precision: 6, scale: 2 }),
-  achievementScore: numeric("achievement_score", { precision: 6, scale: 2 }),
-  firstTotal: numeric("first_total", { precision: 6, scale: 2 }),
-  secondTotal: numeric("second_total", { precision: 6, scale: 2 }),
-  bonusTotal: numeric("bonus_total", { precision: 6, scale: 2 }),
-  finalScore: numeric("final_score", { precision: 6, scale: 2 }),
-  groupRank: integer("group_rank"),
-  draftGrade: text("draft_grade", { enum: ["S", "A", "B", "C", "D"] }),
-  finalGrade: text("final_grade", { enum: ["S", "A", "B", "C", "D"] }),
-  tieRule: boolean("tie_rule").notNull().default(false),
-  changeKind: text("change_kind", { enum: ["none", "adjusted", "pushed"] }).notNull().default("none"),
-  displayPercentile: numeric("display_percentile", { precision: 5, scale: 1 }),
-  /** 다시 계산(대신 입력·가점)으로 초안 등급이 바뀌었으면 바뀌기 전 등급 */
-  recalcFrom: text("recalc_from", { enum: ["S", "A", "B", "C", "D"] }),
+  // 아래 점수·순위·등급·조정 표시는 모두 암호화 (ADR-0021). 빈칸 여부(blank)만 평문
+  competencyScore: text("competency_score"),
+  achievementScore: text("achievement_score"),
+  firstTotal: text("first_total"),
+  secondTotal: text("second_total"),
+  bonusTotal: text("bonus_total"),
+  finalScore: text("final_score"),
+  groupRank: text("group_rank"),
+  draftGrade: text("draft_grade"),
+  finalGrade: text("final_grade"),
+  tieRule: text("tie_rule"),
+  changeKind: text("change_kind"),
+  displayPercentile: text("display_percentile"),
+  /** 다시 계산(대신 입력·가점)으로 초안 등급이 바뀌었으면 바뀌기 전 등급 (암호화) */
+  recalcFrom: text("recalc_from"),
   ...timestamps,
 });
 
@@ -237,12 +244,14 @@ export const gradeAdjustments = pgTable(
     cycleId: uuid("cycle_id")
       .notNull()
       .references(() => reviewCycles.id, { onDelete: "cascade" }),
-    personId: uuid("person_id")
-      .notNull()
-      .references(() => cyclePeople.id, { onDelete: "cascade" }),
-    fromGrade: text("from_grade", { enum: ["S", "A", "B", "C", "D"] }).notNull(),
-    toGrade: text("to_grade", { enum: ["S", "A", "B", "C", "D"] }).notNull(),
-    kind: text("kind", { enum: ["manual", "push"] }).notNull(),
+    /** 쓰지 않음 (누가 조정됐는지 드러나지 않게 subject에 암호화해 둔다, ADR-0021) */
+    personId: uuid("person_id").references(() => cyclePeople.id, { onDelete: "cascade" }),
+    /** 대상자 id (암호화) */
+    subject: text("subject"),
+    /** 아래 셋도 암호화 */
+    fromGrade: text("from_grade").notNull(),
+    toGrade: text("to_grade").notNull(),
+    kind: text("kind").notNull(),
     batchId: uuid("batch_id").notNull(),
     revertedAt: timestamp("reverted_at", { withTimezone: true }),
     createdBy: text("created_by").notNull(),
@@ -250,3 +259,14 @@ export const gradeAdjustments = pgTable(
   },
   (t) => [index("grade_adjustments_cycle_idx").on(t.cycleId, t.createdAt)],
 );
+
+/** 열쇠 칸 (ADR-0021): 관리자마다 자기 비밀 문구로 데이터 열쇠를 잠가 둔 것. 비밀 문구·데이터 열쇠 원본은 어디에도 저장하지 않는다 */
+export const keySlots = pgTable("key_slots", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  label: text("label").notNull(),
+  salt: text("salt").notNull(),
+  iterations: integer("iterations").notNull(),
+  wrapped: text("wrapped").notNull(),
+  createdBy: text("created_by").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});

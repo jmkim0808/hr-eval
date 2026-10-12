@@ -1,21 +1,38 @@
 // 등급조정 (PRD 12). 관리자만, 최종평가 단계에서. 최종점수는 건드리지 않고 등급만 바꾼다.
-import { and, asc, eq, inArray, isNull } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, ne } from "drizzle-orm";
 import { displayPercentiles, planAdjust, type Grade, type Move, type Placed } from "@/domain/grading";
 import { fail, ok, type Result } from "@/lib/result";
 import { getDb, type Db } from "@/server/db/client";
 import { auditLogs, cyclePeople, finalResults, gradeAdjustments, reviewCycles } from "@/server/db/schema";
 import type { Actor } from "@/server/authz/actor";
 import { assert, can } from "@/server/authz/policy";
+import { dec, enc } from "@/server/crypto/vault";
+import { decFinal, encFinal } from "@/server/repo/final-codec";
+
+type AdjRow = typeof gradeAdjustments.$inferSelect;
+/** 조정 한 줄을 풀어 읽는다. 누가·어디서·어디로·직접/밀려남 모두 암호문으로 저장돼 있다 (ADR-0021) */
+const decAdj = (r: AdjRow) => ({ ...r, personId: dec(r.subject ?? ""), fromGrade: dec(r.fromGrade) as Grade, toGrade: dec(r.toGrade) as Grade, kind: dec(r.kind) as "manual" | "push" });
+const encAdj = (v: { personId: string; fromGrade: Grade; toGrade: Grade; kind: "manual" | "push" }) => ({ subject: enc(v.personId), fromGrade: enc(v.fromGrade), toGrade: enc(v.toGrade), kind: enc(v.kind) });
+/** 되돌리지 않은 조정 (오래된 순) */
+async function liveAdjustments(db: Db | Tx, cycleId: string) {
+  const rows = await db.select().from(gradeAdjustments).where(and(eq(gradeAdjustments.cycleId, cycleId), isNull(gradeAdjustments.revertedAt))).orderBy(asc(gradeAdjustments.createdAt));
+  return rows.map(decAdj);
+}
 
 type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
 type State = Map<string, { id: string; group: number; rank: number; draft: Grade; grade: Grade; manual: boolean; percentile: number }>;
 
 async function loadState(db: Db | Tx, cycleId: string): Promise<State> {
-  const rows = await db
-    .select({ id: finalResults.personId, group: cyclePeople.gradeGroup, rank: finalResults.groupRank, draft: finalResults.draftGrade, grade: finalResults.finalGrade, kind: finalResults.changeKind, pct: finalResults.displayPercentile })
-    .from(finalResults)
-    .innerJoin(cyclePeople, eq(cyclePeople.id, finalResults.personId))
-    .where(and(eq(finalResults.cycleId, cycleId), eq(finalResults.blank, false)));
+  const rows = (
+    await db
+      .select({ group: cyclePeople.gradeGroup, f: finalResults })
+      .from(finalResults)
+      .innerJoin(cyclePeople, eq(cyclePeople.id, finalResults.personId))
+      .where(and(eq(finalResults.cycleId, cycleId), eq(finalResults.blank, false)))
+  ).map(({ group, f: raw }) => {
+    const f = decFinal(raw);
+    return { id: f.personId, group, rank: f.groupRank, draft: f.draftGrade, grade: f.finalGrade, kind: f.changeKind };
+  });
   return new Map(
     rows
       .filter((r) => r.draft && r.rank)
@@ -41,11 +58,11 @@ export async function replayAdjustments(db: Db | Tx, cycleId: string) {
     groupSize.set(r.g ?? 0, (groupSize.get(r.g ?? 0) ?? 0) + 1);
   for (const p of s.values()) p.percentile = Math.round((p.rank / (groupSize.get(p.group) ?? 1)) * 1000) / 10;
 
-  const manuals = await db.select().from(gradeAdjustments).where(and(eq(gradeAdjustments.cycleId, cycleId), eq(gradeAdjustments.kind, "manual"), isNull(gradeAdjustments.revertedAt))).orderBy(asc(gradeAdjustments.createdAt));
+  const manuals = (await liveAdjustments(db, cycleId)).filter((m) => m.kind === "manual");
   for (const m of manuals) {
     const p = s.get(m.personId);
     const plan = p ? planAdjust(placedOf(s, p.group), m.personId, m.toGrade) : { ok: false as const, message: "" };
-    await db.delete(gradeAdjustments).where(and(eq(gradeAdjustments.batchId, m.batchId), eq(gradeAdjustments.kind, "push")));
+    await db.delete(gradeAdjustments).where(and(eq(gradeAdjustments.batchId, m.batchId), ne(gradeAdjustments.id, m.id)));
     if (!plan.ok) {
       await db.update(gradeAdjustments).set({ revertedAt: new Date() }).where(eq(gradeAdjustments.batchId, m.batchId));
       continue;
@@ -53,7 +70,7 @@ export async function replayAdjustments(db: Db | Tx, cycleId: string) {
     applyMoves(s, plan.moves);
     const pushes = plan.moves.filter((x) => x.kind === "push");
     if (pushes.length)
-      await db.insert(gradeAdjustments).values(pushes.map((x) => ({ cycleId, personId: x.id, fromGrade: x.from, toGrade: x.to, kind: "push" as const, batchId: m.batchId, createdBy: m.createdBy, createdAt: m.createdAt })));
+      await db.insert(gradeAdjustments).values(pushes.map((x) => ({ cycleId, ...encAdj({ personId: x.id, fromGrade: x.from, toGrade: x.to, kind: "push" }), batchId: m.batchId, createdBy: m.createdBy, createdAt: m.createdAt })));
   }
   const shownAll = new Map<string, number>();
   for (const g of new Set([...s.values()].map((p) => p.group))) {
@@ -64,7 +81,7 @@ export async function replayAdjustments(db: Db | Tx, cycleId: string) {
     const shown = shownAll.get(p.id) ?? p.percentile;
     await db
       .update(finalResults)
-      .set({ finalGrade: p.grade, changeKind: p.manual ? "adjusted" : p.grade !== p.draft ? "pushed" : "none", displayPercentile: shown.toFixed(1), updatedAt: new Date() })
+      .set(encFinal({ finalGrade: p.grade, changeKind: p.manual ? "adjusted" : p.grade !== p.draft ? "pushed" : "none", displayPercentile: shown.toFixed(1), updatedAt: new Date() }))
       .where(eq(finalResults.personId, p.id));
   }
 }
@@ -85,8 +102,8 @@ async function ctx(db: Db | Tx, personId: string) {
 }
 
 async function named(db: Db | Tx, moves: Move[]): Promise<PreviewMove[]> {
-  const rows = await db.select({ id: cyclePeople.id, name: cyclePeople.name, final: finalResults.finalScore }).from(cyclePeople).innerJoin(finalResults, eq(finalResults.personId, cyclePeople.id)).where(inArray(cyclePeople.id, moves.map((m) => m.id)));
-  const by = new Map(rows.map((r) => [r.id, r]));
+  const rows = await db.select({ id: cyclePeople.id, name: cyclePeople.name, f: finalResults }).from(cyclePeople).innerJoin(finalResults, eq(finalResults.personId, cyclePeople.id)).where(inArray(cyclePeople.id, moves.map((m) => m.id)));
+  const by = new Map(rows.map((r) => [r.id, { name: r.name, final: decFinal(r.f).finalScore }]));
   return moves.map((m) => ({ ...m, name: by.get(m.id)?.name ?? "", final: Number(by.get(m.id)?.final ?? 0) }));
 }
 
@@ -118,10 +135,10 @@ export async function applyAdjust(actor: Actor, personId: string, to: Grade, ver
     if (!plan.ok) return fail("plan", plan.message);
     const batchId = crypto.randomUUID();
     const m = plan.moves[0]!;
-    await tx.insert(gradeAdjustments).values({ cycleId: c.cycleId, personId, fromGrade: m.from, toGrade: m.to, kind: "manual", batchId, createdBy: actor.email, createdAt: new Date() }); // 밀려남 줄과 같은 시각(밀리초)으로
+    await tx.insert(gradeAdjustments).values({ cycleId: c.cycleId, ...encAdj({ personId, fromGrade: m.from, toGrade: m.to, kind: "manual" }), batchId, createdBy: actor.email, createdAt: new Date() }); // 밀려남 줄과 같은 시각(밀리초)으로
     await replayAdjustments(tx, c.cycleId);
     await tx.update(reviewCycles).set({ version: cy.version + 1, updatedAt: new Date() }).where(eq(reviewCycles.id, cy.id));
-    await tx.insert(auditLogs).values({ actorEmail: actor.email, action: "grade.adjust", cycleId: c.cycleId, personId, detail: { from: m.from, to: m.to, moved: plan.moves.length - 1 } });
+    await tx.insert(auditLogs).values({ actorEmail: actor.email, action: "grade.adjust", cycleId: c.cycleId, detail: { moved: plan.moves.length - 1 } }); // 누구를·어느 등급으로는 남기지 않는다 (ADR-0021)
     return ok(await named(tx, plan.moves));
   });
 }
@@ -134,17 +151,12 @@ export async function revertAdjust(actor: Actor, personId: string, version: numb
     if (!c || c.status !== "final_review") return fail("locked", "최종평가 단계에서만 되돌릴 수 있습니다.");
     const [cy] = await tx.select().from(reviewCycles).where(eq(reviewCycles.id, c.cycleId)).limit(1).for("update");
     if (!cy || cy.version !== version) return fail("stale", "다른 관리자가 먼저 처리했습니다. 화면을 새로고침해 주세요.");
-    const [last] = await tx
-      .select()
-      .from(gradeAdjustments)
-      .where(and(eq(gradeAdjustments.personId, personId), isNull(gradeAdjustments.revertedAt)))
-      .orderBy(asc(gradeAdjustments.createdAt))
-      .limit(1);
+    const last = (await liveAdjustments(tx, c.cycleId)).find((a) => a.personId === personId);
     if (!last) return fail("none", "되돌릴 조정이 없습니다.");
     await tx.update(gradeAdjustments).set({ revertedAt: new Date() }).where(eq(gradeAdjustments.batchId, last.batchId));
     await replayAdjustments(tx, c.cycleId);
     await tx.update(reviewCycles).set({ version: cy.version + 1, updatedAt: new Date() }).where(eq(reviewCycles.id, cy.id));
-    await tx.insert(auditLogs).values({ actorEmail: actor.email, action: "grade.revert", cycleId: c.cycleId, personId, detail: {} });
+    await tx.insert(auditLogs).values({ actorEmail: actor.email, action: "grade.revert", cycleId: c.cycleId, detail: {} });
     return ok();
   });
 }

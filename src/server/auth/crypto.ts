@@ -1,4 +1,4 @@
-// Web Crypto만 쓴다 (Node 22와 Cloudflare Workers 모두 동작).
+// Web Crypto만 쓴다 (Node 20 이상에서 동작).
 const enc = new TextEncoder();
 
 function toHex(buf: ArrayBuffer): string {

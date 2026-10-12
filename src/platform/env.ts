@@ -1,4 +1,4 @@
-// 환경 값 읽기. Cloudflare(OpenNext)와 Node 모두 process.env로 들어온다.
+// 환경 값 읽기. 값은 포털 관리자가 서버 환경변수로 넣는다 (ax-app.yaml의 env).
 function required(name: string): string {
   const v = process.env[name];
   if (!v) throw new Error(`환경 값 ${name}이(가) 없습니다.`);
@@ -35,6 +35,10 @@ export const env = {
       user: required("SMTP_USER"),
       pass: required("SMTP_PASS"),
     };
+  },
+  /** 포털 로그인 토큰 서명 확인용 (포털이 자동으로 넣어 줌) */
+  get jwtSecret() {
+    return required("JWT_SECRET_KEY");
   },
   get cronSecret() {
     return required("CRON_SECRET");

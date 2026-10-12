@@ -18,7 +18,7 @@ export default async function SettingsPage() {
         <Card>
           <CardHeader>
             <CardTitle>관리자 추가</CardTitle>
-            <CardDescription>추가된 사람은 그 이메일로 인증하면 진행 현황이 열립니다</CardDescription>
+            <CardDescription>추가된 사람은 포털에서 인사평가를 열고 이 이메일로 2차 인증을 하면 진행 현황이 열립니다</CardDescription>
           </CardHeader>
           <CardContent>
             <AddAdminForm />
@@ -32,6 +32,7 @@ export default async function SettingsPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>이름</TableHead>
+                <TableHead>사번</TableHead>
                 <TableHead>이메일</TableHead>
                 <TableHead className="text-right" />
               </TableRow>
@@ -42,6 +43,7 @@ export default async function SettingsPage() {
                   <TableCell className="font-medium">
                     {u.name} {u.email === a.email && <Badge variant="primary">나</Badge>}
                   </TableCell>
+                  <TableCell className="tabular-nums">{u.employeeNo ?? "—"}</TableCell>
                   <TableCell>{u.email}</TableCell>
                   <TableCell className="py-1.5 text-right">
                     <RemoveAdminButton email={u.email} last={admins.length <= 1} />

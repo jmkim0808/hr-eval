@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { Lock } from "lucide-react";
+import { SessionGuard } from "./SessionGuard";
 
 /** 모든 화면 맨 위: 머리줄 + 대외비 표시. 인증 전에는 열람자 없이 "대외비"만. */
-export function AppHeader({ viewer, link }: { viewer?: string; link?: { href: string; label: string } }) {
+export function AppHeader({ viewer, link, employeeNo }: { viewer?: string; link?: { href: string; label: string }; employeeNo?: string | null }) {
   return (
     <header className="border-b bg-card">
+      {viewer && <SessionGuard employeeNo={employeeNo ?? null} />}
       <div className="flex h-14 items-center justify-between gap-4 px-8">
         <div className="flex items-center gap-2.5">
           <span className="flex size-7 items-center justify-center rounded-md bg-primary text-label font-bold text-primary-foreground">PN</span>

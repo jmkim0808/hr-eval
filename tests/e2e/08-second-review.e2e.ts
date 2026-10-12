@@ -1,5 +1,5 @@
 // PRD 08 확인 문장을 화면에서 점검한다. 가짜 명단.
-import { BASE, browser, check, login, sql, summary } from "./helpers";
+import { BASE, browser, check, login, sql, summary, E } from "./helpers";
 
 await sql`delete from email_outbox`;
 await sql`delete from cycle_people`;
@@ -23,10 +23,10 @@ const kim = await person({ email: "kim@powernet.test", name: "김대리", grade_
 const park = await person({ email: "park@powernet.test", name: "박과장", grade_group: 4, form_type: "member", first_reviewer_id: ld, second_reviewer_id: ex });
 const yoon = await person({ email: "yoon@powernet.test", name: "윤사원", department: "품질팀", grade_group: 5, form_type: "member", first_reviewer_id: ld2, second_reviewer_id: ex2 });
 void yoon;
-const [kev] = await sql`insert into evaluations (person_id, achievement_text, improvement_text, self_submitted_at, first_submitted_at, version) values (${kim}, '김대리 업적 글', '개선', now(), now(), 3) returning id`;
+const [kev] = await sql`insert into evaluations (person_id, achievement_text, improvement_text, self_submitted_at, first_submitted_at, version) values (${kim}, ${E('김대리 업적 글')}, ${E('개선')}, now(), now(), 3) returning id`;
 const codes = ["responsibility", "teamwork", "discipline", "objectivity", "execution", "knowledge", "information", "contribution", "communication", "trust", "achievement"];
-for (const c of codes) await sql`insert into evaluation_scores (evaluation_id, rater, item_code, score) values (${kev!.id}, 'first', ${c}, 9)`;
-await sql`insert into evaluations (person_id, achievement_text, self_submitted_at, version) values (${ld}, '최팀장 팀 업적', now(), 2)`;
+for (const c of codes) await sql`insert into evaluation_scores (evaluation_id, rater, item_code, score) values (${kev!.id}, 'first', ${c}, ${E(9)})`;
+await sql`insert into evaluations (person_id, achievement_text, self_submitted_at, version) values (${ld}, ${E('최팀장 팀 업적')}, now(), 2)`;
 
 const b = await browser();
 const ep = await (await b.newContext({ viewport: { width: 1300, height: 1100 } })).newPage();

@@ -1,6 +1,6 @@
 // PRD 05 확인 문장을 화면에서 점검한다. 가짜 명단.
 import { readFileSync } from "node:fs";
-import { BASE, LOG, browser, check, login, logSize, sql, summary } from "./helpers";
+import { BASE, LOG, browser, check, login, logSize, sql, summary, E } from "./helpers";
 
 await sql`delete from email_outbox`;
 await sql`delete from cycle_people`;
@@ -21,7 +21,7 @@ for (const [email, name] of [["kim@powernet.test", "김대리"], ["park@powernet
     values (${cycleId}, ${email}, ${name}, '영업1팀', '대리', '2020-01-01', 5, 'member', ${ld!.id}, ${ex!.id}) returning id`;
   ids[name] = r!.id;
 }
-await sql`insert into evaluations (person_id, achievement_text, version) values (${ids["박과장"]!}, '상반기 신규 거래처 확보', 3)`;
+await sql`insert into evaluations (person_id, achievement_text, version) values (${ids["박과장"]!}, ${E('상반기 신규 거래처 확보')}, 3)`;
 
 const b = await browser();
 const page = await b.newPage({ viewport: { width: 1300, height: 1000 } });
@@ -32,7 +32,7 @@ const rowOf = (name: string) => page.locator("tbody tr").filter({ has: page.getB
 const before = await count();
 
 // 김대리가 제출
-await sql`insert into evaluations (person_id, achievement_text, improvement_text, self_submitted_at, version) values (${ids["김대리"]!}, '업적', '개선', now(), 2)`;
+await sql`insert into evaluations (person_id, achievement_text, improvement_text, self_submitted_at, version) values (${ids["김대리"]!}, ${E('업적')}, ${E('개선')}, now(), 2)`;
 await page.reload();
 await check("직원이 제출하면 진행 현황을 다시 열었을 때 제출 숫자가 1 늘고 미제출자 표에서 빠진다", async () =>
   before === "0/4" && (await count()) === "1/4" && (await rowOf("김대리").count()) === 0 && (await rowOf("이주임").count()) === 1,

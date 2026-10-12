@@ -1,22 +1,20 @@
 import type { NextConfig } from "next";
+import { BASE_PATH } from "./src/lib/base-path";
 
-// 같은 코드를 Cloudflare Workers와 Node.js(회사 서버) 두 곳에서 빌드한다 (ADR-0002).
-// 실행 환경에 따라 달라지는 것은 src/platform/ 아래 파일 하나로만 갈아 끼운다.
-const target = process.env.BUILD_TARGET === "cloudflare" ? "cloudflare" : "node";
-const mailTransport =
-  target === "cloudflare" ? "./src/platform/cloudflare/mail-transport.ts" : "./src/platform/node/mail-transport.ts";
-
+// 사내 앱 포털(윈도우 서버, Node 20)에 올린다 (ADR-0019). 포털 입구가 경로를 떼지 않고 넘기므로 모든 주소를 BASE_PATH 아래에 둔다.
 const nextConfig: NextConfig = {
-  output: target === "node" ? "standalone" : undefined,
+  output: "standalone",
+  basePath: BASE_PATH,
   poweredByHeader: false,
-  turbopack: { resolveAlias: { "@platform/mail-transport": mailTransport } },
-  serverExternalPackages: target === "node" ? ["nodemailer"] : [],
+  serverExternalPackages: ["nodemailer"],
   async headers() {
     return [
       {
         source: "/:path*",
         headers: [
-          { key: "X-Frame-Options", value: "DENY" },
+          // 포털이 자기 화면 안에 띄울 수 있게 같은 주소(포털)에서만 허용
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+          { key: "Content-Security-Policy", value: "frame-ancestors 'self'" },
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "Referrer-Policy", value: "same-origin" },
           { key: "Cache-Control", value: "no-store" },

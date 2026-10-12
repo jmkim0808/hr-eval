@@ -1,4 +1,4 @@
-// 예약 실행 주소 (1분마다). Cloudflare에서는 hr-eval-mailer의 예약 실행이, 회사 서버에서는 cron이 부른다.
+// 예약 실행을 손으로 부르는 주소 (평소에는 앱 안 예약 실행이 1분마다 같은 일을 한다, ADR-0019).
 // 비밀값으로만 보호하는 예외 주소다 (docs/tech/03-규칙.md 7).
 import { sql } from "drizzle-orm";
 import { env } from "@/platform/env";

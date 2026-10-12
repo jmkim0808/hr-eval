@@ -7,6 +7,7 @@ import { recomputeFinal } from "@/server/repo/final";
 import { auditLogs, bonusPoints, cyclePeople, reviewCycles } from "@/server/db/schema";
 import type { Actor } from "@/server/authz/actor";
 import { assert, can } from "@/server/authz/policy";
+import { decNum, enc } from "@/server/crypto/vault";
 
 const LOCKED = ["confirmed", "results_sent", "closed"];
 /** 확정 전까지. 한 번 확정했으면 확정을 취소해도 다시 열리지 않는다 */
@@ -23,7 +24,7 @@ export async function listBonus(actor: Actor, cycleId: string): Promise<BonusRow
     .orderBy(cyclePeople.gradeGroup, cyclePeople.department, cyclePeople.name);
   const points = people.length ? await db.select().from(bonusPoints).where(inArray(bonusPoints.personId, people.map((p) => p.id))) : [];
   const by = new Map<string, Partial<BonusValues>>();
-  for (const p of points) by.set(p.personId, { ...(by.get(p.personId) ?? {}), [p.item]: Number(p.points) });
+  for (const p of points) by.set(p.personId, { ...(by.get(p.personId) ?? {}), [p.item]: decNum(p.points) ?? 0 });
   return people.map((p) => {
     const v = by.get(p.id);
     const values = v ? (Object.fromEntries(BONUS_ITEMS.map((i) => [i.code, v[i.code] ?? 0])) as BonusValues) : null;
@@ -53,7 +54,7 @@ export async function applyBonus(actor: Actor, cycleId: string, rows: { personId
   await getDb().transaction(async (tx) => {
     await tx.delete(bonusPoints).where(inArray(bonusPoints.personId, rows.map((r) => r.personId)));
     await tx.insert(bonusPoints).values(
-      rows.flatMap((r) => BONUS_ITEMS.map((i) => ({ personId: r.personId, item: i.code, points: (r.values[i.code as BonusCode] ?? 0).toFixed(2), updatedBy: actor.email }))),
+      rows.flatMap((r) => BONUS_ITEMS.map((i) => ({ personId: r.personId, item: i.code, points: enc((r.values[i.code as BonusCode] ?? 0).toFixed(2)), updatedBy: actor.email }))),
     );
     if (c.status === "final_review") await recomputeFinal(tx, cycleId);
     await tx.insert(auditLogs).values({ actorEmail: actor.email, action: rows.length === 1 ? "bonus.set" : "bonus.upload", cycleId, personId: rows.length === 1 ? rows[0]!.personId : null, detail: { count: rows.length } });

@@ -39,7 +39,7 @@ export function FinalExcelButton({ enabled }: { enabled: boolean }) {
           x.run(async () => {
             const r = await exportFinalAction();
             if (!r.ok) return r.message;
-            await downloadWorkbook(`${r.value.year}_최종결과_${stamp()}.xlsx`, (wb) => addSheet(wb, r.value.sheet));
+            await downloadWorkbook(`${r.value.year}_최종결과_${stamp()}.xlsx`, (wb) => addSheet(wb, r.value.sheet), { target: `인사평가 ${r.value.year} 최종결과 엑셀`, rows: r.value.sheet.rows.length });
             return null;
           })
         }
@@ -64,7 +64,10 @@ export function BackupButton({ variant = "outline" }: { variant?: "outline" | "d
           x.run(async () => {
             const r = await exportBackupAction();
             if (!r.ok) return r.message;
-            await downloadWorkbook(`${r.value.year}_전체기록백업_${stamp()}.xlsx`, (wb) => r.value.sheets.forEach((s) => addSheet(wb, s)));
+            await downloadWorkbook(`${r.value.year}_전체기록백업_${stamp()}.xlsx`, (wb) => r.value.sheets.forEach((s) => addSheet(wb, s)), {
+              target: `인사평가 ${r.value.year} 전체 기록 백업 엑셀`,
+              rows: r.value.sheets.reduce((n, s) => n + s.rows.length, 0),
+            });
             x.refresh();
             return null;
           })
