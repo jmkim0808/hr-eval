@@ -148,6 +148,13 @@ await check("포털 안에 끼워 보여 줄 수 있게 X-Frame-Options는 SAMEO
   return r.headers.get("x-frame-options") === "SAMEORIGIN" && (r.headers.get("content-security-policy") ?? "").includes("frame-ancestors 'self'");
 });
 
+await check("시험 모드(HR_DEMO)가 꺼져 있으면 시험용 포털(/dev)은 없는 주소이고, 노란 시험 모드 줄·화면 인증번호도 없다", async () => {
+  const r = await fetch(`${BASE}/dev`);
+  const p = await fresh();
+  const c = await sentCode(p);
+  return r.status === 404 && !!c && (await p.locator('[data-testid="demo-bar"]').count()) === 0 && (await p.locator('[data-testid="demo-code"]').count()) === 0;
+});
+
 // 정상 로그인 재확인 + 화면 캡처
 const p5 = await fresh();
 await login(p5, ADMIN);

@@ -61,7 +61,7 @@ export default async function SetupPage() {
         <Card>
           <CardHeader>
             <CardTitle>① 직원 명단</CardTitle>
-            <CardDescription>이름 · 이메일 · 부서 · 직급 · 입사일 · 팀장 여부 · 담당 임원</CardDescription>
+            <CardDescription>사번 · 이름 · 이메일 · 부서 · 직급 · 입사일 · 팀장 여부 · 담당 임원</CardDescription>
           </CardHeader>
           <CardContent>
             <RosterUpload locked={!!cycle && cycle.status !== "setup"} />
@@ -127,7 +127,7 @@ export default async function SetupPage() {
             <CardDescription>기간 안에서는 자유롭게 쓰고 고칠 수 있습니다. 기간이 지나도 저절로 잠기지 않고, 관리자가 다음 단계로 넘기면 잠깁니다</CardDescription>
           </CardHeader>
           <CardContent>
-            <PeriodsForm initial={periods} locked={!cycle || periodsLocked} />
+            <PeriodsForm initial={periods} locked={!cycle || periodsLocked} lockMessage={!cycle ? "직원 명단을 먼저 반영하면 기간을 정할 수 있습니다." : undefined} />
           </CardContent>
         </Card>
 

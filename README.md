@@ -17,6 +17,10 @@
 5. `node scripts/start.mjs --port <배정 포트>` → 포털에서 `/hr-eval` 열기 → `/hr-eval/health` 가 `{"status":"ok"}`
 6. 인사 관리자가 `/hr-eval/admin/vault`에서 보안 열쇠를 처음 만든다 (비밀 문구는 인사 담당자만 안다).
 
+## 내 PC에서 시험 (시험 모드)
+
+`시험-설치.bat` → `시험-켜기.bat` (자세히: `docs/운영/03-PC-시험-안내.md`). 가짜 명단, 메일은 화면의 보낸 메일함에만, 인증번호는 화면에 표시. 화면만으로 평가 한 바퀴를 도는 시험: `npx tsx tests/demo/walkthrough.e2e.ts`
+
 ## 개발 PC에서 실행
 
 1. PostgreSQL 16, `.env.example` → `.env.local` 복사 후 값 채우기 (`MAIL_MODE=log`, `HR_DEV_PASSPHRASE`는 개발용만)

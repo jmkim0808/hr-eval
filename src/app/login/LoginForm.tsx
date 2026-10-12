@@ -13,10 +13,11 @@ import { portalCheckAction, portalSendCodeAction, portalVerifyAction, type Porta
 const RESEND_SECONDS = 60;
 
 // 1차: 포털 로그인(브라우저의 ax_access_token) → 2차: 회사 메일로 받은 인증번호 (ADR-0020)
-export function LoginForm({ expired }: { expired: boolean }) {
+export function LoginForm({ expired, demo = false }: { expired: boolean; demo?: boolean }) {
   const router = useRouter();
   const [state, setState] = useState<PortalState | null>(null);
   const [sentAt, setSentAt] = useState(0);
+  const [demoCode, setDemoCode] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const [pending, start] = useTransition();
@@ -37,6 +38,7 @@ export function LoginForm({ expired }: { expired: boolean }) {
       const r = await portalSendCodeAction(portalToken());
       if (r.ok) {
         setSentAt(r.sentAt);
+        setDemoCode(r.demoCode ?? null);
         setNow(Date.now());
         setError(null);
       } else setError(r.message);
@@ -74,6 +76,11 @@ export function LoginForm({ expired }: { expired: boolean }) {
             <AlertDescription>{state.message}</AlertDescription>
           </Alert>
         )}
+        {demo && state?.kind === "error" && (
+          <Button variant="outline" className="w-full" onClick={() => router.push("/dev")}>
+            시험용 포털에서 사람 고르기
+          </Button>
+        )}
         {state?.kind === "ready" && !sentAt && (
           <>
             <p className="text-body">
@@ -98,6 +105,17 @@ export function LoginForm({ expired }: { expired: boolean }) {
                 <span className="text-caption">{state.maskedEmail}</span>
               </AlertDescription>
             </Alert>
+            {demoCode && (
+              <Alert variant="warning" data-testid="demo-code">
+                <ShieldCheck aria-hidden="true" />
+                <AlertDescription>
+                  <span>
+                    시험 모드 인증번호: <b className="tabular-nums tracking-widest">{demoCode}</b>
+                  </span>
+                  <span className="text-caption">실제 운영에서는 회사 메일로만 옵니다</span>
+                </AlertDescription>
+              </Alert>
+            )}
             <form action={verify} className="space-y-4">
               <div className="space-y-1.5">
                 <Label htmlFor="code">인증번호 6자리</Label>

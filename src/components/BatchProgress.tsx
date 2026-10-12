@@ -1,7 +1,8 @@
 "use client";
 
 import { CircleCheck, CircleX, Loader2, RotateCw } from "lucide-react";
-import { useCallback, useEffect, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { inviteProgressAction, retryBatchAction } from "@/app/admin/setup/actions";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -14,6 +15,8 @@ const POLL_MS = 3000; // ADR-0017
 export function BatchProgress({ batchId, initial, readOnly = false }: { batchId: string; initial: P; readOnly?: boolean }) {
   const [p, setP] = useState<P>(initial);
   const [retrying, startRetry] = useTransition();
+  const router = useRouter();
+  const wasPending = useRef(initial.pending > 0);
 
   const refresh = useCallback(async () => {
     const r = await inviteProgressAction(batchId);
@@ -21,10 +24,18 @@ export function BatchProgress({ batchId, initial, readOnly = false }: { batchId:
   }, [batchId]);
 
   useEffect(() => {
-    if (p.pending === 0) return;
+    if (p.pending === 0) {
+      // 보고 있는 동안 발송이 끝나면 화면을 새로 읽는다 ([평가 마감] 등 다음 버튼이 바로 보이게)
+      if (wasPending.current) {
+        wasPending.current = false;
+        router.refresh();
+      }
+      return;
+    }
+    wasPending.current = true;
     const t = setTimeout(refresh, POLL_MS);
     return () => clearTimeout(t);
-  }, [p, refresh]);
+  }, [p, refresh, router]);
 
   const done = p.sent + p.failed;
   if (p.pending > 0) {

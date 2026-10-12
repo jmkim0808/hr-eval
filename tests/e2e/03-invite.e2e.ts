@@ -45,6 +45,8 @@ await sendBtn.click();
 await page.getByRole("button", { name: "25명에게 발송" }).click();
 await page.waitForSelector("text=발송 중", { timeout: 10000 }).catch(() => null);
 await check("누르면 \"발송 중 N / 25\"가 보인다", async () => /발송 중\s*\d+ \/ 25/.test((await page.locator("main").innerText())));
+// 시험 서버(메일 기록만)는 25통을 몇 초 만에 다 보내므로, 화면을 옮기는 사이 15통을 "보낼 차례"로 되돌려 이어지는지 본다
+await sql`update email_outbox set status = 'queued', sent_at = null where id in (select id from email_outbox where kind = 'invite' order by id desc limit 15)`;
 await page.goto(`${BASE}/admin`);
 const n1 = Number(((await page.locator("main").innerText()).match(/발송 중\s*(\d+) \/ 25/) ?? [])[1] ?? -1);
 await page.waitForTimeout(4000);

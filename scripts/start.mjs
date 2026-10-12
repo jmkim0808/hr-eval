@@ -1,8 +1,16 @@
 // 포털 실행 명령 (ax-app.yaml의 start): node scripts/start.mjs --port <배정 포트>
 // 127.0.0.1 에서만 연다(사양 2-6). 포트는 --port 또는 환경변수 PORT 로 받는다(하드코딩하지 않음).
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+
+// PC 시험용: .env.local이 있으면 읽는다 (포털 서버는 환경 값을 직접 넣으므로 이미 있는 값은 덮지 않는다)
+if (existsSync(".env.local")) {
+  for (const line of readFileSync(".env.local", "utf8").split(/\r?\n/)) {
+    const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/);
+    if (m && process.env[m[1]] === undefined) process.env[m[1]] = m[2].replace(/^(["'])(.*)\1$/, "$2");
+  }
+}
 
 const i = process.argv.indexOf("--port");
 const port = i > 0 ? process.argv[i + 1] : process.env.PORT;

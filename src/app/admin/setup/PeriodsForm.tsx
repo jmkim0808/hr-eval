@@ -13,7 +13,7 @@ const RANGES = [
   { label: "2차평가 기간", start: "secondStart", end: "secondEnd" },
 ] as const;
 
-export function PeriodsForm({ initial, locked }: { initial: Partial<Periods>; locked: boolean }) {
+export function PeriodsForm({ initial, locked, lockMessage }: { initial: Partial<Periods>; locked: boolean; lockMessage?: string }) {
   const [state, action, pending] = useActionState(savePeriodsAction, { values: initial } as PeriodsState);
   const v = state.values ?? initial;
   const err = state.errors ?? {};
@@ -66,7 +66,7 @@ export function PeriodsForm({ initial, locked }: { initial: Partial<Periods>; lo
         {locked && (
           <span className="flex items-center gap-1.5 text-caption text-muted-foreground">
             <CalendarDays className="size-3.5" aria-hidden="true" />
-            2차평가가 끝나 기간을 바꿀 수 없습니다.
+            {lockMessage ?? "2차평가가 끝나 기간을 바꿀 수 없습니다."}
           </span>
         )}
       </div>

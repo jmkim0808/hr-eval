@@ -9,6 +9,8 @@ import { maskEmail, verifyPortalToken } from "@/server/auth/portal-token";
 import { requestCode, sessionHash, verifyCode } from "@/server/auth/service";
 import { SESSION_COOKIE } from "@/server/authz/actor";
 import { getDb } from "@/server/db/client";
+import { isDemo } from "@/lib/demo";
+import { sentInLogMode } from "@/server/mail/sender";
 import * as repo from "@/server/repo/login";
 
 export type PortalState =
@@ -42,13 +44,16 @@ export async function portalCheckAction(token: unknown): Promise<PortalState> {
   return r.ok ? { kind: "ready", name: r.name, maskedEmail: maskEmail(r.email) } : r.state;
 }
 
-export type SendResult = { ok: true; sentAt: number } | { ok: false; message: string };
+export type SendResult = { ok: true; sentAt: number; demoCode?: string } | { ok: false; message: string };
 
 export async function portalSendCodeAction(token: unknown): Promise<SendResult> {
   const r = await resolve(token);
   if (!r.ok) return { ok: false, message: r.state.kind === "error" ? r.state.message : "" };
   const s = await requestCode(r.email, await clientIp());
-  return s.ok ? { ok: true, sentAt: Date.now() } : { ok: false, message: s.message };
+  if (!s.ok) return { ok: false, message: s.message };
+  // 시험 모드: 메일 대신 화면에 인증번호를 보여 준다 (운영에서는 절대 돌려주지 않음)
+  const demoCode = isDemo() ? [...sentInLogMode].reverse().find((m) => m.to === r.email)?.text.match(/인증번호: (\d{6})/)?.[1] : undefined;
+  return { ok: true, sentAt: Date.now(), demoCode };
 }
 
 export async function portalVerifyAction(token: unknown, code: unknown): Promise<{ ok: true } | { ok: false; message: string }> {
