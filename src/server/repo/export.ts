@@ -90,8 +90,8 @@ export async function exportBackup(actor: Actor, cycleId: string): Promise<Resul
     },
     {
       name: "평가지",
-      headers: ["이름", `${c.year}년 개인역할 및 업적`, `${c.year + 1}년 개선 및 발전`, "본인 제출", "1차 제출", "2차 제출"],
-      rows: evs.map((e) => [name.get(e.personId) ?? "", dec(e.achievementText), dec(e.improvementText), ts(e.selfSubmittedAt), ts(e.firstSubmittedAt), ts(e.secondSubmittedAt)]),
+      headers: ["이름", `${c.year}년 개인역할 및 업적`, `${c.year + 1}년 개선 및 발전`, "본인 제출", "1차 제출", "2차 제출", "1차 평가의견", "2차 평가의견"],
+      rows: evs.map((e) => [name.get(e.personId) ?? "", dec(e.achievementText), dec(e.improvementText), ts(e.selfSubmittedAt), ts(e.firstSubmittedAt), ts(e.secondSubmittedAt), dec(e.firstComment ?? ""), dec(e.secondComment ?? "")]),
     },
     {
       name: "점수",
@@ -104,7 +104,7 @@ export async function exportBackup(actor: Actor, cycleId: string): Promise<Resul
       headers: ["이름", "그룹", "순위", "역량 점수", "업적 점수", "1차 점수", "2차 점수", "가점", "최종점수", "초안 등급", "평가등급", "표시", "상위 %", "점수 빈칸"],
       rows: fin.map((f) => [
         name.get(f.personId) ?? "", ps.find((p) => p.id === f.personId)?.gradeGroup ?? null, f.groupRank, num(f.competencyScore), num(f.achievementScore), num(f.firstTotal), num(f.secondTotal),
-        num(f.bonusTotal), num(f.finalScore), f.draftGrade, f.finalGrade, f.changeKind === "adjusted" ? "조정" : f.changeKind === "pushed" ? "밀려남" : "", num(f.displayPercentile), f.blank ? "예" : "",
+        num(f.bonusTotal), num(f.finalScore), f.draftGrade, f.finalGrade, f.changeKind === "ceo" ? "대표이사 조정" : f.changeKind === "adjusted" ? "조정" : f.changeKind === "pushed" ? "밀려남" : "", num(f.displayPercentile), f.blank ? "예" : "",
       ]),
     },
     {

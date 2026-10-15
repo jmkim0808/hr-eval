@@ -60,6 +60,9 @@ export default async function ReviewOverviewPage({ params, searchParams }: { par
                   2차 평가
                 </TableHead>
               )}
+              <TableHead rowSpan={2} className="text-right">
+                가점
+              </TableHead>
               <TableHead rowSpan={2}>상태</TableHead>
             </TableRow>
             <TableRow>
@@ -82,6 +85,9 @@ export default async function ReviewOverviewPage({ params, searchParams }: { par
                 <TableCell>{r.selfSubmitted ? <Badge variant="success">제출</Badge> : <Badge variant="secondary">미제출</Badge>}</TableCell>
                 {cells(r.first, kind !== "second")}
                 {showSecond && r.second && cells(r.second, true)}
+                <TableCell className="text-right tabular-nums" data-bonus title={r.bonus?.items.map((i) => `${i.label} ${i.points}`).join(" · ")}>
+                  {r.bonus ? r.bonus.total.toFixed(2).replace(/\.?0+$/, "") || "0" : "—"}
+                </TableCell>
                 <TableCell>
                   <Status status={r.status} />
                 </TableCell>
@@ -91,7 +97,7 @@ export default async function ReviewOverviewPage({ params, searchParams }: { par
         </Table>
       </Card>
       <p className="text-caption text-muted-foreground">
-        역량 = 항목 점수 합계(100점 만점) · 업적 = 업적 점수(10점 만점) · 점수 = 역량×30% + 업적×70% (100점 만점)
+        역량 = 항목 점수 합계(100점 만점) · 업적 = 업적 점수(10점 만점) · 점수 = 역량×30% + 업적×70% (100점 만점) · 가점은 잠정치이며 최종점수에 더해집니다(— = 아직 안 들어옴)
         {kind === "first" && " · 2차(임원) 평가는 볼 수 없습니다"}
       </p>
     </main>

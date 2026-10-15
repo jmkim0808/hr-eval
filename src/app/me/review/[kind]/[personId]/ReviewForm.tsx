@@ -8,13 +8,14 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Empty } from "@/components/ui/empty";
-import { Input } from "@/components/ui/input";
+import { Input, Textarea } from "@/components/ui/input";
 import type { FormType, Item } from "@/domain/forms";
 import { ACHIEVEMENT, AVG_TARGET, averageGuide, parseScore, raterTotal, REVIEW, type ReviewKind } from "@/domain/review";
 import { cn } from "@/lib/utils";
 import { saveReviewAction } from "../../actions";
 
 const AUTOSAVE_MS = 1200;
+const COMMENT_MAX = 1000;
 const RANGE_MSG = "1~10 사이, 소수 첫째 자리까지 넣을 수 있습니다";
 const hhmm = (iso: string) => new Intl.DateTimeFormat("ko-KR", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Seoul" }).format(new Date(iso));
 
@@ -31,7 +32,9 @@ type Props = {
   notice: string | null;
   self: { scores: Record<string, number>; achievement: string; improvement: string; submitted: boolean } | null;
   firstScores: Record<string, number> | null;
-  initial: { scores: Record<string, number>; version: number; submittedAt: string | null };
+  /** 2차 평가자에게만 1차 평가의견 */
+  firstComment: string | null;
+  initial: { scores: Record<string, number>; comment: string; version: number; submittedAt: string | null };
   /** 아직 제출하지 않은 다음 사람 (없으면 null) */
   nextHref: string | null;
   /** 내 평가 현황 (모두 제출하면 여기로) */
@@ -56,6 +59,9 @@ export function ReviewForm(p: Props) {
   const inFlight = useRef<Promise<void> | null>(null);
   const latest = useRef(raw);
   latest.current = raw;
+  const [comment, setComment] = useState(p.initial.comment);
+  const latestComment = useRef(comment);
+  latestComment.current = comment;
 
   const valid = (r: Record<string, string>) => {
     const out: Record<string, number> = {};
@@ -72,7 +78,7 @@ export function ReviewForm(p: Props) {
     dirty.current = false;
     setSave({ kind: "saving" });
     const run = (async () => {
-      const r = await saveReviewAction({ kind: p.kind, personId: p.person.id, version: version.current, scores: valid(latest.current) }, false);
+      const r = await saveReviewAction({ kind: p.kind, personId: p.person.id, version: version.current, scores: valid(latest.current), comment: latestComment.current }, false);
       if (r.ok) {
         version.current = r.value.version;
         setSave(dirty.current ? { kind: "saving" } : { kind: "saved", at: r.value.savedAt });
@@ -88,7 +94,7 @@ export function ReviewForm(p: Props) {
     if (!dirty.current || save.kind === "conflict") return;
     const t = setTimeout(flush, AUTOSAVE_MS);
     return () => clearTimeout(t);
-  }, [raw, flush, save.kind]);
+  }, [raw, comment, flush, save.kind]);
 
   function change(code: string, v: string) {
     dirty.current = true;
@@ -100,7 +106,7 @@ export function ReviewForm(p: Props) {
       await flush();
       const bad = Object.values(latest.current).some((v) => parseScore(v) === "invalid");
       if (bad) return setSave({ kind: "error", message: RANGE_MSG });
-      const r = await saveReviewAction({ kind: p.kind, personId: p.person.id, version: version.current, scores: valid(latest.current) }, true);
+      const r = await saveReviewAction({ kind: p.kind, personId: p.person.id, version: version.current, scores: valid(latest.current), comment: latestComment.current }, true);
       if (r.ok) {
         version.current = r.value.version;
         setMissing(new Set());
@@ -264,6 +270,39 @@ export function ReviewForm(p: Props) {
           </div>
         </CardContent>
       </Card>
+
+      {(p.showMine || p.firstComment) && (
+        <Card>
+          <CardHeader>
+            <CardTitle>평가의견 (선택)</CardTitle>
+            <CardDescription>잘한 점·보완할 점을 적으면 직원 본인의 평가결과에 함께 보입니다 · {COMMENT_MAX.toLocaleString()}자까지</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-3">
+            {p.firstComment !== null && <ReadText title="1차 평가의견" text={p.firstComment} />}
+            {p.showMine &&
+              (p.editable ? (
+                <div className="flex flex-col gap-1">
+                  <Textarea
+                    id="review-comment"
+                    aria-label={`${REVIEW[p.kind].column} 평가의견`}
+                    value={comment}
+                    maxLength={COMMENT_MAX}
+                    onChange={(e) => {
+                      dirty.current = true;
+                      setComment(e.target.value);
+                    }}
+                    className="min-h-28 resize-y"
+                  />
+                  <span className="ml-auto text-label text-muted-foreground tabular-nums">
+                    {comment.length.toLocaleString()} / {COMMENT_MAX.toLocaleString()}자
+                  </span>
+                </div>
+              ) : (
+                <ReadText title={`${REVIEW[p.kind].column} 평가의견`} text={comment} />
+              ))}
+          </CardContent>
+        </Card>
+      )}
 
       {p.editable && (
         <div className="flex flex-wrap items-center justify-end gap-3">

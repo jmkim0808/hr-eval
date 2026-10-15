@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Award, ChevronRight, Medal, CircleCheck, ClipboardCheck, Clock, Eye, FilePen, Inbox, Lock, TriangleAlert } from "lucide-react";
+import { Award, ChevronRight, History, Medal, CircleCheck, ClipboardCheck, Clock, Eye, FilePen, Inbox, Lock, TriangleAlert } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -11,6 +11,7 @@ import { daysLeft, seoulToday } from "@/lib/time";
 import { requireParticipant } from "@/server/authz/actor";
 import { getMyTasks } from "@/server/repo/evaluations";
 import { listReviewGroups } from "@/server/repo/reviews";
+import { listHistory } from "@/server/repo/history";
 
 type Task = { key: string; href: string; title: string; done: boolean; badges: React.ReactNode; icon: React.ReactNode };
 
@@ -82,6 +83,10 @@ export default async function MyTasksPage() {
     });
   }
   tasks.sort((x, y) => Number(x.done) - Number(y.done));
+  // 지난 평가 기록 (2026-10-15)
+  const history = await listHistory(a);
+  if (history.length)
+    tasks.push({ key: "history", href: "/me/history", title: "지난 평가 기록", done: true, icon: <History className="size-5" aria-hidden="true" />, badges: <Badge variant="secondary">{history.map((h) => h.year).join(" · ")}년 평가지(업적)·결과 보기</Badge> });
   // 내 가점: 할 일은 아니지만 언제든 확인할 수 있게 맨 아래에 둔다 (2026-10-15)
   if (t.self && c.status !== "setup")
     tasks.push({ key: "bonus", href: "/me/bonus", title: "내 가점 확인", done: true, icon: <Medal className="size-5" aria-hidden="true" />, badges: <Badge variant="secondary">들어오거나 고쳐지면 바로 반영 · 틀리면 정정 요청</Badge> });

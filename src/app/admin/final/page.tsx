@@ -14,6 +14,8 @@ import { listFinal, remainingBeforeFinal } from "@/server/repo/final";
 import { BackupNotice } from "@/components/ExportButtons";
 import { confirmReadiness } from "@/server/repo/confirm";
 import { backupDue } from "@/server/repo/export";
+import { CeoGradeCell } from "@/components/CeoGradeCell";
+import { ceoAdjustInfo } from "@/server/repo/adjust";
 import { ConfirmControls } from "./ConfirmControls";
 import { ChangeBadge, GradeCell, RevertButton } from "./GradeCell";
 
@@ -35,6 +37,7 @@ export default async function FinalPage({ searchParams }: { searchParams: Promis
   const editable = cycle?.status === "final_review";
   const readiness = ready ? await confirmReadiness(a, cycle!.id) : null;
   const due = cycle ? await backupDue(a, cycle.id) : false;
+  const ceoBy = ready ? await ceoAdjustInfo(cycle!.id) : new Map();
   const actual = Object.fromEntries(GRADES.map((g) => [g, list.filter((r) => r.grade === g).length])) as Record<Grade, number>;
 
   return (
@@ -89,7 +92,7 @@ export default async function FinalPage({ searchParams }: { searchParams: Promis
                   {GROUP_LABEL[group]} · {list.length}명
                 </CardTitle>
                 <CardDescription data-testid="grade-counts">
-                  등급별 인원 {GRADES.map((g) => `${g} ${counts[g]}`).join(" · ")} (S·A·C·D 반올림, B가 나머지) · 지금 {GRADES.map((g) => `${g} ${actual[g]}`).join(" · ")}
+                  등급별 인원 {GRADES.map((g) => `${g} ${counts[g]}`).join(" · ")} (S·A·C·D 반올림, B가 나머지) · 최종(대표이사 조정 포함) {GRADES.map((g) => `${g} ${actual[g]}`).join(" · ")}
                 </CardDescription>
               </CardHeader>
               <Table>
@@ -104,7 +107,8 @@ export default async function FinalPage({ searchParams }: { searchParams: Promis
                     <TableHead className="text-right">가점</TableHead>
                     <TableHead className="text-right">최종점수</TableHead>
                     <TableHead>초안</TableHead>
-                    <TableHead>평가등급</TableHead>
+                    <TableHead>관리자 조정</TableHead>
+                    <TableHead>대표이사 조정 · 최종</TableHead>
                     <TableHead>표시</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -133,7 +137,23 @@ export default async function FinalPage({ searchParams }: { searchParams: Promis
                             <span className="text-text-secondary">{r.draft}</span>
                           )}
                         </TableCell>
-                        <TableCell className="py-1.5">{r.grade && <GradeCell personId={r.id} name={r.name} grade={r.grade} version={cycle!.version} editable={editable} />}</TableCell>
+                        <TableCell className="py-1.5">{r.baseGrade && <GradeCell personId={r.id} name={r.name} grade={r.baseGrade} version={cycle!.version} editable={editable} />}</TableCell>
+                        <TableCell className="py-1.5">
+                          {r.baseGrade &&
+                            (editable ? (
+                              <CeoGradeCell
+                                personId={r.id}
+                                name={r.name}
+                                value={r.ceoGrade}
+                                base={r.baseGrade}
+                                version={cycle!.version}
+                                editable
+                                note={ceoBy.get(r.id) ? (ceoBy.get(r.id)!.proxy ? `관리자 대신 입력 (${ceoBy.get(r.id)!.by})` : "대표이사 직접") : undefined}
+                              />
+                            ) : (
+                              <span className="font-bold">{r.grade}</span>
+                            ))}
+                        </TableCell>
                         <TableCell className="flex flex-wrap gap-1.5">
                           {r.recalcFrom && r.draft && (
                             <Badge variant={r.recalcFrom < r.draft ? "grade-down" : "grade-up"}>
@@ -141,8 +161,9 @@ export default async function FinalPage({ searchParams }: { searchParams: Promis
                               다시 계산으로 {r.recalcFrom}→{r.draft}
                             </Badge>
                           )}
-                          {r.changeKind !== "none" && r.grade && r.draft && <ChangeBadge kind={r.changeKind} up={GRADES.indexOf(r.grade) < GRADES.indexOf(r.draft)} />}
-                          {editable && r.changeKind !== "none" && <RevertButton personId={r.id} version={cycle!.version} />}
+                          {r.baseKind !== "none" && r.baseGrade && r.draft && <ChangeBadge kind={r.baseKind} up={GRADES.indexOf(r.baseGrade) < GRADES.indexOf(r.draft)} />}
+                          {editable && r.baseKind !== "none" && <RevertButton personId={r.id} version={cycle!.version} />}
+                          {r.changeKind === "ceo" && r.grade && r.baseGrade && <ChangeBadge kind="ceo" up={GRADES.indexOf(r.grade) < GRADES.indexOf(r.baseGrade)} />}
                           {r.tieRule && (
                             <Badge variant="grade-rule">
                               <Equal aria-hidden="true" />

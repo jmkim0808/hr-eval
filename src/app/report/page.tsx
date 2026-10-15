@@ -9,6 +9,7 @@ import { GRADES, GROUP_LABEL, type Grade } from "@/domain/grading";
 import { cn } from "@/lib/utils";
 import { requireReportViewer } from "@/server/authz/actor";
 import { getReport } from "@/server/repo/report";
+import { CeoGradeCell } from "@/components/CeoGradeCell";
 import { AutoRefresh } from "./AutoRefresh";
 
 export default async function ReportPage({ searchParams }: { searchParams: Promise<{ group?: string }> }) {
@@ -19,10 +20,11 @@ export default async function ReportPage({ searchParams }: { searchParams: Promi
   const group = Number(sp.group) || groups[0] || 1;
   const list = rows?.filter((r) => r.group === group) ?? [];
   const count = (g: Grade) => list.filter((r) => r.grade === g).length;
+  const editable = cycle?.status === "final_review";
 
   return (
     <main className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-8 py-6">
-      <PageHeader title="등급 결과" description={`${cycle ? `${cycle.year}년 정기평가 · ` : ""}보기 전용 · 등급조정 의견은 관리자에게 전달해 주세요`} actions={rows ? <AutoRefresh /> : undefined} />
+      <PageHeader title="등급 결과" description={`${cycle ? `${cycle.year}년 정기평가 · ` : ""}${editable ? "대표이사 조정: 등급별 비중과 상관없이 S~D 중 고르면 바로 반영됩니다(다른 사람은 움직이지 않음) · 확정 전까지" : "보기 전용"}`} actions={rows ? <AutoRefresh /> : undefined} />
       {!rows ? (
         <Card>
           <Empty icon={<FileBarChart aria-hidden="true" />} title="아직 보고할 결과가 없습니다">
@@ -62,13 +64,14 @@ export default async function ReportPage({ searchParams }: { searchParams: Promi
                   <TableHead>부서</TableHead>
                   <TableHead>직급</TableHead>
                   <TableHead className="text-right">최종점수</TableHead>
-                  <TableHead>등급</TableHead>
+                  <TableHead>{editable ? "최종 등급 (대표이사 조정)" : "등급"}</TableHead>
                   <TableHead>조정</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {list.map((r) => {
-                  const up = !!r.grade && !!r.draft && GRADES.indexOf(r.grade) < GRADES.indexOf(r.draft);
+                  const ref = r.change === "ceo" ? r.base : r.draft;
+                  const up = !!r.grade && !!ref && GRADES.indexOf(r.grade) < GRADES.indexOf(ref);
                   return (
                     <TableRow key={r.id} data-person={r.name}>
                       <TableCell className="text-right tabular-nums">{r.rank ?? "—"}</TableCell>
@@ -76,12 +79,14 @@ export default async function ReportPage({ searchParams }: { searchParams: Promi
                       <TableCell>{r.department || "—"}</TableCell>
                       <TableCell>{r.position}</TableCell>
                       <TableCell className="text-right font-semibold tabular-nums">{r.final === null ? "—" : r.final.toFixed(2)}</TableCell>
-                      <TableCell className="text-subsection-title font-bold">{r.grade ?? "—"}</TableCell>
+                      <TableCell className="text-subsection-title font-bold">
+                        {editable && r.base ? <CeoGradeCell personId={r.id} name={r.name} value={r.ceo} base={r.base} version={cycle!.version} editable /> : (r.grade ?? "—")}
+                      </TableCell>
                       <TableCell>
                         {r.change !== "none" && (
                           <Badge variant={up ? "grade-up" : "grade-down"}>
                             {up ? <ArrowUp aria-hidden="true" /> : <ArrowDown aria-hidden="true" />}
-                            {r.change === "adjusted" ? `조정 · ${up ? "상향" : "하향"}` : up ? "올라감 · 상향" : "밀려남 · 하향"}
+                            {r.change === "ceo" ? `대표 조정 · ${up ? "상향" : "하향"}` : r.change === "adjusted" ? `조정 · ${up ? "상향" : "하향"}` : up ? "올라감 · 상향" : "밀려남 · 하향"}
                           </Badge>
                         )}
                       </TableCell>

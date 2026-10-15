@@ -1,5 +1,5 @@
 // 2026-10-15 피드백: 관리자가 가점을 넣거나 고치는 즉시 직원 본인에게 보이고(잠정치), 바뀐 기록이 남고, 직원이 정정을 요청할 수 있다.
-// 평가자(1차 팀장)에게는 여전히 보이지 않는다.
+// (평가자에게도 보이도록 같은 날 바뀜)
 import { BASE, browser, check, D, login, sql, summary } from "./helpers";
 
 await sql`delete from email_outbox`;
@@ -43,7 +43,7 @@ const enter = async (vals: Record<string, string>) => {
   await adm.getByRole("button", { name: "저장" }).click();
   await adm.waitForTimeout(1500);
 };
-await check("[관리자] 가점 화면에 '넣으면 즉시 직원 본인에게 보이고 평가자에게는 안 보인다'는 안내가 있다", async () => {
+await check("[관리자] 가점 화면에 '넣으면 즉시 직원 본인과 평가자에게 보인다'는 안내가 있다", async () => {
   await adm.goto(`${BASE}/admin/bonus`);
   return (await adm.locator("main").innerText()).includes("그 즉시 직원 본인 화면");
 });
@@ -86,15 +86,12 @@ await check("[관리자] 정정 요청을 보고 고친 뒤 [처리 완료]하�
   return t.includes("처리 완료") && t.includes("교육 1점으로 고쳤습니다") && (await me.getByTestId("my-bonus-total").innerText()) === "3.5";
 });
 
-// 평가자에게는 안 보인다
+// 2026-10-15 두 번째 피드백으로 바뀜: 평가자에게도 가점이 보인다 (24번 시험에서 자세히)
 const lead = await (await b.newContext({ viewport: { width: 1300, height: 1000 } })).newPage();
 await login(lead, "lead@powernet.test");
 await lead.goto(`${BASE}/me/review/first/${kim}`);
 await lead.waitForLoadState("networkidle");
-await check("[1차 평가자] 평가 화면과 페이지 원본 어디에도 가점이 없다", async () => {
-  const html = await lead.content();
-  return !html.includes("가점") && !/[^-]3\.5[^0-9]/.test(html.replace(/size-3\.5/g, ""));
-});
+await check("[1차 평가자] 평가 화면에 맡은 사람의 가점(3.5점)이 보인다", async () => (await lead.getByTestId("reviewer-bonus").innerText()).includes("3.5점"));
 await check("[1차 평가자] 남의 /me/bonus는 자기 것만 보인다 (김대리 가점 아님)", async () => {
   await lead.goto(`${BASE}/me/bonus`);
   return !(await lead.locator("main").innerText()).includes("3.5");

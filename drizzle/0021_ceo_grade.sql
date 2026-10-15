@@ -1,0 +1,1 @@
+ALTER TABLE "final_results" ADD COLUMN "ceo_grade" text;

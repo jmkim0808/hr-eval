@@ -163,3 +163,19 @@ export async function handleBonusRequest(actor: Actor, id: string, reply: string
   await getDb().insert(auditLogs).values({ actorEmail: actor.email, action: "bonus.request_done", personId: done[0]!.personId, detail: {} });
   return ok();
 }
+
+export type BonusView = { total: number; items: { label: string; points: number }[] };
+
+/**
+ * 평가자 화면용 가점 (2026-10-15 변경: 1차·2차 평가자에게도 보인다). 넣은 항목(0 아닌 것)과 합계.
+ * 아직 안 넣은 사람은 결과에 없다. 호출하는 쪽이 "맡은 사람"인지 먼저 확인한다.
+ */
+export async function bonusOf(personIds: string[]): Promise<Map<string, BonusView>> {
+  if (!personIds.length) return new Map();
+  const rows = await getDb().select().from(bonusPoints).where(inArray(bonusPoints.personId, personIds));
+  const by = new Map<string, Record<string, number>>();
+  for (const r of rows) by.set(r.personId, { ...(by.get(r.personId) ?? {}), [r.item]: decNum(r.points) ?? 0 });
+  return new Map(
+    [...by].map(([id, v]) => [id, { total: bonusTotal(v), items: BONUS_ITEMS.filter((i) => (v[i.code] ?? 0) !== 0).map((i) => ({ label: i.label, points: v[i.code]! })) }]),
+  );
+}

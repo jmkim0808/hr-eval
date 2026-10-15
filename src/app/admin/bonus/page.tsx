@@ -34,7 +34,7 @@ export default async function BonusPage() {
           <>
             <Alert variant="info">
               <Eye aria-hidden="true" />
-              <AlertDescription>넣거나 고친 가점은 <b>그 즉시 직원 본인 화면(내 가점)에 잠정치로 보이고</b>, 바뀐 기록이 남습니다. 평가자에게는 보이지 않습니다. 1차 취합 → 정기포상 추가 → 정정 순으로 몇 번이든 다시 넣을 수 있습니다.</AlertDescription>
+              <AlertDescription>넣거나 고친 가점은 <b>그 즉시 직원 본인 화면(내 가점)에 잠정치로 보이고</b>, 바뀐 기록이 남습니다. 맡은 1차·2차 평가자 화면에도 함께 보입니다. 1차 취합 → 정기포상 추가 → 정정 순으로 몇 번이든 다시 넣을 수 있습니다.</AlertDescription>
             </Alert>
             {locked && (
               <Alert variant="neutral">

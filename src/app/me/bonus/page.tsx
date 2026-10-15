@@ -13,7 +13,7 @@ import { FixRequest } from "./FixRequest";
 const pts = (n: number) => (n === 0 ? "0" : n.toFixed(2).replace(/\.?0+$/, ""));
 const when = (iso: string) => new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(iso));
 
-// 내 가점 (2026-10-15 피드백): 관리자가 넣거나 고치는 즉시 본인에게 보인다. 평가자에게는 보이지 않는다.
+// 내 가점 (2026-10-15 피드백): 관리자가 넣거나 고치는 즉시 본인과 맡은 1차·2차 평가자에게 보인다.
 export default async function MyBonusPage() {
   const a = await requireParticipant();
   const b = await getMyBonus(a);

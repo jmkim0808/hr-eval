@@ -174,6 +174,9 @@ export const evaluations = pgTable("evaluations", {
   secondSubmittedAt: timestamp("second_submitted_at", { withTimezone: true }),
   /** 본인 평가지를 관리자가 대신 입력했으면 그 관리자 이메일 (2026-10-15) */
   selfProxyBy: text("self_proxy_by"),
+  /** 1차·2차 평가의견 (선택, 암호화, 2026-10-15). 팀장 평가 묶음(임원이 팀장 평가)은 first 칸을 쓴다 */
+  firstComment: text("first_comment"),
+  secondComment: text("second_comment"),
   version: integer("version").notNull().default(0),
   ...timestamps,
 });
@@ -235,6 +238,8 @@ export const finalResults = pgTable("final_results", {
   displayPercentile: text("display_percentile"),
   /** 다시 계산(대신 입력·가점)으로 초안 등급이 바뀌었으면 바뀌기 전 등급 (암호화) */
   recalcFrom: text("recalc_from"),
+  /** 대표이사 조정 등급 (암호화, 2026-10-15). 있으면 등급별 비중과 상관없이 이 등급이 최종 */
+  ceoGrade: text("ceo_grade"),
   ...timestamps,
 });
 

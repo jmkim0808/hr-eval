@@ -40,12 +40,12 @@ await page.waitForTimeout(1500);
 await page.goto(`${BASE}/admin/final?group=5`);
 const row = (n: string) => page.locator(`tr[data-person="${n}"]`);
 const pick = async (n: string, g: string) => {
-  await row(n).getByRole("combobox").selectOption(g);
+  await row(n).getByRole("combobox", { name: /평가등급$/ }).selectOption(g);
   await page.waitForSelector('[role="alertdialog"]');
 };
 const dialogText = () => page.locator('[role="alertdialog"]').innerText();
 const finalOf = async (n: string) => (await row(n).locator("td").nth(7).innerText()).trim();
-const gradeOf = async (n: string) => row(n).getByRole("combobox").inputValue();
+const gradeOf = async (n: string) => row(n).getByRole("combobox", { name: /평가등급$/ }).inputValue();
 
 await pick("이번", "S");
 await check("A인 사람을 S로 바꾸면 확인 창에 그 사람과 S 최하단에서 A로 내려갈 사람이 함께 보인다", async () => {
@@ -88,7 +88,7 @@ await check("[적용] 뒤 그룹의 등급별 인원은 그대로이고, 두 사
 await check("조정해도 두 사람의 최종점수 숫자는 바뀌지 않는다", async () => (await finalOf("삼번")) === before.삼번 && (await finalOf("일번")) === before.일번);
 await page.screenshot({ path: "/tmp/hr-e2e/12-final.png", fullPage: true });
 
-await p2.locator('tr[data-person="팔번"]').getByRole("combobox").selectOption("B");
+await p2.locator('tr[data-person="팔번"]').getByRole("combobox", { name: /평가등급$/ }).selectOption("B");
 await p2.waitForSelector('[role="alertdialog"]');
 await p2.getByRole("button", { name: "적용" }).click();
 await p2.waitForTimeout(1500);

@@ -3,6 +3,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Empty } from "@/components/ui/empty";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { CommentsCard } from "@/components/CommentsCard";
 import { requireParticipant } from "@/server/authz/actor";
 import { getMyResult } from "@/server/repo/results";
 
@@ -64,6 +65,7 @@ export default async function MyResultPage() {
           <span className="text-section-title font-bold tabular-nums">{pts(x.bonusTotal)}</span>
         </Card>
       </div>
+      <CommentsCard items={x.isLeader ? [{ title: "임원 평가의견", text: x.firstComment }] : [{ title: "1차 평가의견", text: x.firstComment }, ...(x.second === null ? [] : [{ title: "2차 평가의견", text: x.secondComment }])]} />
       <Card className="pb-0">
         <CardHeader>
           <CardTitle>가점 항목별</CardTitle>

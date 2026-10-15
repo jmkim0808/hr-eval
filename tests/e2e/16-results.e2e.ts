@@ -41,7 +41,7 @@ await ap.getByRole("button", { name: "넘기기", exact: true }).click();
 await ap.waitForTimeout(1500);
 // 사번 B → C (오번이 B로 올라감)
 await ap.goto(`${BASE}/admin/final?group=5`);
-await ap.locator('tr[data-person="사번"]').getByRole("combobox").selectOption("C");
+await ap.locator('tr[data-person="사번"]').getByRole("combobox", { name: /평가등급$/ }).selectOption("C");
 await ap.waitForSelector('[role="alertdialog"]');
 await ap.getByRole("button", { name: "적용" }).click();
 await ap.waitForTimeout(1500);

@@ -92,7 +92,12 @@ export type FinalRow = {
   grade: Grade | null;
   tieRule: boolean;
   recalcFrom: Grade | null;
-  changeKind: "none" | "adjusted" | "pushed";
+  changeKind: "none" | "adjusted" | "pushed" | "ceo";
+  /** 관리자 조정까지의 등급(비중 유지)과 그 표시 */
+  baseGrade: Grade | null;
+  baseKind: "none" | "adjusted" | "pushed";
+  /** 대표이사 조정 등급 (없으면 null) */
+  ceoGrade: Grade | null;
 };
 
 export async function listFinal(actor: Actor, cycleId: string): Promise<FinalRow[]> {
@@ -125,6 +130,9 @@ export async function listFinal(actor: Actor, cycleId: string): Promise<FinalRow
       tieRule: f.tieRule,
       recalcFrom: f.recalcFrom,
       changeKind: f.changeKind,
+      baseGrade: f.baseGrade,
+      baseKind: f.baseKind,
+      ceoGrade: f.ceoGrade,
     }))
     .sort((a, b) => a.group - b.group || (a.rank ?? 1e9) - (b.rank ?? 1e9) || a.name.localeCompare(b.name, "ko"));
 }

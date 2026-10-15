@@ -309,7 +309,7 @@ await scene("final", "김인사", async (p, mark) => {
   await caption(p, "관리자", "최종점수 계산 · 그룹별 등급 비율에 맞춰 자동 배분");
   mark();
   await p.waitForTimeout(2200);
-  await p.locator('tr[data-person="조사원"]').getByRole("combobox").selectOption("A");
+  await p.locator('tr[data-person="조사원"]').getByRole("combobox", { name: /평가등급$/ }).selectOption("A");
   await p.waitForSelector('[role="alertdialog"]');
   await caption(p, "관리자", "등급조정 — 누가 밀려나는지 미리 보고 적용");
   await p.waitForTimeout(2200);

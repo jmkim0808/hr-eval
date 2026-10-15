@@ -3,7 +3,7 @@ import { and, asc, eq, inArray, isNull, ne } from "drizzle-orm";
 import { displayPercentiles, planAdjust, type Grade, type Move, type Placed } from "@/domain/grading";
 import { fail, ok, type Result } from "@/lib/result";
 import { getDb, type Db } from "@/server/db/client";
-import { auditLogs, cyclePeople, finalResults, gradeAdjustments, reviewCycles } from "@/server/db/schema";
+import { appUsers, auditLogs, cyclePeople, finalResults, gradeAdjustments, reviewCycles } from "@/server/db/schema";
 import type { Actor } from "@/server/authz/actor";
 import { assert, can } from "@/server/authz/policy";
 import { dec, enc } from "@/server/crypto/vault";
@@ -11,8 +11,8 @@ import { decFinal, encFinal } from "@/server/repo/final-codec";
 
 type AdjRow = typeof gradeAdjustments.$inferSelect;
 /** 조정 한 줄을 풀어 읽는다. 누가·어디서·어디로·직접/밀려남 모두 암호문으로 저장돼 있다 (ADR-0021) */
-const decAdj = (r: AdjRow) => ({ ...r, personId: dec(r.subject ?? ""), fromGrade: dec(r.fromGrade) as Grade, toGrade: dec(r.toGrade) as Grade, kind: dec(r.kind) as "manual" | "push" });
-const encAdj = (v: { personId: string; fromGrade: Grade; toGrade: Grade; kind: "manual" | "push" }) => ({ subject: enc(v.personId), fromGrade: enc(v.fromGrade), toGrade: enc(v.toGrade), kind: enc(v.kind) });
+const decAdj = (r: AdjRow) => ({ ...r, personId: dec(r.subject ?? ""), fromGrade: dec(r.fromGrade) as Grade, toGrade: dec(r.toGrade) as Grade, kind: dec(r.kind) as "manual" | "push" | "ceo" });
+const encAdj = (v: { personId: string; fromGrade: Grade; toGrade: Grade; kind: "manual" | "push" | "ceo" }) => ({ subject: enc(v.personId), fromGrade: enc(v.fromGrade), toGrade: enc(v.toGrade), kind: enc(v.kind) });
 /** 되돌리지 않은 조정 (오래된 순) */
 async function liveAdjustments(db: Db | Tx, cycleId: string) {
   const rows = await db.select().from(gradeAdjustments).where(and(eq(gradeAdjustments.cycleId, cycleId), isNull(gradeAdjustments.revertedAt))).orderBy(asc(gradeAdjustments.createdAt));
@@ -31,7 +31,7 @@ async function loadState(db: Db | Tx, cycleId: string): Promise<State> {
       .where(and(eq(finalResults.cycleId, cycleId), eq(finalResults.blank, false)))
   ).map(({ group, f: raw }) => {
     const f = decFinal(raw);
-    return { id: f.personId, group, rank: f.groupRank, draft: f.draftGrade, grade: f.finalGrade, kind: f.changeKind };
+    return { id: f.personId, group, rank: f.groupRank, draft: f.draftGrade, grade: f.baseGrade, kind: f.baseKind };
   });
   return new Map(
     rows
@@ -58,7 +58,8 @@ export async function replayAdjustments(db: Db | Tx, cycleId: string) {
     groupSize.set(r.g ?? 0, (groupSize.get(r.g ?? 0) ?? 0) + 1);
   for (const p of s.values()) p.percentile = Math.round((p.rank / (groupSize.get(p.group) ?? 1)) * 1000) / 10;
 
-  const manuals = (await liveAdjustments(db, cycleId)).filter((m) => m.kind === "manual");
+  const live = await liveAdjustments(db, cycleId);
+  const manuals = live.filter((m) => m.kind === "manual");
   for (const m of manuals) {
     const p = s.get(m.personId);
     const plan = p ? planAdjust(placedOf(s, p.group), m.personId, m.toGrade) : { ok: false as const, message: "" };
@@ -72,16 +73,19 @@ export async function replayAdjustments(db: Db | Tx, cycleId: string) {
     if (pushes.length)
       await db.insert(gradeAdjustments).values(pushes.map((x) => ({ cycleId, ...encAdj({ personId: x.id, fromGrade: x.from, toGrade: x.to, kind: "push" }), batchId: m.batchId, createdBy: m.createdBy, createdAt: m.createdAt })));
   }
+  // 대표이사 조정 (2026-10-15): 관리자 조정 뒤에 덮어쓴다. 등급별 비중과 상관없고 밀려나는 사람이 없다. 마지막 것이 유효
+  const ceo = new Map<string, Grade>();
+  for (const m of live) if (m.kind === "ceo") ceo.set(m.personId, m.toGrade);
   const shownAll = new Map<string, number>();
   for (const g of new Set([...s.values()].map((p) => p.group))) {
-    const list = [...s.values()].filter((x) => x.group === g);
+    const list = [...s.values()].filter((x) => x.group === g).map((x) => (ceo.has(x.id) ? { ...x, grade: ceo.get(x.id)!, manual: ceo.get(x.id) !== x.grade || x.manual } : x));
     for (const [id, v] of displayPercentiles(list, groupSize.get(g) ?? list.length)) shownAll.set(id, v);
   }
   for (const p of s.values()) {
     const shown = shownAll.get(p.id) ?? p.percentile;
     await db
       .update(finalResults)
-      .set(encFinal({ finalGrade: p.grade, changeKind: p.manual ? "adjusted" : p.grade !== p.draft ? "pushed" : "none", displayPercentile: shown.toFixed(1), updatedAt: new Date() }))
+      .set(encFinal({ finalGrade: p.grade, changeKind: p.manual ? "adjusted" : p.grade !== p.draft ? "pushed" : "none", ceoGrade: ceo.get(p.id) ?? null, displayPercentile: shown.toFixed(1), updatedAt: new Date() }))
       .where(eq(finalResults.personId, p.id));
   }
 }
@@ -151,7 +155,7 @@ export async function revertAdjust(actor: Actor, personId: string, version: numb
     if (!c || c.status !== "final_review") return fail("locked", "최종평가 단계에서만 되돌릴 수 있습니다.");
     const [cy] = await tx.select().from(reviewCycles).where(eq(reviewCycles.id, c.cycleId)).limit(1).for("update");
     if (!cy || cy.version !== version) return fail("stale", "다른 관리자가 먼저 처리했습니다. 화면을 새로고침해 주세요.");
-    const last = (await liveAdjustments(tx, c.cycleId)).find((a) => a.personId === personId);
+    const last = (await liveAdjustments(tx, c.cycleId)).find((a) => a.personId === personId && a.kind !== "ceo");
     if (!last) return fail("none", "되돌릴 조정이 없습니다.");
     await tx.update(gradeAdjustments).set({ revertedAt: new Date() }).where(eq(gradeAdjustments.batchId, last.batchId));
     await replayAdjustments(tx, c.cycleId);
@@ -159,4 +163,37 @@ export async function revertAdjust(actor: Actor, personId: string, version: numb
     await tx.insert(auditLogs).values({ actorEmail: actor.email, action: "grade.revert", cycleId: c.cycleId, detail: {} });
     return ok();
   });
+}
+
+// ── 대표이사 조정 (2026-10-15): S~D 자유, 비중 무시. 대표이사가 직접 하거나 관리자가 대표 지시로 대신 넣는다 ──
+
+export type CeoAdjustInfo = { by: string; proxy: boolean };
+
+/** 대표이사 조정을 넣는다. to = null이면 대표이사 조정을 없앤다(관리자 조정 등급으로 돌아감) */
+export async function setCeoGrade(actor: Actor, personId: string, to: Grade | null, version: number): Promise<Result> {
+  assert(can.ceoAdjust(actor));
+  return getDb().transaction(async (tx) => {
+    const c = await ctx(tx, personId);
+    if (!c || c.status !== "final_review") return fail("locked", "최종평가 단계(확정 전)에서만 대표이사 조정을 넣을 수 있습니다.");
+    const [cy] = await tx.select().from(reviewCycles).where(eq(reviewCycles.id, c.cycleId)).limit(1).for("update");
+    if (!cy || cy.version !== version) return fail("stale", "다른 사람이 먼저 바꿨습니다. 화면을 새로고침해 주세요.");
+    const s = await loadState(tx, c.cycleId);
+    const p = s.get(personId);
+    if (!p) return fail("blank", "점수 빈칸인 사람은 조정할 수 없습니다.");
+    const mine = (await liveAdjustments(tx, c.cycleId)).filter((a) => a.kind === "ceo" && a.personId === personId);
+    if (mine.length) await tx.update(gradeAdjustments).set({ revertedAt: new Date() }).where(inArray(gradeAdjustments.id, mine.map((m) => m.id)));
+    if (to) await tx.insert(gradeAdjustments).values({ cycleId: c.cycleId, ...encAdj({ personId, fromGrade: p.grade, toGrade: to, kind: "ceo" }), batchId: crypto.randomUUID(), createdBy: actor.email });
+    await replayAdjustments(tx, c.cycleId);
+    await tx.update(reviewCycles).set({ version: cy.version + 1, updatedAt: new Date() }).where(eq(reviewCycles.id, cy.id));
+    await tx.insert(auditLogs).values({ actorEmail: actor.email, action: to ? "grade.ceo_adjust" : "grade.ceo_revert", cycleId: c.cycleId, detail: { proxy: !actor.roles.ceo } });
+    return ok();
+  });
+}
+
+/** 사람별 대표이사 조정을 누가 넣었는지 (화면 표시용) */
+export async function ceoAdjustInfo(cycleId: string): Promise<Map<string, CeoAdjustInfo>> {
+  const db = getDb();
+  const rows = (await liveAdjustments(db, cycleId)).filter((a) => a.kind === "ceo");
+  const ceos = new Set((await db.select({ email: appUsers.email }).from(appUsers).where(eq(appUsers.role, "ceo"))).map((u) => u.email));
+  return new Map(rows.map((r) => [r.personId, { by: r.createdBy, proxy: !ceos.has(r.createdBy) }]));
 }

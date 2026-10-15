@@ -4,10 +4,10 @@ import { BONUS_ITEMS, type BonusCode } from "@/domain/bonus";
 import type { Grade } from "@/domain/grading";
 import { fail, ok, type Result } from "@/lib/result";
 import { getDb } from "@/server/db/client";
-import { auditLogs, bonusPoints, cyclePeople, emailOutbox, finalResults, reviewCycles } from "@/server/db/schema";
+import { auditLogs, bonusPoints, cyclePeople, emailOutbox, evaluations, finalResults, reviewCycles } from "@/server/db/schema";
 import type { Actor } from "@/server/authz/actor";
 import { assert, can } from "@/server/authz/policy";
-import { decNum } from "@/server/crypto/vault";
+import { dec, decNum } from "@/server/crypto/vault";
 import { decFinal } from "@/server/repo/final-codec";
 
 /** 확정 뒤 결과 알림을 쌓고 단계를 "결과 발송"으로 */
@@ -38,6 +38,9 @@ export type MyResult = {
   grade: Grade;
   percentile: number;
   groupSize: number;
+  /** 평가의견 (2026-10-15). 팀장 평가는 first가 임원 의견 */
+  firstComment: string;
+  secondComment: string;
 };
 
 /** 내 평가결과. 열람할 때마다 작업 기록에 "결과 열람"을 남긴다 */
@@ -54,6 +57,7 @@ export async function getMyResult(actor: Actor): Promise<{ status: "not_yet" } |
   const f = row?.f ? decFinal(row.f) : null;
   if (!row || !f || !f.finalScore || !f.finalGrade || !can.viewOwnResult(actor, row.p.id, row.c.status)) return { status: "not_yet" };
   const bonus = await db.select().from(bonusPoints).where(eq(bonusPoints.personId, row.p.id));
+  const [ev] = await db.select({ a: evaluations.firstComment, b: evaluations.secondComment }).from(evaluations).where(eq(evaluations.personId, row.p.id)).limit(1);
   const by = new Map(bonus.map((b) => [b.item as BonusCode, decNum(b.points) ?? 0]));
   const items = BONUS_ITEMS.filter((i) => !("leaderOnly" in i) || row.p.formType === "leader").map((i) => ({ label: i.label, points: by.get(i.code) ?? 0 }));
   const groupSize = (await db.select({ id: cyclePeople.id }).from(cyclePeople).where(and(eq(cyclePeople.cycleId, row.c.id), eq(cyclePeople.isTarget, true), eq(cyclePeople.gradeGroup, row.p.gradeGroup ?? 0)))).length;
@@ -72,6 +76,8 @@ export async function getMyResult(actor: Actor): Promise<{ status: "not_yet" } |
       grade: f.finalGrade,
       percentile: Number(f.displayPercentile ?? 0),
       groupSize,
+      firstComment: dec(ev?.a ?? ""),
+      secondComment: dec(ev?.b ?? ""),
     },
   };
 }

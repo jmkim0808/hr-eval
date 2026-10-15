@@ -11,6 +11,7 @@ import { REVIEW, type ReviewKind } from "@/domain/review";
 import { cn } from "@/lib/utils";
 import { requireParticipant } from "@/server/authz/actor";
 import { getReview, listReviewGroups } from "@/server/repo/reviews";
+import { BonusBox } from "@/components/BonusBox";
 import { ReviewForm } from "./ReviewForm";
 
 const ORDER = ["setup", "self_review", "first_review", "second_review", "final_review", "confirmed", "results_sent", "closed"];
@@ -69,6 +70,7 @@ export default async function ReviewPage({ params }: { params: Promise<{ kind: s
             ))}
           </ul>
         </Card>
+        <div className="flex flex-col gap-5">
         <ReviewForm
           key={personId}
           kind={kind}
@@ -82,11 +84,14 @@ export default async function ReviewPage({ params }: { params: Promise<{ kind: s
           notice={notice}
           self={r.self}
           firstScores={r.firstScores}
-          initial={{ scores: r.mine, version: r.version, submittedAt: r.submittedAt }}
+          firstComment={r.firstComment}
+          initial={{ scores: r.mine, comment: r.myComment, version: r.version, submittedAt: r.submittedAt }}
           nextHref={next ? `/me/review/${kind}/${next.id}` : null}
           overviewHref={`/me/review/${kind}`}
           bundle={r.bundle}
         />
+        <BonusBox bonus={r.bonus} final={["confirmed", "results_sent", "closed"].includes(r.cycle.status)} />
+        </div>
       </div>
     </main>
   );

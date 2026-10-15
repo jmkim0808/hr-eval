@@ -7,7 +7,8 @@ import { fail, ok, type Result } from "@/lib/result";
 import { getDb } from "@/server/db/client";
 import { auditLogs, cyclePeople, evaluations, evaluationScores, reviewCycles } from "@/server/db/schema";
 import type { Actor } from "@/server/authz/actor";
-import { dec, decNum, encNum } from "@/server/crypto/vault";
+import { dec, decNum, enc, encNum } from "@/server/crypto/vault";
+import { bonusOf, type BonusView } from "@/server/repo/bonus";
 
 export type ReviewStatus = "todo" | "writing" | "done";
 export type GroupPerson = { id: string; name: string; department: string; position: string; status: ReviewStatus; visible: boolean };
@@ -97,9 +98,13 @@ export async function getReview(actor: Actor, kind: ReviewKind, personId: string
     firstScores: seesFirstScores(kind) && visible ? pick("first") : null,
     firstSubmitted: seesFirstScores(kind) ? !!ev?.firstSubmittedAt : false,
     mine: pick(rater),
+    /** 내 평가의견, 그리고 2차 평가자에게만 1차 의견 (팀장에게 2차 의견을 주는 경로는 없다) */
+    myComment: ev ? dec((rater === "first" ? ev.firstComment : ev.secondComment) ?? "") : "",
+    firstComment: seesFirstScores(kind) && visible && ev ? dec(ev.firstComment ?? "") : null,
     submittedAt: submittedAt?.toISOString() ?? null,
     version: ev?.version ?? 0,
     bundle: await bundleTotals(actor, kind),
+    bonus: (await bonusOf([p.id])).get(p.id) ?? null,
   };
 }
 
@@ -134,7 +139,10 @@ export type ReviewSaveResult =
   | { ok: false; code: "incomplete"; message: string; missing: string[] }
   | { ok: false; code: "average"; message: string; avg: number };
 
-export async function saveReview(actor: Actor, kind: ReviewKind, personId: string, version: number, raw: Record<string, number>, submit: boolean): Promise<ReviewSaveResult> {
+export const COMMENT_MAX = 1000;
+
+export async function saveReview(actor: Actor, kind: ReviewKind, personId: string, version: number, raw: Record<string, number>, submit: boolean, comment?: string): Promise<ReviewSaveResult> {
+  if (comment !== undefined && comment.length > COMMENT_MAX) return fail("long", `평가의견은 ${COMMENT_MAX.toLocaleString()}자까지 쓸 수 있습니다.`);
   const r = await getReview(actor, kind, personId);
   if (!r.editable) return fail("locked", `${REVIEW[kind].windowLabel} 기간에 입력할 수 있습니다.`);
   const codes = new Set(scoreCodes(r.person.formType));
@@ -161,7 +169,10 @@ export async function saveReview(actor: Actor, kind: ReviewKind, personId: strin
     const now = new Date();
     const [ev] = await tx.select().from(evaluations).where(eq(evaluations.personId, personId)).limit(1).for("update");
     let evId: string;
-    const stamp = submit ? (rater === "first" ? { firstSubmittedAt: now } : { secondSubmittedAt: now }) : {};
+    const stamp = {
+      ...(submit ? (rater === "first" ? { firstSubmittedAt: now } : { secondSubmittedAt: now }) : {}),
+      ...(comment === undefined ? {} : rater === "first" ? { firstComment: comment.trim() ? enc(comment) : null } : { secondComment: comment.trim() ? enc(comment) : null }),
+    };
     if (!ev) {
       if (version !== 0) return fail("conflict", "다른 창에서 고친 내용이 있습니다.");
       const [ins] = await tx.insert(evaluations).values({ personId, version: 1, ...stamp }).returning({ id: evaluations.id });
@@ -195,6 +206,8 @@ export type OverviewRow = {
   first: OverviewScores;
   /** 2차 점수 — 2차 평가자(임원)에게만. 팀장(1차 평가자)에게는 언제나 null */
   second: OverviewScores | null;
+  /** 가점 (아직 안 넣었으면 null) */
+  bonus: BonusView | null;
 };
 
 const scoresOf = (form: FormType, s: Record<string, number>): OverviewScores => {
@@ -226,6 +239,7 @@ export async function reviewOverview(actor: Actor, kind: ReviewKind) {
     e[s.rater as "first" | "second"][s.item] = decNum(s.score)!;
     by.set(s.ev, e);
   }
+  const bonus = await bonusOf(ids);
   const rows: OverviewRow[] = group.people.map((p) => {
     const ev = evOf.get(p.id);
     const sc = (ev && by.get(ev.id)) || { first: {}, second: {} };
@@ -239,6 +253,7 @@ export async function reviewOverview(actor: Actor, kind: ReviewKind) {
       status: p.status,
       first: scoresOf(form, sc.first),
       second: kind === "second" ? scoresOf(form, sc.second) : null,
+      bonus: bonus.get(p.id) ?? null,
     };
   });
   return { group, rows };

@@ -9,12 +9,12 @@ import { decFinal } from "@/server/repo/final-codec";
 
 const OPEN = ["final_review", "confirmed", "results_sent", "closed"];
 
-export type ReportRow = { id: string; group: number; rank: number | null; name: string; department: string; position: string; final: number | null; grade: Grade | null; draft: Grade | null; change: "none" | "adjusted" | "pushed" };
+export type ReportRow = { id: string; group: number; rank: number | null; name: string; department: string; position: string; final: number | null; grade: Grade | null; draft: Grade | null; base: Grade | null; ceo: Grade | null; change: "none" | "adjusted" | "pushed" | "ceo" };
 
 export async function getReport(actor: Actor) {
   assert(can.viewReport(actor));
   const db = getDb();
-  const [cycle] = await db.select({ id: reviewCycles.id, year: reviewCycles.year, status: reviewCycles.status }).from(reviewCycles).orderBy(desc(reviewCycles.year)).limit(1);
+  const [cycle] = await db.select({ id: reviewCycles.id, year: reviewCycles.year, status: reviewCycles.status, version: reviewCycles.version }).from(reviewCycles).orderBy(desc(reviewCycles.year)).limit(1);
   if (!cycle || !OPEN.includes(cycle.status)) return { cycle: cycle ?? null, rows: null };
   const rows = await db
     .select({
@@ -33,7 +33,7 @@ export async function getReport(actor: Actor) {
     rows: rows
       .map(({ f: raw, ...r }) => {
         const f = decFinal(raw);
-        return { ...r, group: r.group ?? 0, rank: f.groupRank, final: f.finalScore === null ? null : Number(f.finalScore), grade: f.finalGrade, draft: f.draftGrade, change: f.changeKind };
+        return { ...r, group: r.group ?? 0, rank: f.groupRank, final: f.finalScore === null ? null : Number(f.finalScore), grade: f.finalGrade, draft: f.draftGrade, base: f.baseGrade, ceo: f.ceoGrade, change: f.changeKind };
       })
       .sort((a, b) => a.group - b.group || (a.rank ?? 1e9) - (b.rank ?? 1e9)) as ReportRow[],
   };

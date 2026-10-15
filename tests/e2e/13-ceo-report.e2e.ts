@@ -48,9 +48,15 @@ await ap.getByRole("button", { name: "넘기기", exact: true }).click();
 await ap.waitForTimeout(1500);
 
 await cp.goto(`${BASE}/report?group=5`);
-const gradeOf = async (n: string) => (await cp.locator(`tr[data-person="${n}"] td`).nth(5).innerText()).trim();
+const gradeOf = async (n: string) => {
+  const c = cp.locator(`tr[data-person="${n}"] td`).nth(5);
+  return ((await c.locator("[data-grade]").count()) ? await c.locator("[data-grade]").innerText() : await c.innerText()).trim();
+};
 const g0 = await gradeOf("삼번");
-await check("대표이사 화면에는 고치는 칸과 버튼이 하나도 없다", async () => (await cp.locator("main input, main select, main textarea, main button").count()) === 0);
+// 2026-10-15 변경: 대표이사 조정 칸(사람마다 등급 고르기)만 있고, 그 밖의 고치는 칸·버튼은 없다
+await check("대표이사 화면에는 사람마다 '대표이사 조정' 등급 칸만 있고 다른 고치는 칸·버튼은 없다", async () =>
+  (await cp.locator("main input, main textarea, main button").count()) === 0 && (await cp.locator("main select").count()) === (await cp.locator("main tbody tr").count()),
+);
 await check("업적 글, 항목별 점수, 가점 내역은 보이지 않는다", async () => {
   const html = await cp.content();
   const text = await cp.locator("main").innerText();
@@ -60,7 +66,7 @@ await cp.screenshot({ path: "/tmp/hr-e2e/13-report.png", fullPage: true });
 
 // 관리자가 조정 적용 → 대표이사 화면은 새로고침 없이 10초 안에 바뀐다
 await ap.goto(`${BASE}/admin/final?group=5`);
-await ap.locator('tr[data-person="삼번"]').getByRole("combobox").selectOption("S");
+await ap.locator('tr[data-person="삼번"]').getByRole("combobox", { name: /평가등급$/ }).selectOption("S");
 await ap.waitForSelector('[role="alertdialog"]');
 await ap.getByRole("button", { name: "적용" }).click();
 const t0 = Date.now();

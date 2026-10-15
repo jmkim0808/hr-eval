@@ -112,9 +112,9 @@ export function GradeCell({ personId, name, grade, version, editable }: { person
   );
 }
 
-export function ChangeBadge({ kind, up: isUp }: { kind: "adjusted" | "pushed"; up: boolean }) {
+export function ChangeBadge({ kind, up: isUp }: { kind: "adjusted" | "pushed" | "ceo"; up: boolean }) {
   const Icon = isUp ? ArrowUp : ArrowDown;
-  const text = kind === "adjusted" ? `조정 · ${isUp ? "상향" : "하향"}` : isUp ? "올라감 · 상향" : "밀려남 · 하향";
+  const text = kind === "ceo" ? `대표 조정 · ${isUp ? "상향" : "하향"}` : kind === "adjusted" ? `조정 · ${isUp ? "상향" : "하향"}` : isUp ? "올라감 · 상향" : "밀려남 · 하향";
   return (
     <Badge variant={isUp ? "grade-up" : "grade-down"}>
       <Icon aria-hidden="true" />
