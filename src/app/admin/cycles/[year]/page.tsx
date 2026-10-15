@@ -26,7 +26,7 @@ export default async function PastCyclePage({ params }: { params: Promise<{ year
   const groups = [...new Set(rows.map((r) => r.group))].sort((x, y) => x - y);
   return (
     <>
-      <main className="flex flex-col gap-6 px-8 py-6">
+      <main className="flex flex-col gap-6 px-4 py-6 sm:px-8 sm:py-8">
         <Link href="/admin/cycles" className={buttonVariants({ variant: "ghost", size: "sm", className: "-ml-3 w-fit" })}>
           <ChevronLeft aria-hidden="true" />
           평가 관리

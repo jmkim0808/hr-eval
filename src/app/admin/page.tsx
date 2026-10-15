@@ -47,7 +47,7 @@ export default async function ProgressPage() {
 
   return (
     <>
-      <main className="flex flex-col gap-6 px-8 py-6">
+      <main className="flex flex-col gap-6 px-4 py-6 sm:px-8 sm:py-8">
         <PageHeader
           title="진행 현황"
           description={cycle ? `${cycle.year}년 정기평가 · 지금 누가 어디서 멈춰 있는지 봅니다` : "지금 누가 어디서 멈춰 있는지 봅니다"}
@@ -129,6 +129,7 @@ export default async function ProgressPage() {
                   <StatCard
                     label={stageCopy?.title ?? "제출"}
                     icon={<Users aria-hidden="true" />}
+                    hue="blue"
                     value={
                       <span data-testid="submitted-count">
                         {stage.submitted} <span className="text-section-title font-semibold text-muted-foreground">/ {stage.total}</span>
@@ -141,6 +142,7 @@ export default async function ProgressPage() {
                   <StatCard
                     label="미제출"
                     icon={<ClipboardList aria-hidden="true" />}
+                    hue="orange"
                     value={`${stage.pending.length}명`}
                     tone={stage.pending.length && overdue ? "warning" : undefined}
                     foot={stageCopy?.hint}
@@ -150,15 +152,17 @@ export default async function ProgressPage() {
                   <StatCard
                     label="마감"
                     icon={<CalendarClock aria-hidden="true" />}
+                    hue="violet"
                     value={left === null ? "—" : left >= 0 ? `D-${left}` : `${-left}일 지남`}
                     tone={left !== null && left < 0 ? "warning" : undefined}
-                    foot={`${fmtDay(stageCopy?.end(cycle))}까지 · 기한이 지나도 저절로 잠기지 않습니다`}
+                    foot={`${fmtDay(stageCopy?.end(cycle))}까지`}
                   />
                 )}
                 {bonus && (
                   <StatCard
                     label="가점 반영"
                     icon={<Medal aria-hidden="true" />}
+                    hue="green"
                     value={
                       <span data-testid="bonus-count">
                         <span className="sr-only">가점 반영 </span>
@@ -166,7 +170,7 @@ export default async function ProgressPage() {
                       </span>
                     }
                     foot={
-                      <Link className="font-semibold text-primary hover:underline" href="/admin/bonus">
+                      <Link className="font-semibold text-brand hover:underline" href="/admin/bonus">
                         가점 입력 →
                       </Link>
                     }

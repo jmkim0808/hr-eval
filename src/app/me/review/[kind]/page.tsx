@@ -37,7 +37,7 @@ export default async function ReviewOverviewPage({ params, searchParams }: { par
   );
 
   return (
-    <main className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-8 py-6">
+    <main className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-6 sm:px-8 sm:py-8">
       <PageHeader title={`내 평가 현황 · ${def.label}`} description={`${def.windowLabel} 기간 ${fmtRange(group.range[0], group.range[1])} · ${rows.length}명 중 ${done}명 제출`} />
       {sp.done === "1" && done === rows.length && (
         <Alert variant="success" data-testid="all-done">

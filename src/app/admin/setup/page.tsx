@@ -25,7 +25,7 @@ export default async function SetupPage() {
   if (sy === null)
     return (
       <>
-        <main className="flex flex-col gap-6 px-8 py-6">
+        <main className="flex flex-col gap-6 px-4 py-6 sm:px-8 sm:py-8">
           <PageHeader title="평가 시작 설정" description="누구를, 누가, 언제까지 평가할지 정합니다" />
           <Card data-testid="need-new-cycle">
             <Empty icon={<CalendarPlus aria-hidden="true" />} title="지난 정기평가가 마감되었습니다" action={<Link className={buttonVariants()} href="/admin/cycles">평가 관리에서 새 정기평가 만들기</Link>}>
@@ -69,7 +69,7 @@ export default async function SetupPage() {
 
   return (
     <>
-      <main className="flex flex-col gap-6 px-8 py-6">
+      <main className="flex flex-col gap-6 px-4 py-6 sm:px-8 sm:py-8">
         <PageHeader title="평가 시작 설정" description={`${year}년 정기평가 · 누구를, 누가, 언제까지 평가할지 정합니다`} />
 
         <Card>

@@ -19,7 +19,7 @@ export default async function MyBonusPage() {
   const b = await getMyBonus(a);
   if (!b)
     return (
-      <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-8 py-6">
+      <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-6 sm:px-8 sm:py-8">
         <PageHeader title="내 가점" />
         <Card>
           <Empty icon={<Hourglass aria-hidden="true" />} title="아직 볼 수 있는 가점이 없습니다">
@@ -29,7 +29,7 @@ export default async function MyBonusPage() {
       </main>
     );
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-8 py-6">
+    <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-6 sm:px-8 sm:py-8">
       <PageHeader title="내 가점" description={`${b.year}년 정기평가 · 가점 인정 기준일 ${fmtDay(b.cutoff)} · 본인만 볼 수 있습니다`} />
       {b.locked ? (
         <Alert variant="neutral">

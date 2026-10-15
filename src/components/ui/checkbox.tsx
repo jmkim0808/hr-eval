@@ -12,7 +12,7 @@ export function Checkbox({ className, ...props }: React.ComponentProps<typeof Ba
       data-slot="checkbox"
       className={cn(
         "peer flex size-4 shrink-0 items-center justify-center rounded-sm border border-input bg-card text-primary-foreground shadow-xs outline-none transition-colors",
-        "focus-visible:ring-[3px] focus-visible:ring-ring/40 data-checked:border-primary data-checked:bg-primary data-indeterminate:border-primary data-indeterminate:bg-primary data-disabled:opacity-50",
+        "focus-visible:ring-[3px] focus-visible:ring-ring/40 data-checked:border-brand data-checked:bg-brand data-indeterminate:border-brand data-indeterminate:bg-brand data-disabled:opacity-50",
         className,
       )}
       {...props}

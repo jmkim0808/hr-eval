@@ -11,7 +11,7 @@ export default async function SettingsPage() {
   const admins = await listAdmins(a);
   return (
     <>
-      <main className="flex flex-col gap-6 px-8 py-6">
+      <main className="flex flex-col gap-6 px-4 py-6 sm:px-8 sm:py-8">
         <PageHeader title="관리자 설정" description="관리자는 모든 평가를 보고 고칠 수 있습니다 · 추가·해제는 작업 기록에 남습니다" />
         <Card>
           <CardHeader>

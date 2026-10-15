@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 
 // 작은 상태 표시. 아이콘 + 글자를 함께 쓴다.
 const badgeVariants = cva(
-  "inline-flex w-fit shrink-0 items-center gap-1 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-label font-semibold [&>svg]:pointer-events-none [&>svg]:size-3.5",
+  "inline-flex w-fit max-w-full shrink-0 items-center gap-1 whitespace-normal sm:whitespace-nowrap rounded-full border px-2.5 py-0.5 text-label font-semibold [&>svg]:pointer-events-none [&>svg]:size-3.5",
   {
     variants: {
       variant: {

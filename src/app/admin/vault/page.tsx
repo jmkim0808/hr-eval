@@ -19,7 +19,7 @@ export default async function VaultPage() {
   const slots = state === "open" ? await listSlots(a) : [];
   return (
     <>
-      <main className="flex flex-col gap-6 px-8 py-6">
+      <main className="flex flex-col gap-6 px-4 py-6 sm:px-8 sm:py-8">
         <PageHeader title="보안 열쇠" description="점수·업적 글·가점·등급은 암호로 바꿔 저장합니다 · 서버·DB 관리자도 내용을 읽을 수 없습니다" />
 
         {state === "unset" && (

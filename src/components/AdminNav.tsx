@@ -103,5 +103,5 @@ export function AdminTopNav() {
 }
 
 export function Logo() {
-  return <span className="flex size-8 items-center justify-center rounded-[10px] bg-primary text-label font-extrabold tracking-tight text-primary-foreground">PN</span>;
+  return <span className="flex size-8 items-center justify-center rounded-[10px] bg-gradient-to-br from-[#2563EB] to-[#6D28D9] text-label font-extrabold tracking-tight text-white">PN</span>;
 }

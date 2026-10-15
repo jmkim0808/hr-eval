@@ -42,7 +42,7 @@ export function BatchProgress({ batchId, initial, readOnly = false }: { batchId:
     return (
       <div className="flex flex-col gap-2" role="status" aria-live="polite">
         <div className="flex items-center gap-2 text-body font-medium">
-          <Loader2 className="size-4 animate-spin text-primary" aria-hidden="true" />
+          <Loader2 className="size-4 animate-spin text-brand" aria-hidden="true" />
           발송 중 <span className="tabular-nums">{done} / {p.total}</span>
         </div>
         <Progress value={p.total ? (done / p.total) * 100 : 0} aria-label="발송 진행" />

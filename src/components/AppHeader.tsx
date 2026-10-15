@@ -11,23 +11,24 @@ export function AppHeader({ viewer, link, employeeNo, sidebar }: { viewer?: stri
   return (
     <header className="sticky top-0 z-20 border-b border-border/70 bg-card/85 backdrop-blur">
       {viewer && <SessionGuard employeeNo={employeeNo ?? null} />}
-      <div className="flex h-16 items-center justify-between gap-4 px-6 lg:px-8">
+      <div className="flex h-16 items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
         <div className={sidebar ? "flex items-center gap-2.5 lg:invisible" : "flex items-center gap-2.5"}>
           <Logo />
-          <span className="text-subsection-title font-bold tracking-tight">파워넷 인사평가</span>
+          <span className="text-body font-bold tracking-tight whitespace-nowrap sm:text-subsection-title">파워넷 인사평가</span>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           {link && (
-            <Link href={link.href} className="rounded-full px-3 py-1.5 text-caption font-semibold text-primary hover:bg-accent">
+            <Link href={link.href} className="rounded-full px-3 py-1.5 text-caption font-semibold text-brand hover:bg-accent">
               {link.label}
             </Link>
           )}
           <span className="inline-flex items-center gap-1.5 rounded-full bg-danger-bg px-3 py-1 text-label font-semibold text-confidential">
             <Lock className="size-3.5" aria-hidden="true" />
-            {viewer ? `대외비 · 열람자 ${viewer}` : "대외비"}
+            대외비
+            {viewer && <span className="hidden sm:inline">{` · 열람자 ${viewer}`}</span>}
           </span>
           {viewer && (
-            <span className="flex size-8 items-center justify-center rounded-full bg-accent text-caption font-bold text-accent-foreground" aria-hidden="true">
+            <span className="flex size-8 items-center justify-center rounded-full bg-hl-violet-bg text-caption font-bold text-hl-violet" aria-hidden="true">
               {viewer.slice(0, 1)}
             </span>
           )}

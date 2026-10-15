@@ -40,7 +40,7 @@ export default async function ReviewPage({ params }: { params: Promise<{ kind: s
   const done = group.people.filter((p) => p.status === "done").length;
 
   return (
-    <main className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-8 py-6">
+    <main className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-6 sm:px-8 sm:py-8">
       <PageHeader
         title={`평가하기 · ${def.label}`}
         description={`${r.cycle.year}년 정기평가 · ${def.windowLabel} 기간 ${range} · ${group.people.length}명 중 ${done}명 완료`}

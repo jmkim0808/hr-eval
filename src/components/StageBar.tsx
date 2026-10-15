@@ -21,11 +21,11 @@ export function StageBar({ status, notes = {}, overdue = false }: { status: Stat
         const now = i === cur;
         return (
           <li key={s} aria-current={now ? "step" : undefined} className="relative flex flex-col items-center gap-1.5 px-1 text-center">
-            {i > 0 && <span aria-hidden="true" className={cn("absolute top-4 right-1/2 -z-0 h-0.5 w-full", i <= cur ? "bg-primary/60" : "bg-border")} />}
+            {i > 0 && <span aria-hidden="true" className={cn("absolute top-4 right-1/2 -z-0 h-0.5 w-full", i <= cur ? "bg-brand/50" : "bg-border")} />}
             <span
               className={cn(
                 "relative z-10 flex size-8 items-center justify-center rounded-full text-caption font-bold tabular-nums ring-4 ring-card",
-                done ? "bg-primary text-primary-foreground" : now ? "bg-primary text-primary-foreground shadow-[0_0_0_4px_var(--color-selected-background)]" : "bg-muted text-muted-foreground",
+                done ? "bg-hl-blue-bg text-brand" : now ? "bg-brand text-white shadow-[0_0_0_4px_var(--color-selected-background)]" : "bg-muted text-muted-foreground",
               )}
             >
               {done ? <Check className="size-4" aria-hidden="true" /> : i + 1}

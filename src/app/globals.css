@@ -14,17 +14,6 @@
   src: url("./fonts/PretendardVariable.woff2") format("woff2-variations");
 }
 
-/* 시안 비교용 기준색 바꾸기: <html data-accent="blue"> (2026-10-15) */
-:root[data-accent="blue"] {
-  --color-brand-primary: #2563EB;
-  --color-button-primary-background: #191F28;
-  --color-button-primary-background-hover: #333D4B;
-  --color-text-link: #2563EB;
-  --color-focus-ring: #2563EB;
-  --color-input-focus-border: #2563EB;
-  --color-selected-background: #EBF2FE;
-}
-
 /* shadcn 이름 → 우리 이름표 */
 :root {
   --background: var(--color-page-background);
@@ -72,6 +61,19 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
   --color-subtle: var(--color-border-subtle);
+  --color-brand: var(--color-brand-primary);
+  --color-hl-blue: var(--color-hl-blue-text);
+  --color-hl-blue-bg: var(--color-hl-blue-background);
+  --color-hl-violet: var(--color-hl-violet-text);
+  --color-hl-violet-bg: var(--color-hl-violet-background);
+  --color-hl-green: var(--color-hl-green-text);
+  --color-hl-green-bg: var(--color-hl-green-background);
+  --color-hl-orange: var(--color-hl-orange-text);
+  --color-hl-orange-bg: var(--color-hl-orange-background);
+  --color-hl-pink: var(--color-hl-pink-text);
+  --color-hl-pink-bg: var(--color-hl-pink-background);
+  --color-hl-teal: var(--color-hl-teal-text);
+  --color-hl-teal-bg: var(--color-hl-teal-background);
   --color-text-secondary: var(--color-text-secondary);
   --color-confidential: var(--color-confidential-text);
   --color-success: var(--color-status-success-text);

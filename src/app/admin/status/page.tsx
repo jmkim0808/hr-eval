@@ -18,13 +18,13 @@ export default async function StatusPage({ searchParams }: { searchParams: Promi
   const view = (await searchParams).view === "dept" ? "dept" : "group";
   const people = cycle && cycle.status !== "setup" ? await adminOverview(a, cycle.id) : [];
   const tab = (v: "group" | "dept", label: string) => (
-    <Link href={`/admin/status?view=${v}`} aria-current={view === v ? "page" : undefined} className={cn("rounded-md border px-3 py-1.5 text-caption", view === v ? "border-primary bg-accent font-semibold text-accent-foreground" : "bg-card text-muted-foreground hover:text-foreground")}>
+    <Link href={`/admin/status?view=${v}`} aria-current={view === v ? "page" : undefined} className={cn("rounded-md border px-3 py-1.5 text-caption", view === v ? "border-brand/40 bg-accent font-semibold text-accent-foreground" : "bg-card text-muted-foreground hover:text-foreground")}>
       {label}
     </Link>
   );
   return (
     <>
-      <main className="flex flex-col gap-6 px-8 py-6">
+      <main className="flex flex-col gap-6 px-4 py-6 sm:px-8 sm:py-8">
         <PageHeader
           title="전체 현황"
           description="지금까지 들어간 점수와 가점으로 바로 계산합니다 (가점을 넣으면 즉시 반영) · 점수가 다 들어가야 최종점수가 나옵니다 · 등급은 [최종평가]에서"

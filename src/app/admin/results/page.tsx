@@ -24,7 +24,7 @@ export default async function ResultsPage() {
   const fmt = (iso: string) => new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(iso));
   return (
     <>
-      <main className="flex flex-col gap-6 px-8 py-6">
+      <main className="flex flex-col gap-6 px-4 py-6 sm:px-8 sm:py-8">
         <PageHeader title="결과 발송" description={`${cycle ? `${cycle.year}년 정기평가 · ` : ""}확정한 결과를 내려받고, 직원에게 결과 알림을 보냅니다`} />
         {due && <BackupNotice />}
         <Card>

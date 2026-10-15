@@ -22,7 +22,7 @@ export default async function CyclesPage() {
   const next = Math.max(seoulYear(), (cycles[0]?.year ?? seoulYear() - 1) + 1);
   return (
     <>
-      <main className="flex flex-col gap-6 px-8 py-6">
+      <main className="flex flex-col gap-6 px-4 py-6 sm:px-8 sm:py-8">
         <PageHeader title="평가 관리" description="해마다 정기평가를 새로 만들고, 지난 평가는 보기 전용으로 남깁니다 (마감일로부터 3년 보관)" />
         <Card>
           <CardHeader>
@@ -61,7 +61,7 @@ export default async function CyclesPage() {
                   <TableCell>{c.closedAt ? `${new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(c.closedAt)} (${c.closedBy})` : "—"}</TableCell>
                   <TableCell className="tabular-nums">{c.closedAt ? retentionUntil(c.closedAt) : "—"}</TableCell>
                   <TableCell className="text-right">
-                    <Link href={c.status === "closed" ? `/admin/cycles/${c.year}` : "/admin"} className="text-primary underline-offset-4 hover:underline">
+                    <Link href={c.status === "closed" ? `/admin/cycles/${c.year}` : "/admin"} className="text-brand underline-offset-4 hover:underline">
                       {c.status === "closed" ? "지난 평가 보기" : "진행 현황"}
                     </Link>
                   </TableCell>

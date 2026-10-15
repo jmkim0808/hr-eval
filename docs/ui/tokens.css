@@ -33,14 +33,14 @@
   --color-surface-background: #FFFFFF;   /* 상자 · 표 · 입력칸 바탕 */
   --color-surface-muted: #F2F4F6;        /* 표 머리 · 안내 상자 · 중립 표시 바탕 */
   --color-row-hover-background: #F7F8FA; /* 목록 한 줄에 마우스 올렸을 때 */
-  --color-selected-background: #EEF1FB;  /* 선택된 줄 · 지금 단계 · 선택된 그룹 */
+  --color-selected-background: #EBF2FE;  /* 선택된 줄 · 지금 단계 · 선택된 그룹 */
 
   --color-text-primary: #191F28;   /* 본문 (흰 바탕 16.5:1) */
   --color-text-secondary: #4E5968; /* 표 머리 · 부연 (흰 바탕 10.2:1) */
   --color-text-muted: #6B7684;     /* 보조 설명 (흰 바탕 6.2:1 / 페이지 바탕 5.7:1) */
   --color-text-disabled: #646B79;  /* 못 누를 때 · 잠김 (못 누를 때 바탕 4.5:1) */
   --color-text-on-primary: #FFFFFF;
-  --color-text-link: #3346B0;      /* 글자 버튼 · 링크 (흰 바탕 8.3:1) */
+  --color-text-link: #2563EB;      /* 글자 버튼 · 링크 (흰 바탕 8.3:1) */
 
   --color-border-default: #E5E8EB; /* 상자 테두리 · 표 머리 아래 선 */
   --color-border-subtle: #F2F4F6;  /* 표 줄 사이 선 · 단계 칸 사이 선 */
@@ -49,9 +49,9 @@
   --color-header-rule: #1B1F2A;    /* 화면 맨 위 머리줄 아래 굵은 선 */
 
   /* ---------- 기준색 (인디고 단색) ---------- */
-  --color-brand-primary: #3346B0;
-  --color-button-primary-background: #3346B0;         /* 흰 글자 8.3:1 */
-  --color-button-primary-background-hover: #2A3A96;   /* 흰 글자 10.4:1 */
+  --color-brand-primary: #2563EB;   /* 강조 파랑 (흰 바탕 5.2:1) — 2026-10-15 시안 B */
+  --color-button-primary-background: #191F28;   /* 주 버튼은 검정 */         /* 흰 글자 8.3:1 */
+  --color-button-primary-background-hover: #333D4B;   /* 흰 글자 10.4:1 */
   --color-button-primary-background-pressed: #262F5E; /* 흰 글자 12.7:1 */
   --color-button-primary-text: #FFFFFF;
 
@@ -79,8 +79,8 @@
   --color-button-disabled-background: #E9ECF1;
   --color-button-disabled-text: #646B79;      /* 4.5:1 */
 
-  --color-focus-ring: #3346B0;          /* 키보드로 고른 버튼 바깥 테두리 */
-  --color-input-focus-border: #3346B0;
+  --color-focus-ring: #2563EB;          /* 키보드로 고른 버튼 바깥 테두리 */
+  --color-input-focus-border: #2563EB;
   --color-input-focus-halo: #DCE1F2;    /* 쓰는 중인 입력칸 바깥 한 겹 (장식) */
   --color-input-error-border: #9B2C2C;
   --color-input-error-halo: #F6E5E5;
@@ -92,6 +92,14 @@
   --color-status-danger-text: #C4271D;       --color-status-danger-background: #FEECEB;   /* 6.2:1 */
   --color-status-progress-text: #1F5FBF;     --color-status-progress-background: #E8F1FD; /* 5.2:1 */
   --color-status-neutral-text: #4E5968;      --color-status-neutral-background: #F2F4F6;  /* 5.5:1 */
+
+  /* ---------- 강조색 (2026-10-15): 무채색·검정·파랑 위에 아이콘 칸·숫자 카드·그룹 표시에만 조금씩. 글자 대비 4.5:1 이상 ---------- */
+  --color-hl-blue-text: #1D4ED8;   --color-hl-blue-background: #EBF2FE;
+  --color-hl-violet-text: #6D28D9; --color-hl-violet-background: #F3EEFE;
+  --color-hl-green-text: #047857;  --color-hl-green-background: #E7F7F0;
+  --color-hl-orange-text: #C2410C; --color-hl-orange-background: #FFF1E6;
+  --color-hl-pink-text: #BE185D;   --color-hl-pink-background: #FDEEF5;
+  --color-hl-teal-text: #0F766E;   --color-hl-teal-background: #E6F6F4;
 
   /* ---------- 등급 변화 표시 (최종평가 · 등급 결과 화면 전용) ---------- */
   --color-grade-up-text: #1E5AA8;   --color-grade-up-background: #E3EDFA;   --color-grade-up-border: #9DBBE6;   /* 5.8:1 */

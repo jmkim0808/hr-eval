@@ -26,7 +26,7 @@ export default async function HistoryRecordPage({ params }: { params: Promise<{ 
   const comps = r.items;
   const roleLabel = r.role === "self" ? "본인" : leader ? "팀장 평가(임원)" : r.role === "first" ? "1차 평가자" : "2차 평가자";
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-8 py-6">
+    <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-6 sm:px-8 sm:py-8">
       <PageHeader
         title={`${r.year}년 평가 기록 · ${r.person.name}`}
         description={`${r.person.department || "—"} · ${r.person.position} · ${roleLabel}로 보기 · 보기 전용 · 대외비`}
@@ -119,7 +119,7 @@ function Stat({ label, value, big }: { label: string; value: string; big?: boole
   return (
     <div className="flex flex-col">
       <span className="text-caption text-muted-foreground">{label}</span>
-      <span className={big ? "mt-1 flex size-14 items-center justify-center rounded-lg bg-accent text-page-title font-bold text-accent-foreground" : "text-section-title font-bold tabular-nums"}>{value}</span>
+      <span className={big ? "mt-1 flex size-16 items-center justify-center rounded-2xl bg-gradient-to-br from-hl-blue-bg to-hl-violet-bg text-[32px] font-extrabold text-hl-violet" : "text-section-title font-bold tabular-nums"}>{value}</span>
     </div>
   );
 }

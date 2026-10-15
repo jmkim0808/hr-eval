@@ -31,7 +31,7 @@ export default async function ProxyPage({ params }: { params: Promise<{ personId
   const open = raters.filter((r) => proxyWindow(form, r) === st);
   return (
     <>
-      <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-8 py-6">
+      <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-6 sm:px-8 sm:py-8">
         <Link href="/admin" className={buttonVariants({ variant: "ghost", size: "sm", className: "-ml-3 w-fit" })}>
           <ChevronLeft aria-hidden="true" />
           진행 현황

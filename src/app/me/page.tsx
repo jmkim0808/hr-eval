@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Award, ChevronRight, History, Medal, CircleCheck, ClipboardCheck, Clock, Eye, FilePen, Inbox, Lock, TriangleAlert } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
+import { Tile, type Hue } from "@/components/Tile";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Empty } from "@/components/ui/empty";
@@ -13,7 +14,8 @@ import { getMyTasks } from "@/server/repo/evaluations";
 import { listReviewGroups } from "@/server/repo/reviews";
 import { listHistory } from "@/server/repo/history";
 
-type Task = { key: string; href: string; title: string; done: boolean; badges: React.ReactNode; icon: React.ReactNode };
+type Task = { key: string; href: string; title: string; done: boolean; badges: React.ReactNode; icon: React.ReactNode; hue?: Hue };
+const HUE_OF: Record<string, Hue> = { result: "violet", self: "blue", first: "teal", second: "teal", leader: "teal", bonus: "green", history: "orange" };
 
 export default async function MyTasksPage() {
   const a = await requireParticipant();
@@ -92,7 +94,7 @@ export default async function MyTasksPage() {
     tasks.push({ key: "bonus", href: "/me/bonus", title: "내 가점 확인", done: true, icon: <Medal className="size-5" aria-hidden="true" />, badges: <Badge variant="secondary">들어오거나 고쳐지면 바로 반영 · 틀리면 정정 요청</Badge> });
 
   return (
-    <main className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-8 py-6">
+    <main className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-4 py-6 sm:px-8 sm:py-8">
       <PageHeader title="내 할 일" description={`${c.year}년 정기평가${cur ? ` · ${cur[0]} 기간 ${fmtRange(cur[1], cur[2])}${left !== null && left >= 0 ? ` · D-${left}` : ""}` : ""}`} />
       {tasks.length === 0 ? (
         <Card>
@@ -107,12 +109,12 @@ export default async function MyTasksPage() {
               <Link
                 href={task.href}
                 className={cn(
-                  "group flex items-center gap-5 rounded-2xl border border-border/70 bg-card px-6 shadow-card transition-all hover:-translate-y-px hover:border-primary/30 hover:shadow-overlay focus-visible:ring-[3px] focus-visible:ring-ring/40 focus-visible:outline-none",
+                  "group flex items-center gap-5 rounded-2xl border border-border/70 bg-card px-6 shadow-card transition-all hover:-translate-y-px hover:border-brand/30 hover:shadow-overlay focus-visible:ring-[3px] focus-visible:ring-ring/40 focus-visible:outline-none",
                   i === 0 && !task.done ? "py-5" : "py-4",
                   task.done && "bg-card/60",
                 )}
               >
-                <span className={cn("flex size-12 shrink-0 items-center justify-center rounded-2xl", task.done ? "bg-muted text-muted-foreground" : "bg-accent text-accent-foreground")}>{task.icon}</span>
+                <Tile size="lg" hue={task.done && !["bonus", "history"].includes(task.key) ? "gray" : (HUE_OF[task.key] ?? "blue")}>{task.icon}</Tile>
                 <span className="flex flex-1 flex-col gap-1.5">
                   <span className={cn("font-bold", i === 0 && !task.done ? "text-section-title" : "text-subsection-title")}>{task.title}</span>
                   <span className="flex flex-wrap items-center gap-2">{task.badges}</span>

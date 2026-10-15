@@ -80,7 +80,7 @@ export function PendingTable({ rows, canRemind }: { rows: PendingRow[]; canRemin
               )}
               <TableCell>
                 {r.formHref ? (
-                  <Link href={r.formHref} className="font-medium text-primary underline-offset-4 hover:underline">
+                  <Link href={r.formHref} className="font-medium text-brand underline-offset-4 hover:underline">
                     {r.name}
                   </Link>
                 ) : (
@@ -94,7 +94,7 @@ export function PendingTable({ rows, canRemind }: { rows: PendingRow[]; canRemin
                   <span className="mt-0.5 flex flex-wrap gap-x-2 text-label">
                     대신 입력:
                     {r.leftTargets.map((t) => (
-                      <Link key={t.id} href={`/admin/proxy/${t.id}`} className="text-primary underline-offset-4 hover:underline">
+                      <Link key={t.id} href={`/admin/proxy/${t.id}`} className="text-brand underline-offset-4 hover:underline">
                         {t.name}
                       </Link>
                     ))}

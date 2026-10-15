@@ -23,7 +23,7 @@ export default async function ReportPage({ searchParams }: { searchParams: Promi
   const editable = cycle?.status === "final_review";
 
   return (
-    <main className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-8 py-6">
+    <main className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-6 sm:px-8 sm:py-8">
       <PageHeader title="등급 결과" description={`${cycle ? `${cycle.year}년 정기평가 · ` : ""}${editable ? "대표이사 조정: 등급별 비중과 상관없이 S~D 중 고르면 바로 반영됩니다(다른 사람은 움직이지 않음) · 확정 전까지" : "보기 전용"}`} actions={rows ? <AutoRefresh /> : undefined} />
       {!rows ? (
         <Card>
@@ -41,7 +41,7 @@ export default async function ReportPage({ searchParams }: { searchParams: Promi
                 aria-current={g === group ? "page" : undefined}
                 className={cn(
                   "flex flex-col rounded-lg border px-4 py-3 text-subsection-title font-semibold transition-colors",
-                  g === group ? "border-primary bg-accent text-accent-foreground" : "bg-card hover:bg-muted",
+                  g === group ? "border-brand/40 bg-accent text-accent-foreground" : "bg-card hover:bg-muted",
                 )}
               >
                 {GROUP_LABEL[g] ?? `${g}그룹`}

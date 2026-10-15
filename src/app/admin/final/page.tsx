@@ -41,7 +41,7 @@ export default async function FinalPage({ searchParams }: { searchParams: Promis
 
   return (
     <>
-      <main className="flex flex-col gap-6 px-8 py-6">
+      <main className="flex flex-col gap-6 px-4 py-6 sm:px-8 sm:py-8">
         <PageHeader
           title="최종평가"
           description={`${cycle ? `${cycle.year}년 정기평가 · ` : ""}최종점수와 그룹별 상대평가 초안 등급 · 최종점수는 고치지 않습니다`}
@@ -78,7 +78,7 @@ export default async function FinalPage({ searchParams }: { searchParams: Promis
                   key={g}
                   href={`/admin/final?group=${g}`}
                   aria-current={g === group ? "page" : undefined}
-                  className={cn("rounded-md border px-3 py-1.5 text-caption", g === group ? "border-primary bg-accent font-semibold text-accent-foreground" : "bg-card text-text-secondary hover:bg-muted")}
+                  className={cn("rounded-md border px-3 py-1.5 text-caption", g === group ? "border-brand/40 bg-accent font-semibold text-accent-foreground" : "bg-card text-text-secondary hover:bg-muted")}
                 >
                   {GROUP_LABEL[g] ?? `${g}그룹`} ({rows.filter((r) => r.group === g).length})
                 </Link>

@@ -27,5 +27,5 @@ export function AlertTitle({ className, ...props }: React.ComponentProps<"div">)
   return <div data-slot="alert-title" className={cn("col-start-2 font-semibold", className)} {...props} />;
 }
 export function AlertDescription({ className, ...props }: React.ComponentProps<"div">) {
-  return <div data-slot="alert-description" className={cn("col-start-2 grid justify-items-start gap-1 text-text-secondary", className)} {...props} />;
+  return <div data-slot="alert-description" className={cn("col-start-2 block text-text-secondary [&>p+p]:mt-1 [&>button]:mt-2 [&>button]:flex [&>button]:w-fit [&>div]:mt-2", className)} {...props} />;
 }

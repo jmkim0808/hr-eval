@@ -42,6 +42,7 @@ async function shot(p: Page, name: string, url: string) {
   await p.waitForTimeout(400);
   await p.screenshot({ path: `${DIR}/${name}.png` });
 }
+const ALL = process.env.SHOT_ALL === "1";
 const lead = await (await b.newContext({ viewport: { width: 1440, height: 900 } })).newPage();
 await login(lead, "lead@powernet.test");
 await shot(lead, "1-내할일", "/me");
@@ -51,6 +52,42 @@ const adm = await (await b.newContext({ viewport: { width: 1440, height: 900 } }
 await login(adm, "part@powernet.test");
 await shot(adm, "3-진행현황", "/admin");
 await shot(adm, "4-가점", "/admin/bonus");
+if (ALL) {
+  await shot(lead, "5-내평가현황", "/me/review/first");
+  await shot(lead, "6-내가점", "/me/bonus");
+  await shot(lead, "7-내평가지", `/me/form/${(await sql`select id from cycle_people where name='최팀장'`)[0]!.id}`);
+  await shot(adm, "8-전체현황", "/admin/status");
+  await shot(adm, "9-평가시작설정", "/admin/setup");
+  await shot(adm, "10-평가관리", "/admin/cycles");
+  await shot(adm, "11-관리자설정", "/admin/settings");
+  await shot(adm, "12-보안열쇠", "/admin/vault");
+  await shot(adm, "13-대신입력", `/admin/proxy/${first!.id}`);
+  // 최종평가 단계로
+  const ITEMS = ["responsibility", "teamwork", "discipline", "objectivity", "execution", "knowledge", "information", "contribution", "communication", "trust", "achievement"];
+  const evs = await sql`select e.id, p.name from evaluations e join cycle_people p on p.id = e.person_id where p.form_type = 'member'`;
+  for (const [k, e] of evs.entries()) for (const r of ["first", "second"]) for (const c of ITEMS) await sql`insert into evaluation_scores (evaluation_id, rater, item_code, score) values (${e.id}, ${r}, ${c}, ${E(9 - k * 0.5)}) on conflict do nothing`;
+  await sql`update review_cycles set status = 'second_review', version = version + 1`;
+  await adm.goto(`${BASE}/admin`);
+  await adm.getByRole("button", { name: "다음 단계로 넘기기" }).click();
+  await adm.getByRole("button", { name: "넘기기", exact: true }).click();
+  await adm.waitForTimeout(2000);
+  await shot(adm, "14-최종평가", "/admin/final?group=5");
+  await sql`insert into app_users (email, name, role) values ('ceo@powernet.test', '대표이사', 'ceo') on conflict (email) do update set role = 'ceo', active = true`;
+  const ceo = await (await b.newContext({ viewport: { width: 1440, height: 900 } })).newPage();
+  await login(ceo, "ceo@powernet.test");
+  await shot(ceo, "15-대표이사", "/report?group=5");
+  await sql`update review_cycles set status = 'results_sent', confirmed_at = now(), confirmed_by = '김파트장', version = version + 1`;
+  await shot(adm, "16-결과발송", "/admin/results");
+  const me = await (await b.newContext({ viewport: { width: 1440, height: 900 } })).newPage();
+  await login(me, "u0@powernet.test");
+  await shot(me, "17-내평가결과", "/me/result");
+  await shot(me, "18-지난기록", "/me/history");
+  const lo = await (await b.newContext({ viewport: { width: 1440, height: 900 } })).newPage();
+  await shot(lo, "19-로그인", "/login");
+  const phone = await (await b.newContext({ viewport: { width: 390, height: 844 } })).newPage();
+  await login(phone, "u1@powernet.test");
+  await shot(phone, "20-휴대폰-내할일", "/me");
+}
 await b.close();
 await sql.end();
 console.log("saved", DIR);

@@ -19,7 +19,7 @@ export default async function FillPage({ params }: { params: Promise<{ personId:
   const cycle = await getCurrentCycle(a);
   return (
     <>
-      <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-8 py-6">
+      <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-6 sm:px-8 sm:py-8">
         <Link href="/admin/final" className={buttonVariants({ variant: "ghost", size: "sm", className: "-ml-3 w-fit" })}>
           <ChevronLeft aria-hidden="true" />
           최종평가

@@ -8,7 +8,7 @@ export function Progress({ className, value, ...props }: React.ComponentProps<ty
   return (
     <Base.Root value={value} className={cn("w-full", className)} {...props}>
       <Base.Track className="h-2 w-full overflow-hidden rounded-full bg-muted">
-        <Base.Indicator className="h-full bg-primary transition-[width] duration-500" />
+        <Base.Indicator className="h-full bg-brand transition-[width] duration-500" />
       </Base.Track>
     </Base.Root>
   );
