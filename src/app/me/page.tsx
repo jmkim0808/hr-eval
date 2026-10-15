@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Award, ChevronRight, CircleCheck, ClipboardCheck, Clock, Eye, FilePen, Inbox, Lock, TriangleAlert } from "lucide-react";
+import { Award, ChevronRight, Medal, CircleCheck, ClipboardCheck, Clock, Eye, FilePen, Inbox, Lock, TriangleAlert } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -82,6 +82,9 @@ export default async function MyTasksPage() {
     });
   }
   tasks.sort((x, y) => Number(x.done) - Number(y.done));
+  // 내 가점: 할 일은 아니지만 언제든 확인할 수 있게 맨 아래에 둔다 (2026-10-15)
+  if (t.self && c.status !== "setup")
+    tasks.push({ key: "bonus", href: "/me/bonus", title: "내 가점 확인", done: true, icon: <Medal className="size-5" aria-hidden="true" />, badges: <Badge variant="secondary">들어오거나 고쳐지면 바로 반영 · 틀리면 정정 요청</Badge> });
 
   return (
     <main className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-8 py-6">

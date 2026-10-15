@@ -272,3 +272,30 @@ export const keySlots = pgTable("key_slots", {
   createdBy: text("created_by").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+/** 가점 변경 이력 (2026-10-15 피드백): 1차 반영 → 정기포상 추가 → 정정이 직원 본인에게 보인다. 점수는 암호화 */
+export const bonusHistory = pgTable("bonus_history", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  personId: uuid("person_id")
+    .notNull()
+    .references(() => cyclePeople.id, { onDelete: "cascade" }),
+  item: text("item").notNull(),
+  fromPoints: text("from_points"),
+  toPoints: text("to_points").notNull(),
+  changedBy: text("changed_by").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** 가점 정정 요청 (직원 → 인사). 내용은 암호화 */
+export const bonusRequests = pgTable("bonus_requests", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  personId: uuid("person_id")
+    .notNull()
+    .references(() => cyclePeople.id, { onDelete: "cascade" }),
+  message: text("message").notNull(),
+  status: text("status", { enum: ["open", "done"] }).notNull().default("open"),
+  reply: text("reply"),
+  handledBy: text("handled_by"),
+  handledAt: timestamp("handled_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});

@@ -1,4 +1,4 @@
-import { CalendarDays, Lock, Medal } from "lucide-react";
+import { CalendarDays, Eye, Lock, Medal } from "lucide-react";
 import { AdminNav } from "@/components/AdminNav";
 import { PageHeader } from "@/components/PageHeader";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -6,8 +6,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Empty } from "@/components/ui/empty";
 import { fmtDay } from "@/domain/periods";
 import { requireAdmin } from "@/server/authz/actor";
-import { bonusEditable, listBonus } from "@/server/repo/bonus";
+import { bonusEditable, listBonus, listBonusRequests } from "@/server/repo/bonus";
 import { getCycleDetail, getCurrentCycle } from "@/server/repo/cycles";
+import { BonusRequests } from "./BonusRequests";
 import { BonusTable } from "./BonusTable";
 import { BonusUpload } from "./BonusUpload";
 
@@ -18,6 +19,8 @@ export default async function BonusPage() {
   const rows = cycle ? await listBonus(a, cycle.id) : [];
   const locked = !!cycle && !bonusEditable(cycle);
   const done = rows.filter((r) => r.values).length;
+  const requests = cycle ? await listBonusRequests(a, cycle.id) : [];
+  const openReq = requests.filter((r) => r.status === "open").length;
   return (
     <>
       <AdminNav current="/admin/bonus" />
@@ -29,6 +32,10 @@ export default async function BonusPage() {
           </Card>
         ) : (
           <>
+            <Alert variant="info">
+              <Eye aria-hidden="true" />
+              <AlertDescription>넣거나 고친 가점은 <b>그 즉시 직원 본인 화면(내 가점)에 잠정치로 보이고</b>, 바뀐 기록이 남습니다. 평가자에게는 보이지 않습니다. 1차 취합 → 정기포상 추가 → 정정 순으로 몇 번이든 다시 넣을 수 있습니다.</AlertDescription>
+            </Alert>
             {locked && (
               <Alert variant="neutral">
                 <Lock aria-hidden="true" />
@@ -56,6 +63,17 @@ export default async function BonusPage() {
               </CardHeader>
               <BonusTable rows={rows} locked={locked} />
             </Card>
+            {requests.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>직원 정정 요청 · 처리 전 {openReq}건</CardTitle>
+                  <CardDescription>위 가점 표에서 고친 뒤 [처리 완료]를 누르면 직원 화면에 답변과 함께 표시됩니다</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <BonusRequests rows={requests} />
+                </CardContent>
+              </Card>
+            )}
           </>
         )}
       </main>

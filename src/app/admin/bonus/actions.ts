@@ -5,7 +5,7 @@ import { z } from "zod";
 import { BONUS_ITEMS, checkBonusRows, rawBonusRowsSchema, type BonusCheck, type BonusValues } from "@/domain/bonus";
 import { fail, ok, type Result } from "@/lib/result";
 import { requireAdmin } from "@/server/authz/actor";
-import { applyBonus, listBonus } from "@/server/repo/bonus";
+import { applyBonus, handleBonusRequest, listBonus } from "@/server/repo/bonus";
 import { getCurrentCycle } from "@/server/repo/cycles";
 
 async function ctx() {
@@ -49,4 +49,13 @@ export async function setBonusAction(raw: unknown): Promise<Result> {
   revalidatePath("/admin/bonus");
   revalidatePath("/admin");
   return ok();
+}
+
+export async function handleBonusRequestAction(id: unknown, reply: unknown): Promise<Result> {
+  const actor = await requireAdmin();
+  const p = z.object({ id: z.string().uuid(), reply: z.string().max(2000) }).safeParse({ id, reply });
+  if (!p.success) return fail("invalid", "답변은 500자까지 쓸 수 있습니다.");
+  const r = await handleBonusRequest(actor, p.data.id, p.data.reply);
+  if (r.ok) revalidatePath("/admin/bonus");
+  return r;
 }
