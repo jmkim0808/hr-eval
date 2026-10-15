@@ -80,6 +80,7 @@ await check("[1차 평가자] 평가 화면에 가점 표(합계·항목)가 보
 // ── 1차 평가의견 ──
 await lead.fill("#review-comment", "올해 1차 의견: 수주 기여 큼");
 await lead.getByText(/저장됨/).waitFor({ timeout: 10000 }).catch(() => null);
+await check("[1차 평가자] 평가의견 칸에 '해당 의견란은 피평가자에게 표시됩니다.' 안내가 있다", async () => (await lead.locator("main").innerText()).includes("해당 의견란은 피평가자에게 표시됩니다."));
 await check("[1차 평가자] 평가의견을 적으면 저절로 저장되고 암호화되어 들어간다", async () => {
   const [r] = await sql`select first_comment from evaluations where person_id = ${kim}`;
   return String(r!.first_comment).startsWith("e1:") && D(r!.first_comment as string) === "올해 1차 의견: 수주 기여 큼";

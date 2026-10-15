@@ -10,7 +10,7 @@ import { isUuid } from "@/lib/utils";
 import { requireAdmin } from "@/server/authz/actor";
 import { getFormForAdmin, SELF_PROXY_STAGES } from "@/server/repo/evaluations";
 import { getFillForm } from "@/server/repo/final";
-import { proxyWindow } from "@/server/repo/proxy";
+import { proxyComments, proxyWindow } from "@/server/repo/proxy";
 import { ClosedNote, ProxyScoreForm } from "./ProxyScoreForm";
 
 export const dynamic = "force-dynamic";
@@ -22,6 +22,7 @@ export default async function ProxyPage({ params }: { params: Promise<{ personId
   if (!isUuid(personId)) notFound();
   const f = await getFormForAdmin(a, personId);
   const fill = await getFillForm(a, personId);
+  const comments = await proxyComments(a, personId);
   if (!fill) notFound();
   const st = f.cycle.status;
   const form = f.person.formType;
@@ -51,7 +52,7 @@ export default async function ProxyPage({ params }: { params: Promise<{ personId
 
         <h2 className="text-subsection-title font-bold">평가자 점수</h2>
         {open.length ? (
-          open.map((r) => <ProxyScoreForm key={r} personId={f.person.id} rater={r} label={label(r)} items={FORMS[form]} cells={fill[r]} submitted={false} />)
+          open.map((r) => <ProxyScoreForm key={r} personId={f.person.id} rater={r} label={label(r)} items={FORMS[form]} cells={fill[r]} submitted={false} comment={comments[r]} />)
         ) : st === "final_review" ? (
           <ClosedNote text="최종평가 단계에서는 [최종평가] 화면의 '빈칸 대신 입력'으로 빈 칸만 채울 수 있습니다." />
         ) : (

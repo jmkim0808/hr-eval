@@ -31,13 +31,13 @@ export async function proxySubmitSelfAction(raw: unknown): Promise<SaveResult> {
   return r;
 }
 
-const scoreInput = z.object({ personId: z.string().uuid(), rater: z.enum(["first", "second"]), scores: z.record(z.string(), z.number()), submit: z.boolean() });
+const scoreInput = z.object({ personId: z.string().uuid(), rater: z.enum(["first", "second"]), scores: z.record(z.string(), z.number()), submit: z.boolean(), comment: z.string().max(5000).optional() });
 
 export async function proxyScoresAction(raw: unknown): Promise<Result<{ count: number }> | { ok: false; code: "incomplete"; message: string; missing: string[] }> {
   const actor = await requireAdmin();
   const p = scoreInput.safeParse(raw);
   if (!p.success) return fail("invalid", "잘못된 요청입니다.");
-  const r = await proxyScores(actor, p.data.personId, p.data.rater, p.data.scores, p.data.submit);
+  const r = await proxyScores(actor, p.data.personId, p.data.rater, p.data.scores, p.data.submit, p.data.comment);
   if (r.ok) revalidatePath("/admin");
   return r;
 }

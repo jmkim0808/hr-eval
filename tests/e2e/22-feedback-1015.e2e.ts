@@ -76,12 +76,17 @@ await adm.goto(`${BASE}/admin/proxy/${kim}`);
 const proxyInputs = adm.locator('[data-proxy="first"] input');
 await proxyInputs.first().waitFor();
 for (const i of await proxyInputs.all()) await i.fill("8.5");
+await adm.fill("#proxy-comment-first", "메일로 받은 1차 의견");
 await adm.getByRole("button", { name: "대신 제출" }).click();
 await adm.getByText("대신 입력하고 제출 처리했습니다").waitFor({ timeout: 10000 }).catch(() => null);
 await check("1차평가 단계에 관리자가 평가자 점수를 소수점까지 대신 입력·제출할 수 있다 (넣은 관리자 기록)", async () => {
   const rows = await sql`select s.score, s.entered_by from evaluation_scores s join evaluations e on e.id = s.evaluation_id where e.person_id = ${kim} and s.rater = 'first'`;
   const [ev] = await sql`select first_submitted_at from evaluations where person_id = ${kim}`;
   return rows.length === 11 && rows.every((r) => D(r.score as string) === "8.5" && r.entered_by === "part@powernet.test") && !!ev?.first_submitted_at;
+});
+await check("대신 입력 화면에서 평가의견도 넣을 수 있고(피평가자에게 표시된다는 안내), 암호화되어 저장된다", async () => {
+  const [r] = await sql`select first_comment from evaluations where person_id = ${kim}`;
+  return String(r!.first_comment).startsWith("e1:") && D(r!.first_comment as string) === "메일로 받은 1차 의견" && (await adm.locator('[data-proxy="first"]').innerText()).includes("해당 의견란은 피평가자에게 표시됩니다.");
 });
 await check("진행 현황의 평가자 줄에 아직 안 한 사람 이름이 나오고 [대신 입력]으로 바로 간다", async () => {
   await adm.goto(`${BASE}/admin`);

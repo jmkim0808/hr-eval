@@ -275,7 +275,7 @@ export function ReviewForm(p: Props) {
         <Card>
           <CardHeader>
             <CardTitle>평가의견 (선택)</CardTitle>
-            <CardDescription>잘한 점·보완할 점을 적으면 직원 본인의 평가결과에 함께 보입니다 · {COMMENT_MAX.toLocaleString()}자까지</CardDescription>
+            <CardDescription>해당 의견란은 피평가자에게 표시됩니다. · {COMMENT_MAX.toLocaleString()}자까지</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
             {p.firstComment !== null && <ReadText title="1차 평가의견" text={p.firstComment} />}

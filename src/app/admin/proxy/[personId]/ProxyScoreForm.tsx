@@ -6,7 +6,9 @@ import { useState, useTransition } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { Input, Label, Textarea } from "@/components/ui/input";
+
+const COMMENT_MAX = 1000;
 import type { Item } from "@/domain/forms";
 import { ACHIEVEMENT, parseScore } from "@/domain/review";
 import { proxyScoresAction } from "../actions";
@@ -14,13 +16,14 @@ import { proxyScoresAction } from "../actions";
 type Cell = Record<string, { score: number; proxy: string | null }>;
 
 /** 평가자 점수 대신 입력 (1차·2차 기간). 받은 점수를 그대로 옮긴다 — 평균 80점 규칙은 평가자 본인 입력에만 적용 */
-export function ProxyScoreForm({ personId, rater, label, items, cells, submitted }: { personId: string; rater: "first" | "second"; label: string; items: Item[]; cells: Cell; submitted: boolean }) {
+export function ProxyScoreForm({ personId, rater, label, items, cells, submitted, comment: initialComment }: { personId: string; rater: "first" | "second"; label: string; items: Item[]; cells: Cell; submitted: boolean; comment: string }) {
   const router = useRouter();
   const rows = [...items.map((i) => ({ code: i.code, name: i.name })), { code: ACHIEVEMENT, name: "업적" }];
   const [raw, setRaw] = useState<Record<string, string>>(() => Object.fromEntries(Object.entries(cells).map(([k, v]) => [k, String(v.score)])));
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [missing, setMissing] = useState<Set<string>>(new Set());
   const [pending, start] = useTransition();
+  const [comment, setComment] = useState(initialComment);
 
   function send(submit: boolean) {
     const scores: Record<string, number> = {};
@@ -30,7 +33,7 @@ export function ProxyScoreForm({ personId, rater, label, items, cells, submitted
       if (n) scores[k] = n;
     }
     start(async () => {
-      const r = await proxyScoresAction({ personId, rater, scores, submit });
+      const r = await proxyScoresAction({ personId, rater, scores, submit, comment });
       if (r.ok) {
         setMissing(new Set());
         setMsg({ ok: true, text: submit ? `${label} 평가를 대신 입력하고 제출 처리했습니다.` : "저장했습니다." });
@@ -69,6 +72,14 @@ export function ProxyScoreForm({ personId, rater, label, items, cells, submitted
           </div>
         );
       })}
+      <div className="flex flex-col gap-1.5 border-t px-5 py-3">
+        <Label htmlFor={`proxy-comment-${rater}`}>{label} 평가의견 (선택)</Label>
+        <p className="text-label text-muted-foreground">해당 의견란은 피평가자에게 표시됩니다.</p>
+        <Textarea id={`proxy-comment-${rater}`} value={comment} onChange={(e) => setComment(e.target.value)} maxLength={COMMENT_MAX} className="min-h-24 resize-y" />
+        <span className="ml-auto text-label text-muted-foreground tabular-nums">
+          {comment.length.toLocaleString()} / {COMMENT_MAX.toLocaleString()}자
+        </span>
+      </div>
       <div className="flex flex-wrap items-center justify-end gap-3 border-t px-5 py-3">
         {msg && (
           <span role="status" className={`flex items-center gap-1.5 text-caption ${msg.ok ? "text-success" : "text-danger"}`}>
