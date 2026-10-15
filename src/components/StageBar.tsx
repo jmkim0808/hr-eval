@@ -13,29 +13,31 @@ export function stageIndex(status: Status): number {
 
 export function StageBar({ status, notes = {}, overdue = false }: { status: Status; notes?: Partial<Record<number, string>>; overdue?: boolean }) {
   const cur = stageIndex(status);
+  // 2026-10-15 SaaS 스타일: 동그라미 번호 + 이어진 선. 끝난 단계는 ✔ 동그라미, 지금 단계는 기준색 동그라미
   return (
-    <ol className="grid grid-cols-7 overflow-hidden rounded-lg border bg-card" aria-label="진행 단계">
+    <ol className="grid grid-cols-7 rounded-2xl border border-border/70 bg-card px-4 py-5 shadow-card" aria-label="진행 단계">
       {STAGES.map((s, i) => {
         const done = i < cur && !(i === 3 && cur === 4);
         const now = i === cur;
         return (
-          <li
-            key={s}
-            aria-current={now ? "step" : undefined}
-            className={cn(
-              "flex flex-col gap-0.5 border-r border-b-2 border-b-transparent px-3 py-2.5 last:border-r-0",
-              now && "border-b-primary bg-accent",
-            )}
-          >
-            <span className={cn("flex items-center gap-1 text-body", now ? "font-semibold text-accent-foreground" : done ? "text-foreground" : "text-muted-foreground")}>
-              {done && <Check className="size-3.5 text-success" aria-hidden="true" />}
+          <li key={s} aria-current={now ? "step" : undefined} className="relative flex flex-col items-center gap-1.5 px-1 text-center">
+            {i > 0 && <span aria-hidden="true" className={cn("absolute top-4 right-1/2 -z-0 h-0.5 w-full", i <= cur ? "bg-primary/60" : "bg-border")} />}
+            <span
+              className={cn(
+                "relative z-10 flex size-8 items-center justify-center rounded-full text-caption font-bold tabular-nums ring-4 ring-card",
+                done ? "bg-primary text-primary-foreground" : now ? "bg-primary text-primary-foreground shadow-[0_0_0_4px_var(--color-selected-background)]" : "bg-muted text-muted-foreground",
+              )}
+            >
+              {done ? <Check className="size-4" aria-hidden="true" /> : i + 1}
+            </span>
+            <span className={cn("text-body", now ? "font-bold text-foreground" : done ? "font-medium text-foreground" : "text-muted-foreground")}>
               {s}
               {now && <span className="sr-only">(지금 단계)</span>}
               {done && <span className="sr-only">(끝남)</span>}
             </span>
-            <span className="text-label text-muted-foreground tabular-nums">{notes[i] ?? (now ? "지금 단계" : " ")}</span>
+            <span className="text-label text-muted-foreground tabular-nums">{notes[i] ?? (now ? "지금 단계" : " ")}</span>
             {now && overdue && (
-              <span className="mt-0.5 inline-flex w-fit items-center gap-1 rounded-md bg-warning-bg px-1.5 text-label font-medium text-warning">
+              <span className="inline-flex w-fit items-center gap-1 rounded-full bg-warning-bg px-2 py-0.5 text-label font-semibold text-warning">
                 <TriangleAlert className="size-3" aria-hidden="true" />
                 기한 지남
               </span>

@@ -1,7 +1,6 @@
 import { ChevronLeft } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { AdminNav } from "@/components/AdminNav";
 import { BackupButton, FinalExcelButton } from "@/components/ExportButtons";
 import { PageHeader } from "@/components/PageHeader";
 import { Badge } from "@/components/ui/badge";
@@ -27,7 +26,6 @@ export default async function PastCyclePage({ params }: { params: Promise<{ year
   const groups = [...new Set(rows.map((r) => r.group))].sort((x, y) => x - y);
   return (
     <>
-      <AdminNav current="/admin/cycles" />
       <main className="flex flex-col gap-6 px-8 py-6">
         <Link href="/admin/cycles" className={buttonVariants({ variant: "ghost", size: "sm", className: "-ml-3 w-fit" })}>
           <ChevronLeft aria-hidden="true" />

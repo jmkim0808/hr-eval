@@ -1,5 +1,4 @@
 import { ShieldCheck, ShieldAlert } from "lucide-react";
-import { AdminNav } from "@/components/AdminNav";
 import { PageHeader } from "@/components/PageHeader";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -20,7 +19,6 @@ export default async function VaultPage() {
   const slots = state === "open" ? await listSlots(a) : [];
   return (
     <>
-      <AdminNav current="/admin/vault" />
       <main className="flex flex-col gap-6 px-8 py-6">
         <PageHeader title="보안 열쇠" description="점수·업적 글·가점·등급은 암호로 바꿔 저장합니다 · 서버·DB 관리자도 내용을 읽을 수 없습니다" />
 

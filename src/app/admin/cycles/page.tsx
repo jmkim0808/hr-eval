@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { AdminNav } from "@/components/AdminNav";
 import { PageHeader } from "@/components/PageHeader";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,7 +22,6 @@ export default async function CyclesPage() {
   const next = Math.max(seoulYear(), (cycles[0]?.year ?? seoulYear() - 1) + 1);
   return (
     <>
-      <AdminNav current="/admin/cycles" />
       <main className="flex flex-col gap-6 px-8 py-6">
         <PageHeader title="평가 관리" description="해마다 정기평가를 새로 만들고, 지난 평가는 보기 전용으로 남깁니다 (마감일로부터 3년 보관)" />
         <Card>

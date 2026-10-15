@@ -107,12 +107,12 @@ export default async function MyTasksPage() {
               <Link
                 href={task.href}
                 className={cn(
-                  "group flex items-center gap-5 rounded-lg border bg-card px-6 shadow-xs transition-colors hover:border-primary/40 hover:bg-accent/40 focus-visible:ring-[3px] focus-visible:ring-ring/40 focus-visible:outline-none",
+                  "group flex items-center gap-5 rounded-2xl border border-border/70 bg-card px-6 shadow-card transition-all hover:-translate-y-px hover:border-primary/30 hover:shadow-overlay focus-visible:ring-[3px] focus-visible:ring-ring/40 focus-visible:outline-none",
                   i === 0 && !task.done ? "py-5" : "py-4",
                   task.done && "bg-card/60",
                 )}
               >
-                <span className={cn("flex size-11 shrink-0 items-center justify-center rounded-lg", task.done ? "bg-muted text-muted-foreground" : "bg-accent text-accent-foreground")}>{task.icon}</span>
+                <span className={cn("flex size-12 shrink-0 items-center justify-center rounded-2xl", task.done ? "bg-muted text-muted-foreground" : "bg-accent text-accent-foreground")}>{task.icon}</span>
                 <span className="flex flex-1 flex-col gap-1.5">
                   <span className={cn("font-bold", i === 0 && !task.done ? "text-section-title" : "text-subsection-title")}>{task.title}</span>
                   <span className="flex flex-wrap items-center gap-2">{task.badges}</span>

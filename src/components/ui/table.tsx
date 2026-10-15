@@ -15,11 +15,11 @@ export function TableBody({ className, ...props }: React.ComponentProps<"tbody">
   return <tbody data-slot="table-body" className={cn("[&_tr:last-child]:border-0", className)} {...props} />;
 }
 export function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
-  return <tr data-slot="table-row" className={cn("border-b border-subtle transition-colors hover:bg-background data-[state=selected]:bg-accent", className)} {...props} />;
+  return <tr data-slot="table-row" className={cn("border-b border-border/60 transition-colors hover:bg-background data-[state=selected]:bg-accent", className)} {...props} />;
 }
 export function TableHead({ className, ...props }: React.ComponentProps<"th">) {
-  return <th data-slot="table-head" className={cn("h-10 bg-muted/60 px-4 text-left align-middle text-caption font-medium whitespace-nowrap text-muted-foreground", className)} {...props} />;
+  return <th data-slot="table-head" className={cn("h-11 border-y border-border/60 bg-background/70 px-4 text-left align-middle text-caption font-semibold whitespace-nowrap text-muted-foreground", className)} {...props} />;
 }
 export function TableCell({ className, ...props }: React.ComponentProps<"td">) {
-  return <td data-slot="table-cell" className={cn("h-10 px-4 align-middle whitespace-nowrap", className)} {...props} />;
+  return <td data-slot="table-cell" className={cn("h-12 px-4 align-middle whitespace-nowrap", className)} {...props} />;
 }

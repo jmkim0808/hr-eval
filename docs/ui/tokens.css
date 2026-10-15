@@ -4,20 +4,20 @@
    - 이름은 "쓰임새"로 짓는다. (예: --color-button-primary-background)
    - 결정 근거: docs/ui/01-디자인-규칙.md, docs/ui/06-선택-기록.md
    ========================================================= */
-@import url("https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap");
+/* 글꼴은 회사 서버에 넣어 둔 Pretendard (src/app/fonts, OFL-1.1) — 외부 글꼴 서버에 연결하지 않는다 (2026-10-15) */
 
 :root {
   /* ---------- 글꼴 ---------- */
-  --font-family-base: "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  --font-family-base: "Pretendard Variable", Pretendard, -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
 
-  --font-size-page-title: 22px;       /* 화면 제목 */
-  --font-size-section-title: 18px;    /* 구역 제목 */
+  --font-size-page-title: 26px;       /* 화면 제목 */
+  --font-size-section-title: 19px;    /* 구역 제목 */
   --font-size-subsection-title: 16px; /* 소제목 */
   --font-size-body: 14px;             /* 본문 · 표 · 버튼 */
   --font-size-caption: 13px;          /* 보조 설명 · 입력칸 이름표 */
   --font-size-label-small: 12px;      /* 작은 표시(상태 표시) */
 
-  --line-height-page-title: 1.4;
+  --line-height-page-title: 1.35;
   --line-height-section-title: 1.45;
   --line-height-subsection-title: 1.5;
   --line-height-body: 1.6;
@@ -29,29 +29,29 @@
   --font-weight-bold: 700;     /* 제목 · 버튼 */
 
   /* ---------- 바탕 · 글자 · 테두리 (차가운 회색) ---------- */
-  --color-page-background: #F4F5F8;      /* 화면 전체 바탕 */
+  --color-page-background: #F7F8FA;      /* 화면 전체 바탕 */
   --color-surface-background: #FFFFFF;   /* 상자 · 표 · 입력칸 바탕 */
-  --color-surface-muted: #EEF0F4;        /* 표 머리 · 안내 상자 · 중립 표시 바탕 */
-  --color-row-hover-background: #F4F5F8; /* 목록 한 줄에 마우스 올렸을 때 */
-  --color-selected-background: #F0F2FA;  /* 선택된 줄 · 지금 단계 · 선택된 그룹 */
+  --color-surface-muted: #F2F4F6;        /* 표 머리 · 안내 상자 · 중립 표시 바탕 */
+  --color-row-hover-background: #F7F8FA; /* 목록 한 줄에 마우스 올렸을 때 */
+  --color-selected-background: #EEF1FB;  /* 선택된 줄 · 지금 단계 · 선택된 그룹 */
 
-  --color-text-primary: #1B1F2A;   /* 본문 (흰 바탕 16.5:1) */
-  --color-text-secondary: #3A4150; /* 표 머리 · 부연 (흰 바탕 10.2:1) */
-  --color-text-muted: #5A6170;     /* 보조 설명 (흰 바탕 6.2:1 / 페이지 바탕 5.7:1) */
+  --color-text-primary: #191F28;   /* 본문 (흰 바탕 16.5:1) */
+  --color-text-secondary: #4E5968; /* 표 머리 · 부연 (흰 바탕 10.2:1) */
+  --color-text-muted: #6B7684;     /* 보조 설명 (흰 바탕 6.2:1 / 페이지 바탕 5.7:1) */
   --color-text-disabled: #646B79;  /* 못 누를 때 · 잠김 (못 누를 때 바탕 4.5:1) */
   --color-text-on-primary: #FFFFFF;
-  --color-text-link: #3B4A8C;      /* 글자 버튼 · 링크 (흰 바탕 8.3:1) */
+  --color-text-link: #3346B0;      /* 글자 버튼 · 링크 (흰 바탕 8.3:1) */
 
-  --color-border-default: #D5D9E1; /* 상자 테두리 · 표 머리 아래 선 */
-  --color-border-subtle: #E9ECF1;  /* 표 줄 사이 선 · 단계 칸 사이 선 */
-  --color-border-input: #858C99;   /* 입력칸 · 보조 버튼 테두리 (흰 바탕 3.4:1) */
-  --color-border-input-hover: #3A4150;
+  --color-border-default: #E5E8EB; /* 상자 테두리 · 표 머리 아래 선 */
+  --color-border-subtle: #F2F4F6;  /* 표 줄 사이 선 · 단계 칸 사이 선 */
+  --color-border-input: #D1D6DB;   /* 입력칸 · 보조 버튼 테두리 (흰 바탕 3.4:1) */
+  --color-border-input-hover: #8B95A1;
   --color-header-rule: #1B1F2A;    /* 화면 맨 위 머리줄 아래 굵은 선 */
 
   /* ---------- 기준색 (인디고 단색) ---------- */
-  --color-brand-primary: #3B4A8C;
-  --color-button-primary-background: #3B4A8C;         /* 흰 글자 8.3:1 */
-  --color-button-primary-background-hover: #2F3C75;   /* 흰 글자 10.4:1 */
+  --color-brand-primary: #3346B0;
+  --color-button-primary-background: #3346B0;         /* 흰 글자 8.3:1 */
+  --color-button-primary-background-hover: #2A3A96;   /* 흰 글자 10.4:1 */
   --color-button-primary-background-pressed: #262F5E; /* 흰 글자 12.7:1 */
   --color-button-primary-text: #FFFFFF;
 
@@ -79,19 +79,19 @@
   --color-button-disabled-background: #E9ECF1;
   --color-button-disabled-text: #646B79;      /* 4.5:1 */
 
-  --color-focus-ring: #3B4A8C;          /* 키보드로 고른 버튼 바깥 테두리 */
-  --color-input-focus-border: #3B4A8C;
+  --color-focus-ring: #3346B0;          /* 키보드로 고른 버튼 바깥 테두리 */
+  --color-input-focus-border: #3346B0;
   --color-input-focus-halo: #DCE1F2;    /* 쓰는 중인 입력칸 바깥 한 겹 (장식) */
   --color-input-error-border: #9B2C2C;
   --color-input-error-halo: #F6E5E5;
   --color-input-disabled-background: #E9ECF1;
 
   /* ---------- 상태 색 (차분한 톤) — 항상 아이콘 + 글자와 함께 ---------- */
-  --color-status-success-text: #3F6B4F;      --color-status-success-background: #E7EFEA;  /* 5.2:1 */
-  --color-status-warning-text: #8A5A12;      --color-status-warning-background: #F6EEDD;  /* 5.1:1 */
-  --color-status-danger-text: #9B2C2C;       --color-status-danger-background: #F6E5E5;   /* 6.2:1 */
-  --color-status-progress-text: #3E6587;     --color-status-progress-background: #E5EDF4; /* 5.2:1 */
-  --color-status-neutral-text: #5A6170;      --color-status-neutral-background: #EEF0F4;  /* 5.5:1 */
+  --color-status-success-text: #0E7A4F;      --color-status-success-background: #E6F6EE;  /* 5.2:1 */
+  --color-status-warning-text: #9A5B00;      --color-status-warning-background: #FFF4E0;  /* 5.1:1 */
+  --color-status-danger-text: #C4271D;       --color-status-danger-background: #FEECEB;   /* 6.2:1 */
+  --color-status-progress-text: #1F5FBF;     --color-status-progress-background: #E8F1FD; /* 5.2:1 */
+  --color-status-neutral-text: #4E5968;      --color-status-neutral-background: #F2F4F6;  /* 5.5:1 */
 
   /* ---------- 등급 변화 표시 (최종평가 · 등급 결과 화면 전용) ---------- */
   --color-grade-up-text: #1E5AA8;   --color-grade-up-background: #E3EDFA;   --color-grade-up-border: #9DBBE6;   /* 5.8:1 */
@@ -106,9 +106,9 @@
   --color-overlay-backdrop: rgba(27, 31, 42, 0.45);
 
   /* ---------- 형태 ---------- */
-  --radius-control: 6px;  /* 버튼 · 입력칸 */
-  --radius-box: 6px;      /* 상자 · 표 상자 · 알림 띠 · 확인 창 */
-  --radius-tag: 4px;      /* 작은 상태 표시 */
+  --radius-control: 10px;  /* 버튼 · 입력칸 */
+  --radius-box: 16px;     /* 상자 · 표 상자 · 알림 띠 · 확인 창 */
+  --radius-tag: 999px;     /* 작은 상태 표시 */
 
   --border-width-default: 1px;
   --border-width-header-rule: 2px;
@@ -118,7 +118,8 @@
   --focus-ring-offset: 2px;
   --input-halo-width: 3px;
 
-  --shadow-overlay: 0 8px 24px rgba(27, 31, 42, 0.16); /* 확인 창 · 펼침 목록에만 */
+  --shadow-overlay: 0 12px 32px rgba(25, 31, 40, 0.14); /* 확인 창 · 펼침 목록 */
+  --shadow-card: 0 1px 2px rgba(25, 31, 40, 0.04), 0 2px 8px rgba(25, 31, 40, 0.04); /* 상자 (2026-10-15 SaaS 스타일) */
 
   /* ---------- 간격 (4 단위) ---------- */
   --space-1: 4px;

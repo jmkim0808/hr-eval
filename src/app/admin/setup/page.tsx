@@ -2,7 +2,6 @@ import { ArrowRightLeft, CalendarPlus, Mail } from "lucide-react";
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
 import { Empty } from "@/components/ui/empty";
-import { AdminNav } from "@/components/AdminNav";
 import { PageHeader } from "@/components/PageHeader";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,7 +25,6 @@ export default async function SetupPage() {
   if (sy === null)
     return (
       <>
-        <AdminNav current="/admin/setup" />
         <main className="flex flex-col gap-6 px-8 py-6">
           <PageHeader title="평가 시작 설정" description="누구를, 누가, 언제까지 평가할지 정합니다" />
           <Card data-testid="need-new-cycle">
@@ -71,7 +69,6 @@ export default async function SetupPage() {
 
   return (
     <>
-      <AdminNav current="/admin/setup" />
       <main className="flex flex-col gap-6 px-8 py-6">
         <PageHeader title="평가 시작 설정" description={`${year}년 정기평가 · 누구를, 누가, 언제까지 평가할지 정합니다`} />
 

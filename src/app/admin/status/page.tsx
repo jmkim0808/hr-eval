@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { ClipboardList } from "lucide-react";
-import { AdminNav } from "@/components/AdminNav";
 import { PageHeader } from "@/components/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Empty } from "@/components/ui/empty";
@@ -25,7 +24,6 @@ export default async function StatusPage({ searchParams }: { searchParams: Promi
   );
   return (
     <>
-      <AdminNav current="/admin/status" />
       <main className="flex flex-col gap-6 px-8 py-6">
         <PageHeader
           title="전체 현황"

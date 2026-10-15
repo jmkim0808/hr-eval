@@ -3,7 +3,6 @@ import { isUuid } from "@/lib/utils";
 import Link from "next/link";
 import { ChevronLeft, UserPen } from "lucide-react";
 import { SelfForm } from "@/app/me/form/[personId]/SelfForm";
-import { AdminNav } from "@/components/AdminNav";
 import { PageHeader } from "@/components/PageHeader";
 import { buttonVariants } from "@/components/ui/button";
 import { fmtRange } from "@/domain/periods";
@@ -19,7 +18,6 @@ export default async function AdminFormView({ params }: { params: Promise<{ pers
   const status = f.status === "submitted" ? "제출 완료" : f.status === "writing" ? "작성 중" : "작성 전";
   return (
     <>
-      <AdminNav current="/admin" />
       <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-8 py-6">
         <Link href="/admin" className={buttonVariants({ variant: "ghost", size: "sm", className: "w-fit -ml-3" })}>
           <ChevronLeft aria-hidden="true" />

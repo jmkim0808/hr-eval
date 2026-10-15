@@ -2,7 +2,6 @@ import Link from "next/link";
 import { isUuid } from "@/lib/utils";
 import { notFound } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
-import { AdminNav } from "@/components/AdminNav";
 import { PageHeader } from "@/components/PageHeader";
 import { buttonVariants } from "@/components/ui/button";
 import { FORMS } from "@/domain/forms";
@@ -20,7 +19,6 @@ export default async function FillPage({ params }: { params: Promise<{ personId:
   const cycle = await getCurrentCycle(a);
   return (
     <>
-      <AdminNav current="/admin/final" />
       <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-8 py-6">
         <Link href="/admin/final" className={buttonVariants({ variant: "ghost", size: "sm", className: "-ml-3 w-fit" })}>
           <ChevronLeft aria-hidden="true" />

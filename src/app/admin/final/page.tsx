@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { ArrowDownUp, Equal, Hourglass, TriangleAlert } from "lucide-react";
-import { AdminNav } from "@/components/AdminNav";
 import { PageHeader } from "@/components/PageHeader";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -42,7 +41,6 @@ export default async function FinalPage({ searchParams }: { searchParams: Promis
 
   return (
     <>
-      <AdminNav current="/admin/final" />
       <main className="flex flex-col gap-6 px-8 py-6">
         <PageHeader
           title="최종평가"

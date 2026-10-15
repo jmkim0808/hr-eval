@@ -4,15 +4,15 @@ import { cn } from "@/lib/utils";
 
 // 알림: 색만으로 알리지 않는다 — 항상 아이콘 + 제목/글자
 const alertVariants = cva(
-  "relative grid w-full grid-cols-[0_1fr] items-start gap-y-0.5 rounded-lg border px-4 py-3 text-body has-[>svg]:grid-cols-[calc(var(--spacing)*4)_1fr] has-[>svg]:gap-x-3 [&>svg]:size-4 [&>svg]:translate-y-1 [&>svg]:text-current",
+  "relative grid w-full grid-cols-[0_1fr] items-start gap-y-0.5 rounded-xl border px-4 py-3.5 text-body has-[>svg]:grid-cols-[calc(var(--spacing)*4)_1fr] has-[>svg]:gap-x-3 [&>svg]:size-4 [&>svg]:translate-y-1 [&>svg]:text-current",
   {
     variants: {
       variant: {
         default: "bg-card text-foreground",
-        info: "border-info/25 bg-info-bg text-info",
-        success: "border-success/25 bg-success-bg text-success",
-        warning: "border-warning/25 bg-warning-bg text-warning",
-        destructive: "border-danger/25 bg-danger-bg text-danger",
+        info: "border-transparent bg-info-bg text-info",
+        success: "border-transparent bg-success-bg text-success",
+        warning: "border-transparent bg-warning-bg text-warning",
+        destructive: "border-transparent bg-danger-bg text-danger",
         neutral: "border-transparent bg-muted text-muted-foreground",
       },
     },

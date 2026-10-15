@@ -1,15 +1,15 @@
 import Link from "next/link";
-import { ClipboardList, Mail, Users } from "lucide-react";
-import { AdminNav } from "@/components/AdminNav";
+import { CalendarClock, ClipboardList, Mail, Medal, Users } from "lucide-react";
 import { BatchProgress } from "@/components/BatchProgress";
 import { PageHeader } from "@/components/PageHeader";
 import { StageBar } from "@/components/StageBar";
+import { StatCard } from "@/components/StatCard";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Empty } from "@/components/ui/empty";
 import { fmtDay, fmtRange } from "@/domain/periods";
-import { seoulToday } from "@/lib/time";
+import { daysLeft, seoulToday } from "@/lib/time";
 import { requireAdmin } from "@/server/authz/actor";
 import { getCurrentCycle, latestBatch, NEXT_STAGE, PREV_STAGE, STAGE_LABEL } from "@/server/repo/cycles";
 import { batchProgress } from "@/server/repo/outbox";
@@ -43,10 +43,10 @@ export default async function ProgressPage() {
   const today = seoulToday();
   const end = cycle ? { self_review: cycle.selfEnd, first_review: cycle.firstEnd, second_review: cycle.secondEnd }[cycle.status as string] : null;
   const overdue = !!end && today > end;
+  const left = end ? daysLeft(end, today) : null;
 
   return (
     <>
-      <AdminNav current="/admin" />
       <main className="flex flex-col gap-6 px-8 py-6">
         <PageHeader
           title="진행 현황"
@@ -123,37 +123,59 @@ export default async function ProgressPage() {
                 </CardContent>
               </Card>
             )}
-            {bonus && (
-              <Card>
-                <CardContent className="flex flex-wrap items-center justify-between gap-3">
-                  <span className="font-semibold">가점 반영</span>
-                  <span className="flex items-center gap-4">
-                    <span className="text-subsection-title font-bold tabular-nums" data-testid="bonus-count">
-                      가점 반영 {bonus.n} / {bonus.total}
-                    </span>
-                    <Link className={buttonVariants({ variant: "outline", size: "sm" })} href="/admin/bonus">
-                      가점 입력
-                    </Link>
-                  </span>
-                </CardContent>
-              </Card>
+            {(stage || bonus) && (
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                {stage && (
+                  <StatCard
+                    label={stageCopy?.title ?? "제출"}
+                    icon={<Users aria-hidden="true" />}
+                    value={
+                      <span data-testid="submitted-count">
+                        {stage.submitted} <span className="text-section-title font-semibold text-muted-foreground">/ {stage.total}</span>
+                      </span>
+                    }
+                    foot={<Progress value={stage.total ? (stage.submitted / stage.total) * 100 : 0} aria-label="평가지 제출" className="mt-1" />}
+                  />
+                )}
+                {stage && (
+                  <StatCard
+                    label="미제출"
+                    icon={<ClipboardList aria-hidden="true" />}
+                    value={`${stage.pending.length}명`}
+                    tone={stage.pending.length && overdue ? "warning" : undefined}
+                    foot={stageCopy?.hint}
+                  />
+                )}
+                {stage && (
+                  <StatCard
+                    label="마감"
+                    icon={<CalendarClock aria-hidden="true" />}
+                    value={left === null ? "—" : left >= 0 ? `D-${left}` : `${-left}일 지남`}
+                    tone={left !== null && left < 0 ? "warning" : undefined}
+                    foot={`${fmtDay(stageCopy?.end(cycle))}까지 · 기한이 지나도 저절로 잠기지 않습니다`}
+                  />
+                )}
+                {bonus && (
+                  <StatCard
+                    label="가점 반영"
+                    icon={<Medal aria-hidden="true" />}
+                    value={
+                      <span data-testid="bonus-count">
+                        <span className="sr-only">가점 반영 </span>
+                        {bonus.n} <span className="text-section-title font-semibold text-muted-foreground">/ {bonus.total}</span>
+                      </span>
+                    }
+                    foot={
+                      <Link className="font-semibold text-primary hover:underline" href="/admin/bonus">
+                        가점 입력 →
+                      </Link>
+                    }
+                  />
+                )}
+              </div>
             )}
             {stage && (
               <>
-                <Card>
-                  <CardContent className="flex flex-col gap-2">
-                    <div className="flex flex-wrap items-baseline justify-between gap-2">
-                      <span className="flex items-center gap-2 font-semibold">
-                        <Users className="size-4 text-muted-foreground" aria-hidden="true" />
-                        {stageCopy?.title}
-                      </span>
-                      <span className="text-section-title font-bold tabular-nums" data-testid="submitted-count">
-                        {stage.submitted} / {stage.total}
-                      </span>
-                    </div>
-                    <Progress value={stage.total ? (stage.submitted / stage.total) * 100 : 0} aria-label="평가지 제출" />
-                  </CardContent>
-                </Card>
                 <Card className="pb-0">
                   <CardHeader>
                     <CardTitle>미제출 {stage.pending.length}명</CardTitle>

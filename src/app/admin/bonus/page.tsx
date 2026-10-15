@@ -1,5 +1,4 @@
 import { CalendarDays, Eye, Lock, Medal } from "lucide-react";
-import { AdminNav } from "@/components/AdminNav";
 import { PageHeader } from "@/components/PageHeader";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,7 +22,6 @@ export default async function BonusPage() {
   const openReq = requests.filter((r) => r.status === "open").length;
   return (
     <>
-      <AdminNav current="/admin/bonus" />
       <main className="flex flex-col gap-6 px-8 py-6">
         <PageHeader title="가점 입력" description={`${cycle ? `${cycle.year}년 정기평가 · ` : ""}개별담당자가 산정한 가점을 받아 넣습니다 · 평가등급 확정 전까지 단계와 상관없이 넣을 수 있습니다`} />
         {!cycle || rows.length === 0 ? (

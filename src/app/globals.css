@@ -5,6 +5,26 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Pretendard (OFL-1.1, src/app/fonts) — 회사 서버에서 바로 내려준다 */
+@font-face {
+  font-family: "Pretendard Variable";
+  font-weight: 45 920;
+  font-style: normal;
+  font-display: swap;
+  src: url("./fonts/PretendardVariable.woff2") format("woff2-variations");
+}
+
+/* 시안 비교용 기준색 바꾸기: <html data-accent="blue"> (2026-10-15) */
+:root[data-accent="blue"] {
+  --color-brand-primary: #2563EB;
+  --color-button-primary-background: #191F28;
+  --color-button-primary-background-hover: #333D4B;
+  --color-text-link: #2563EB;
+  --color-focus-ring: #2563EB;
+  --color-input-focus-border: #2563EB;
+  --color-selected-background: #EBF2FE;
+}
+
 /* shadcn 이름 → 우리 이름표 */
 :root {
   --background: var(--color-page-background);
@@ -26,7 +46,8 @@
   --border: var(--color-border-default);
   --input: var(--color-border-input);
   --ring: var(--color-focus-ring);
-  --radius: 0.5rem;
+  --radius: 0.75rem;
+  --sidebar: var(--color-surface-background);
 }
 
 @theme inline {
@@ -70,6 +91,8 @@
   --color-grade-rule: var(--color-grade-rule-text);
   --color-grade-rule-bg: var(--color-grade-rule-background);
   --color-grade-rule-border: var(--color-grade-rule-border);
+  --shadow-card: var(--shadow-card);
+  --shadow-overlay: var(--shadow-overlay);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -92,5 +115,6 @@
 @layer base {
   * { @apply border-border outline-ring/50; }
   html, body { min-height: 100%; }
-  body { @apply bg-background text-foreground font-sans text-body antialiased; }
+  body { @apply bg-background text-foreground font-sans text-body antialiased; letter-spacing: -0.01em; font-feature-settings: "tnum" 0; }
+  h1, h2, h3 { letter-spacing: -0.02em; }
 }

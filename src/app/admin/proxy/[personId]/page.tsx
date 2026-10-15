@@ -2,7 +2,6 @@ import { ChevronLeft } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { SelfForm } from "@/app/me/form/[personId]/SelfForm";
-import { AdminNav } from "@/components/AdminNav";
 import { PageHeader } from "@/components/PageHeader";
 import { buttonVariants } from "@/components/ui/button";
 import { FORMS } from "@/domain/forms";
@@ -32,7 +31,6 @@ export default async function ProxyPage({ params }: { params: Promise<{ personId
   const open = raters.filter((r) => proxyWindow(form, r) === st);
   return (
     <>
-      <AdminNav current="/admin" />
       <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-8 py-6">
         <Link href="/admin" className={buttonVariants({ variant: "ghost", size: "sm", className: "-ml-3 w-fit" })}>
           <ChevronLeft aria-hidden="true" />

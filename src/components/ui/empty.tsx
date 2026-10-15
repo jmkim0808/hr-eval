@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 export function Empty({ icon, title, children, action, className }: { icon: React.ReactNode; title: string; children?: React.ReactNode; action?: React.ReactNode; className?: string }) {
   return (
     <div className={cn("flex flex-col items-center gap-3 px-6 py-12 text-center", className)}>
-      <div className="flex size-10 items-center justify-center rounded-lg bg-muted text-muted-foreground [&_svg]:size-5">{icon}</div>
+      <div className="flex size-12 items-center justify-center rounded-2xl bg-muted text-muted-foreground [&_svg]:size-6">{icon}</div>
       <div className="space-y-1">
         <p className="text-subsection-title font-semibold">{title}</p>
         {children && <p className="text-caption text-muted-foreground">{children}</p>}

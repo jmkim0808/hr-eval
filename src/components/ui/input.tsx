@@ -6,7 +6,7 @@ export function Input({ className, ...props }: React.ComponentProps<"input">) {
     <input
       data-slot="input"
       className={cn(
-        "h-9 w-full min-w-0 rounded-md border border-input bg-card px-3 py-1 text-body shadow-xs outline-none transition-[color,box-shadow] placeholder:text-muted-foreground",
+        "h-10 w-full min-w-0 rounded-[10px] border border-input bg-card px-3 py-1 text-body outline-none hover:border-[var(--color-border-input-hover)] transition-[color,box-shadow] placeholder:text-muted-foreground",
         "focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/25",
         "aria-invalid:border-danger aria-invalid:ring-[3px] aria-invalid:ring-danger/15",
         "disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground",
@@ -22,7 +22,7 @@ export function Textarea({ className, ...props }: React.ComponentProps<"textarea
     <textarea
       data-slot="textarea"
       className={cn(
-        "min-h-24 w-full rounded-md border border-input bg-card px-3 py-2 text-body shadow-xs outline-none transition-[color,box-shadow] placeholder:text-muted-foreground",
+        "min-h-24 w-full rounded-xl border border-input bg-card px-3.5 py-2.5 text-body leading-relaxed outline-none hover:border-[var(--color-border-input-hover)] transition-[color,box-shadow] placeholder:text-muted-foreground",
         "focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/25 aria-invalid:border-danger aria-invalid:ring-[3px] aria-invalid:ring-danger/15",
         "disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground",
         className,
