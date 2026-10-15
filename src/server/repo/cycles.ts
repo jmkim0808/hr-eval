@@ -1,9 +1,10 @@
-import { and, desc, eq, sql as dsql } from "drizzle-orm";
+import { and, desc, eq, ne, sql as dsql } from "drizzle-orm";
 import { fail, ok, type Result } from "@/lib/result";
 import { checkPeriods, fmtDay, fmtRange, type PeriodErrors, type Periods } from "@/domain/periods";
+import { seoulYear } from "@/lib/time";
 import { getDb } from "@/server/db/client";
 import { recomputeFinal } from "@/server/repo/final";
-import { auditLogs, cyclePeople, emailOutbox, reviewCycles } from "@/server/db/schema";
+import { appUsers, auditLogs, cyclePeople, emailOutbox, reviewCycles } from "@/server/db/schema";
 import type { Actor } from "@/server/authz/actor";
 import { assert, can } from "@/server/authz/policy";
 
@@ -16,6 +17,52 @@ export async function getCurrentCycle(actor: Actor) {
     .orderBy(desc(reviewCycles.year))
     .limit(1);
   return c ?? null;
+}
+
+// ── 평가 관리 (2026-10-15 피드백): 해마다 새 정기평가를 만들고, 지난 평가는 보기 전용으로 남긴다 ──
+
+/** 새 정기평가. 진행 중(마감 전)인 평가가 있으면 만들 수 없다 */
+export async function createCycle(actor: Actor, year: number): Promise<Result<{ id: string }>> {
+  assert(can.manageCycle(actor));
+  if (!Number.isInteger(year) || year < 2020 || year > 2100) return fail("year", "연도를 확인해 주세요.");
+  return getDb().transaction(async (tx) => {
+    await tx.execute(dsql`lock table review_cycles in exclusive mode`);
+    const all = await tx.select({ year: reviewCycles.year, status: reviewCycles.status }).from(reviewCycles);
+    const open = all.find((c) => c.status !== "closed");
+    if (open) return fail("open", `${open.year}년 정기평가가 아직 마감되지 않았습니다. 마감한 뒤에 새 평가를 만들 수 있습니다.`);
+    if (all.some((c) => c.year === year)) return fail("exists", `${year}년 정기평가가 이미 있습니다.`);
+    const [c] = await tx.insert(reviewCycles).values({ year }).returning({ id: reviewCycles.id });
+    await tx.insert(auditLogs).values({ actorEmail: actor.email, action: "cycle.create", cycleId: c!.id, detail: { year } });
+    return ok({ id: c!.id });
+  });
+}
+
+export async function listCycles(actor: Actor) {
+  assert(can.manageCycle(actor));
+  const db = getDb();
+  const cycles = await db.select().from(reviewCycles).orderBy(desc(reviewCycles.year));
+  const counts = await db
+    .select({ cycleId: cyclePeople.cycleId, n: dsql<number>`count(*) filter (where ${cyclePeople.isTarget})::int` })
+    .from(cyclePeople)
+    .groupBy(cyclePeople.cycleId);
+  const n = new Map(counts.map((c) => [c.cycleId, c.n]));
+  return cycles.map((c) => ({ ...c, targets: n.get(c.id) ?? 0 }));
+}
+
+/**
+ * 평가 시작 설정이 다루는 연도. 평가가 하나도 없으면 올해(처음 쓰는 경우), 최근 평가가 마감 전이면 그 연도,
+ * 최근 평가가 마감됐으면 null — [평가 관리]에서 새 정기평가를 만들어야 한다.
+ */
+export async function setupYear(actor: Actor): Promise<number | null> {
+  const c = await getCurrentCycle(actor);
+  if (!c) return seoulYear();
+  return c.status === "closed" ? null : c.year;
+}
+
+/** 평가 시작 설정에서 다루는 평가: 가장 최근 평가가 마감 전이면 그것, 아니면 없음(새로 만들어야 함) */
+export async function workingCycle(actor: Actor) {
+  const c = await getCurrentCycle(actor);
+  return c && c.status !== "closed" ? c : null;
 }
 
 // ── 기간과 안내 이메일 (PRD 03) ──
@@ -87,6 +134,30 @@ export async function startInvites(actor: Actor, cycleId: string, version: numbe
   });
 }
 
+/**
+ * 일정 변경 안내 (2026-10-15 피드백). 안내 메일을 보낸 뒤 기간을 바꿨을 때, 대상자와 평가자에게 바뀐 일정을 다시 알린다.
+ * 2차평가가 끝나기 전까지만 (기간을 바꿀 수 있는 동안).
+ */
+export async function sendPeriodChange(actor: Actor, cycleId: string): Promise<Result<{ batchId: string; count: number }>> {
+  assert(can.manageCycle(actor));
+  const db = getDb();
+  return db.transaction(async (tx) => {
+    const [c] = await tx.select().from(reviewCycles).where(eq(reviewCycles.id, cycleId)).limit(1);
+    if (!c || c.status === "setup") return fail("stage", "안내 이메일을 보낸 뒤에 쓸 수 있습니다. 지금은 안내 이메일에 바뀐 일정이 그대로 들어갑니다.");
+    if (!PERIOD_EDITABLE.includes(c.status)) return fail("locked", "2차평가가 끝난 뒤에는 보낼 수 없습니다.");
+    const people = await tx
+      .select({ id: cyclePeople.id, email: cyclePeople.email, name: cyclePeople.name, target: cyclePeople.isTarget, exec: cyclePeople.isExecutive, lead: cyclePeople.isTeamLeader, blocked: cyclePeople.accessBlocked })
+      .from(cyclePeople)
+      .where(eq(cyclePeople.cycleId, cycleId));
+    const to = people.filter((p) => !p.blocked && (p.target || p.exec || p.lead));
+    const batchId = crypto.randomUUID();
+    const payload = { year: String(c.year), selfRange: fmtRange(c.selfStart, c.selfEnd), firstRange: fmtRange(c.firstStart, c.firstEnd), secondRange: fmtRange(c.secondStart, c.secondEnd), bonusCutoff: fmtDay(c.bonusCutoff) };
+    if (to.length) await tx.insert(emailOutbox).values(to.map((p) => ({ cycleId, kind: "period_change" as const, toEmail: p.email, personId: p.id, batchId, createdBy: actor.email, payload: { ...payload, name: p.name } })));
+    await tx.insert(auditLogs).values({ actorEmail: actor.email, action: "cycle.period_change_notice", cycleId, detail: { count: to.length } });
+    return ok({ batchId, count: to.length });
+  });
+}
+
 /** 가장 최근 안내 이메일 묶음 */
 export async function latestBatch(actor: Actor, cycleId: string, kind: "invite" | "reminder" | "result_notice") {
   assert(can.manageCycle(actor));
@@ -104,6 +175,34 @@ export async function latestBatch(actor: Actor, cycleId: string, kind: "invite" 
 export const NEXT_STAGE = { self_review: "first_review", first_review: "second_review", second_review: "final_review" } as const;
 export type AdvanceFrom = keyof typeof NEXT_STAGE;
 export const STAGE_LABEL: Record<string, string> = { self_review: "개인작성", first_review: "1차평가", second_review: "2차평가", final_review: "최종평가" };
+
+/**
+ * 이전 단계로 되돌리기 (2026-10-15 피드백: 실수로 넘긴 경우). 결과 발송 전까지만.
+ * 확정 → 최종평가는 "확정 취소"(confirm.ts)로 한다. 입력한 점수·글은 그대로 두고 단계만 되돌린다 —
+ * 다시 넘기면 최종점수는 다시 계산되고 등급조정은 유지된다(ADR-0016).
+ */
+export const PREV_STAGE = { first_review: "self_review", second_review: "first_review", final_review: "second_review" } as const;
+export type RollbackFrom = keyof typeof PREV_STAGE;
+export async function rollbackStage(actor: Actor, cycleId: string, from: RollbackFrom, version: number, reason: string): Promise<Result<{ to: string; batchId: string | null }>> {
+  assert(can.manageCycle(actor));
+  const why = reason.trim();
+  if (why.length < 2) return fail("reason", "되돌리는 사유를 적어 주세요.");
+  const to = PREV_STAGE[from];
+  return getDb().transaction(async (tx) => {
+    const [c] = await tx.select().from(reviewCycles).where(eq(reviewCycles.id, cycleId)).limit(1).for("update");
+    if (!c) return fail("not_found", "평가를 찾을 수 없습니다.");
+    if (c.status !== from || c.version !== version) return fail("stale", "다른 관리자가 먼저 처리했습니다. 화면을 새로고침해 주세요.");
+    await tx.update(reviewCycles).set({ status: to, version: c.version + 1, updatedAt: new Date() }).where(eq(reviewCycles.id, cycleId));
+    await tx.insert(auditLogs).values({ actorEmail: actor.email, action: "cycle.rollback", cycleId, detail: { from, to, reason: why.slice(0, 300) } });
+    const others = await tx.select({ email: appUsers.email }).from(appUsers).where(and(eq(appUsers.role, "admin"), eq(appUsers.active, true), ne(appUsers.email, actor.email)));
+    if (!others.length) return ok({ to, batchId: null });
+    const batchId = crypto.randomUUID();
+    await tx.insert(emailOutbox).values(
+      others.map((o) => ({ cycleId, kind: "admin_alert" as const, toEmail: o.email, batchId, createdBy: actor.email, payload: { title: `${STAGE_LABEL[from]} 단계를 ${STAGE_LABEL[to]} 단계로 되돌렸습니다`, year: String(c.year), actor: actor.name, reason: why.slice(0, 300), path: "/admin" } })),
+    );
+    return ok({ to, batchId });
+  });
+}
 
 /** 지금 단계를 잠그고 다음 단계를 연다. 다른 관리자가 먼저 넘겼으면 실패한다. 다음 단계 평가자에게 안내 메일을 쌓는다. */
 export async function advanceStage(actor: Actor, cycleId: string, from: AdvanceFrom, version: number): Promise<Result<{ to: string; batchId: string | null; mails: number }>> {

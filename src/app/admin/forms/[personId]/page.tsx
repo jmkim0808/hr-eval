@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { isUuid } from "@/lib/utils";
 import Link from "next/link";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, UserPen } from "lucide-react";
 import { SelfForm } from "@/app/me/form/[personId]/SelfForm";
 import { AdminNav } from "@/components/AdminNav";
 import { PageHeader } from "@/components/PageHeader";
@@ -26,6 +26,12 @@ export default async function AdminFormView({ params }: { params: Promise<{ pers
           진행 현황
         </Link>
         <PageHeader
+          actions={
+            <Link href={`/admin/proxy/${f.person.id}`} className={buttonVariants({ variant: "outline" })}>
+              <UserPen aria-hidden="true" />
+              대신 입력
+            </Link>
+          }
           title={`${f.person.name} 평가지`}
           description={`${f.cycle.year}년 정기평가 · ${formName} · ${f.person.department || "부서 없음"} · ${status} · 개인작성 기간 ${fmtRange(f.cycle.selfStart, f.cycle.selfEnd)}`}
         />

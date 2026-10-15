@@ -48,3 +48,31 @@ describe("사번 (포털 로그인용, ADR-0020)", () => {
     expect(r.issues.filter((i) => i.reason.includes("사번")).map((i) => i.reason)).toEqual(["사번이 비어 있습니다", expect.stringContaining("번째 줄과 같습니다")]);
   });
 });
+
+describe("평가자 직접 지정 (2026-10-15)", () => {
+  it("1차·2차 평가자 사번을 적으면 부서 팀장·담당 임원 대신 그 사람으로", () => {
+    const other = row({ employeeNo: "L2", name: "다른팀장", email: "lead2@x.test", department: "품질팀", position: "부장", isTeamLeader: "예" });
+    const m = row({ email: "m@x.test", department: "없는팀", executiveEmail: "", firstReviewerNo: "L2", secondReviewerNo: "X1" });
+    const r = checkRoster([{ ...exec(), employeeNo: "X1" }, leader(), other, m], 2026);
+    const p = r.people.find((q) => q.email === "m@x.test")!;
+    expect([p.firstReviewerEmail, p.secondReviewerEmail]).toEqual(["lead2@x.test", "exec@x.test"]);
+    expect(r.issues.filter((i) => i.name === p.name)).toEqual([]);
+  });
+  it("명단에 없는 사번·본인·1차=2차·팀장의 2차 지정은 확인 필요", () => {
+    const r = checkRoster(
+      [
+        { ...exec(), employeeNo: "X1" },
+        row({ employeeNo: "A1", email: "a@x.test", firstReviewerNo: "NOPE" }),
+        row({ employeeNo: "A2", email: "b@x.test", firstReviewerNo: "A2" }),
+        row({ employeeNo: "A3", email: "c@x.test", firstReviewerNo: "X1", secondReviewerNo: "X1" }),
+        row({ employeeNo: "A4", email: "d@x.test", position: "부장", isTeamLeader: "예", secondReviewerNo: "X1" }),
+      ],
+      2026,
+    );
+    const reasons = r.issues.map((i) => i.reason).join("|");
+    expect(reasons).toContain("사번 NOPE이(가) 명단에 없습니다");
+    expect(reasons).toContain("본인으로 지정할 수 없습니다");
+    expect(reasons).toContain("1차 평가자와 2차 평가자가 같은 사람입니다");
+    expect(reasons).toContain("팀장은 2차 평가자가 없습니다");
+  });
+});

@@ -1,0 +1,1 @@
+ALTER TABLE "evaluations" ADD COLUMN "self_proxy_by" text;

@@ -5,7 +5,7 @@ import { after } from "next/server";
 import { z } from "zod";
 import { fail, type Result } from "@/lib/result";
 import { requireAdmin } from "@/server/authz/actor";
-import { advanceStage, getCurrentCycle } from "@/server/repo/cycles";
+import { rollbackStage, advanceStage, getCurrentCycle } from "@/server/repo/cycles";
 import { drainOutbox } from "@/server/repo/outbox";
 import { queueReminders } from "@/server/repo/progress";
 
@@ -24,6 +24,23 @@ export async function sendRemindersAction(personIds: unknown): Promise<Result<{ 
 }
 
 const advanceSchema = z.object({ from: z.enum(["self_review", "first_review", "second_review"]), version: z.number().int().min(0) });
+
+const rollbackSchema = z.object({ from: z.enum(["first_review", "second_review", "final_review"]), version: z.number().int(), reason: z.string().max(500) });
+
+/** 이전 단계로 되돌리기 (2026-10-15) */
+export async function rollbackStageAction(raw: unknown): Promise<Result<{ to: string }>> {
+  const actor = await requireAdmin();
+  const p = rollbackSchema.safeParse(raw);
+  if (!p.success) return fail("invalid", "잘못된 요청입니다.");
+  const cycle = await getCurrentCycle(actor);
+  if (!cycle) return fail("no_cycle", "진행 중인 평가가 없습니다.");
+  const r = await rollbackStage(actor, cycle.id, p.data.from, p.data.version, p.data.reason);
+  if (!r.ok) return r;
+  if (r.value.batchId) after(() => drainOutbox().catch(() => 0));
+  revalidatePath("/admin", "layout");
+  revalidatePath("/me", "layout");
+  return { ok: true, value: { to: r.value.to } };
+}
 
 export async function advanceStageAction(raw: unknown): Promise<Result<{ to: string }>> {
   const actor = await requireAdmin();

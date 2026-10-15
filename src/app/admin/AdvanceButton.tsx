@@ -37,7 +37,7 @@ export function AdvanceButton({ from, version, fromLabel, toLabel, pendingNames 
             <AlertDialogTitle>
               {fromLabel} 단계를 끝내고 {toLabel} 단계로 넘길까요?
             </AlertDialogTitle>
-            <AlertDialogDescription>넘기면 {fromLabel} 단계는 잠겨 더 이상 고칠 수 없습니다. 되돌릴 수 없습니다.</AlertDialogDescription>
+            <AlertDialogDescription>넘기면 {fromLabel} 단계는 잠겨 더 이상 고칠 수 없습니다. 실수로 넘겼다면 진행 현황의 [이전 단계로 되돌리기]로 되돌릴 수 있습니다.</AlertDialogDescription>
           </AlertDialogHeader>
           {pendingNames.length > 0 ? (
             <Alert variant="warning">

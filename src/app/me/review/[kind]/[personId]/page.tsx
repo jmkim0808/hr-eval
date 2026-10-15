@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { isUuid } from "@/lib/utils";
 import { notFound } from "next/navigation";
-import { CircleCheck, FilePen, Clock } from "lucide-react";
+import { CircleCheck, FilePen, Clock, ListChecks } from "lucide-react";
+import { buttonVariants } from "@/components/ui/button";
 import { PageHeader } from "@/components/PageHeader";
 import { Card } from "@/components/ui/card";
 import { FORMS } from "@/domain/forms";
@@ -24,7 +25,7 @@ export default async function ReviewPage({ params }: { params: Promise<{ kind: s
   const group = (await listReviewGroups(a)).find((g) => g.kind === kind)!;
   const idx = group.people.findIndex((p) => p.id === personId);
   const after = [...group.people.slice(idx + 1), ...group.people.slice(0, idx)];
-  const next = after.find((p) => p.status !== "done") ?? after[0];
+  const next = after.find((p) => p.status !== "done" && p.id !== personId);
   const def = REVIEW[kind];
   const range = fmtRange(group.range[0], group.range[1]);
   const before = ORDER.indexOf(r.cycle.status) < ORDER.indexOf(def.window);
@@ -39,7 +40,15 @@ export default async function ReviewPage({ params }: { params: Promise<{ kind: s
 
   return (
     <main className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-8 py-6">
-      <PageHeader title={`평가하기 · ${def.label}`} description={`${r.cycle.year}년 정기평가 · ${def.windowLabel} 기간 ${range} · ${group.people.length}명 중 ${done}명 완료`} />
+      <PageHeader
+        title={`평가하기 · ${def.label}`}
+        description={`${r.cycle.year}년 정기평가 · ${def.windowLabel} 기간 ${range} · ${group.people.length}명 중 ${done}명 완료`}
+        actions={
+          <Link href={`/me/review/${kind}`} className={buttonVariants({ variant: "outline" })}>
+            <ListChecks aria-hidden="true" />내 평가 현황
+          </Link>
+        }
+      />
       <div className="grid items-start gap-5 lg:grid-cols-[15rem_1fr]">
         <Card className="gap-0 py-0" aria-label="평가할 사람">
           <ul>
@@ -74,7 +83,8 @@ export default async function ReviewPage({ params }: { params: Promise<{ kind: s
           self={r.self}
           firstScores={r.firstScores}
           initial={{ scores: r.mine, version: r.version, submittedAt: r.submittedAt }}
-          nextHref={next && next.id !== personId ? `/me/review/${kind}/${next.id}` : null}
+          nextHref={next ? `/me/review/${kind}/${next.id}` : null}
+          overviewHref={`/me/review/${kind}`}
           bundle={r.bundle}
         />
       </div>

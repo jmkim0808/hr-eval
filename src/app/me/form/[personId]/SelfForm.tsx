@@ -10,6 +10,7 @@ import { FieldError, Label, Textarea } from "@/components/ui/input";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { FORMS, SCALE_LEGEND, TEXT_MAX, type FormType, type SelfDraft, type SubmitIssues } from "@/domain/forms";
 import { cn } from "@/lib/utils";
+import { proxySaveSelfAction, proxySubmitSelfAction } from "@/app/admin/proxy/actions";
 import { saveSelfAction, submitSelfAction } from "../../actions";
 
 const AUTOSAVE_MS = 1200;
@@ -26,9 +27,13 @@ type Props = {
   initial: { draft: SelfDraft; version: number; savedAt: string | null; submittedAt: string | null };
   /** 잠겼을 때 보일 안내 (관리자 보기 전용 등) */
   lockedNote?: string;
+  /** 관리자 대신 입력 (2026-10-15): 저장·제출을 관리자용 동작으로 하고, 제출 뒤 관리자 화면으로 */
+  proxy?: boolean;
 };
 
-export function SelfForm({ personId, formType, year, editable, initial, lockedNote = "개인작성 기간이 끝나 고칠 수 없습니다." }: Props) {
+export function SelfForm({ personId, formType, year, editable, initial, lockedNote = "개인작성 기간이 끝나 고칠 수 없습니다.", proxy = false }: Props) {
+  const saveAct = proxy ? proxySaveSelfAction : saveSelfAction;
+  const submitAct = proxy ? proxySubmitSelfAction : submitSelfAction;
   const router = useRouter();
   const items = FORMS[formType];
   const [draft, setDraft] = useState<SelfDraft>(initial.draft);
@@ -47,7 +52,7 @@ export function SelfForm({ personId, formType, year, editable, initial, lockedNo
     dirty.current = false;
     setSave({ kind: "saving" });
     const run = (async () => {
-      const r = await saveSelfAction({ personId, version: version.current, draft: latest.current });
+      const r = await saveAct({ personId, version: version.current, draft: latest.current });
       if (r.ok) {
         version.current = r.value.version;
         setSave(dirty.current ? { kind: "saving" } : { kind: "saved", at: r.value.savedAt });
@@ -86,11 +91,11 @@ export function SelfForm({ personId, formType, year, editable, initial, lockedNo
   function submit() {
     startSubmit(async () => {
       await flush();
-      const r = await submitSelfAction({ personId, version: version.current, draft: latest.current });
+      const r = await submitAct({ personId, version: version.current, draft: latest.current });
       if (r.ok) {
         version.current = r.value.version;
         setIssues(null);
-        router.push("/me");
+        router.push(proxy ? "/admin" : "/me");
         return;
       }
       if (r.code === "incomplete" && "issues" in r) {
@@ -193,7 +198,7 @@ export function SelfForm({ personId, formType, year, editable, initial, lockedNo
           <CardTitle>업적 평가 (비중 70%)</CardTitle>
           <CardDescription>자신의 고유 업무 분야에서 지난 1년간 이루어낸 업적을 적고, 내년에 그 업적을 어떻게 발전시킬지 적어 주세요</CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-5 lg:grid-cols-2">
+        <CardContent className="grid gap-6">
           <TextField id="achievement" label={`${year}년 개인역할 및 업적`} value={draft.achievement} error={draft.achievement.trim() ? undefined : issues?.achievement} disabled={!editable} onChange={(v) => change({ achievement: v })} />
           <TextField id="improvement" label={`${year + 1}년 개선 및 발전`} value={draft.improvement} error={draft.improvement.trim() ? undefined : issues?.improvement} disabled={!editable} onChange={(v) => change({ improvement: v })} />
         </CardContent>
@@ -254,7 +259,7 @@ function TextField(p: { id: string; label: string; value: string; error?: string
       <Label htmlFor={p.id} className="text-body text-foreground">
         {p.label}
       </Label>
-      <Textarea id={p.id} value={p.value} onChange={(e) => p.onChange(e.target.value)} disabled={p.disabled} aria-invalid={!!p.error} maxLength={TEXT_MAX} className="min-h-56" />
+      <Textarea id={p.id} value={p.value} onChange={(e) => p.onChange(e.target.value)} disabled={p.disabled} aria-invalid={!!p.error} maxLength={TEXT_MAX} className="min-h-80 resize-y" />
       <div className="flex items-start justify-between gap-3">
         <FieldError>{p.error}</FieldError>
         <span className="ml-auto text-label text-muted-foreground tabular-nums">

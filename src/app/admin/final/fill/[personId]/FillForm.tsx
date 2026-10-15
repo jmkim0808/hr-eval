@@ -29,7 +29,7 @@ export function FillForm({ personId, formType, items, first, second, open }: { p
     for (const [k, v] of Object.entries(raw)) {
       const [rater, code] = k.split(":") as ["first" | "second", string];
       const n = parseScore(v);
-      if (n === "invalid") return setError("1~10 사이 숫자만 넣을 수 있습니다.");
+      if (n === "invalid") return setError("1~10 사이, 소수 첫째 자리까지 넣을 수 있습니다.");
       if (n) out[rater][code] = n;
     }
     start(async () => {
@@ -78,8 +78,8 @@ export function FillForm({ personId, formType, items, first, second, open }: { p
                 <Input
                   key={r}
                   aria-label={`${row.name} ${label[r]} 점수 (빈칸)`}
-                  inputMode="numeric"
-                  maxLength={2}
+                  inputMode="decimal"
+                  maxLength={4}
                   disabled={!open}
                   value={raw[k] ?? ""}
                   onChange={(e) => setRaw((s) => ({ ...s, [k]: e.target.value }))}

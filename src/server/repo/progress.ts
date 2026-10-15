@@ -11,6 +11,8 @@ export type PendingRow = {
   personId: string;
   /** 누르면 열 평가지 (평가자 줄은 없음) */
   formHref: string | null;
+  /** 1·2차 단계: 이 평가자가 아직 제출하지 않은 대상자 (관리자 대신 입력 링크용, 2026-10-15) */
+  leftTargets?: { id: string; name: string }[];
   name: string;
   department: string;
   role: string;
@@ -80,23 +82,26 @@ export async function reviewStageProgress(actor: Actor, cycleId: string, stage: 
     .from(cyclePeople)
     .leftJoin(evaluations, eq(evaluations.personId, cyclePeople.id))
     .where(and(eq(cyclePeople.cycleId, cycleId), eq(cyclePeople.isTarget, true)));
-  type Job = { reviewer: string | null; evId: string | null; rater: "first" | "second"; done: boolean };
+  type Job = { reviewer: string | null; evId: string | null; rater: "first" | "second"; done: boolean; target: { id: string; name: string } };
   const jobs: Job[] = [];
   for (const { p, ev } of targets) {
-    if (stage === "first_review" && p.formType === "member") jobs.push({ reviewer: p.firstReviewerId, evId: ev?.id ?? null, rater: "first", done: !!ev?.firstSubmittedAt });
-    if (stage === "second_review" && p.formType === "member") jobs.push({ reviewer: p.secondReviewerId, evId: ev?.id ?? null, rater: "second", done: !!ev?.secondSubmittedAt });
-    if (stage === "second_review" && p.formType === "leader") jobs.push({ reviewer: p.firstReviewerId, evId: ev?.id ?? null, rater: "first", done: !!ev?.firstSubmittedAt });
+    if (stage === "first_review" && p.formType === "member") jobs.push({ reviewer: p.firstReviewerId, evId: ev?.id ?? null, rater: "first", done: !!ev?.firstSubmittedAt, target: { id: p.id, name: p.name } });
+    if (stage === "second_review" && p.formType === "member") jobs.push({ reviewer: p.secondReviewerId, evId: ev?.id ?? null, rater: "second", done: !!ev?.secondSubmittedAt, target: { id: p.id, name: p.name } });
+    if (stage === "second_review" && p.formType === "leader") jobs.push({ reviewer: p.firstReviewerId, evId: ev?.id ?? null, rater: "first", done: !!ev?.firstSubmittedAt, target: { id: p.id, name: p.name } });
   }
   const evIds = jobs.map((j) => j.evId).filter((x): x is string => !!x);
   const scored = new Set(
     evIds.length ? (await db.selectDistinct({ id: evaluationScores.evaluationId, rater: evaluationScores.rater }).from(evaluationScores).where(inArray(evaluationScores.evaluationId, evIds))).map((r) => `${r.id}:${r.rater}`) : [],
   );
-  const byReviewer = new Map<string, { total: number; left: number; started: boolean }>();
+  const byReviewer = new Map<string, { total: number; left: number; started: boolean; leftTargets: { id: string; name: string }[] }>();
   for (const j of jobs) {
     if (!j.reviewer) continue;
-    const r = byReviewer.get(j.reviewer) ?? { total: 0, left: 0, started: false };
+    const r = byReviewer.get(j.reviewer) ?? { total: 0, left: 0, started: false, leftTargets: [] };
     r.total++;
-    if (!j.done) r.left++;
+    if (!j.done) {
+      r.left++;
+      r.leftTargets.push(j.target);
+    }
     if (j.done || (j.evId && scored.has(`${j.evId}:${j.rater}`))) r.started = true;
     byReviewer.set(j.reviewer, r);
   }
@@ -112,6 +117,7 @@ export async function reviewStageProgress(actor: Actor, cycleId: string, stage: 
       return {
         personId: r.id,
         formHref: null,
+        leftTargets: st.leftTargets,
         name: r.name,
         department: r.department,
         role: `${r.isExecutive ? "임원" : "팀장"} (${label} ${st.total}명 중 ${st.left}명 남음)`,

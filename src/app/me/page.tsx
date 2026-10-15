@@ -52,7 +52,7 @@ export default async function MyTasksPage() {
     const overdue = g.open && !!g.range[1] && today > g.range[1] && remain > 0;
     tasks.push({
       key: g.kind,
-      href: `/me/review/${g.kind}/${first.id}`,
+      href: remain === 0 ? `/me/review/${g.kind}` : `/me/review/${g.kind}/${first.id}`, // 모두 끝났으면 내 평가 현황
       title: `${def.label} — ${remain === 0 ? `${n}명 중 ${n}명 완료` : `${def.who ? `${def.who} ` : ""}${n}명 중 ${remain}명 남음`}`,
       done: remain === 0,
       icon: <ClipboardCheck className="size-5" aria-hidden="true" />,

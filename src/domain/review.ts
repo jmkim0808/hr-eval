@@ -34,12 +34,15 @@ export const seesFirstScores = (kind: ReviewKind) => kind === "second";
 
 export const scoreCodes = (form: FormType) => [...FORMS[form].map((i) => i.code), ACHIEVEMENT];
 
+/** 점수 1~10, 0.1점 단위 (2026-10-15 결정: 역량·업적 모두) */
+export const isScore = (n: unknown): n is number => typeof n === "number" && Number.isFinite(n) && n >= 1 && n <= 10 && Math.abs(Math.round(n * 10) - n * 10) < 1e-9;
+
 export function parseScore(raw: string): number | null | "invalid" {
   const v = raw.trim();
   if (v === "") return null;
-  if (!/^\d+$/.test(v)) return "invalid";
+  if (!/^\d{1,2}(\.\d)?$/.test(v)) return "invalid";
   const n = Number(v);
-  return n >= 1 && n <= 10 ? n : "invalid";
+  return isScore(n) ? n : "invalid";
 }
 
 export function missingScores(form: FormType, scores: Record<string, number>): string[] {
@@ -58,8 +61,9 @@ export const AVG_MIN_PEOPLE = 3;
 export function raterTotal(form: FormType, s: Record<string, number>): number | null {
   const codes = FORMS[form].map((i) => i.code);
   if ([...codes, ACHIEVEMENT].some((c) => !s[c])) return null;
-  const sum = codes.reduce((t, c) => t + s[c]!, 0);
-  return (sum * 30 + s[ACHIEVEMENT]! * 700) / 100;
+  const t = (x: number) => Math.round(x * 10); // 1/10점 정수
+  const sum = codes.reduce((a, c) => a + t(s[c]!), 0);
+  return (sum * 3 + t(s[ACHIEVEMENT]!) * 70) / 100;
 }
 
 export type AverageCheck = { applies: boolean; count: number; avg: number | null; ok: boolean; advice: string | null };
@@ -78,17 +82,60 @@ export function checkAverage(n: number, totals: number[]): AverageCheck {
  * 합계를 (80 − 평균) × 인원만큼 옮기면 평균이 80이 된다.
  */
 export function averageAdvice(avg: number, count: number): string {
-  const need = Math.round((AVG_TARGET - avg) * count * 100) / 100; // 옮겨야 할 합계(점)
+  const need = (AVG_TARGET - avg) * count; // 옮겨야 할 합계(점)
   const dir = need < 0 ? "낮추면" : "높이면";
-  const abs = Math.abs(need);
-  let ach = Math.floor(abs / 7);
-  let comp = Math.round((abs - ach * 7) / 0.3);
-  // 허용 범위(±0.5×인원) 안이면 업적만으로도 충분한지 확인
-  if (Math.abs(abs - Math.round(abs / 7) * 7) <= AVG_TOLERANCE * count) {
-    ach = Math.round(abs / 7);
-    comp = 0;
+  const ach = Math.max(0.1, Math.round((Math.abs(need) / 7) * 10) / 10); // 0.1점 단위 (2026-10-15)
+  const after = Math.round((avg + ((need < 0 ? -1 : 1) * ach * 7) / count) * 100) / 100;
+  return `지금 평균 ${avg.toFixed(2)}점입니다. 맡은 ${count}명의 업적 점수 합계를 ${ach.toFixed(1)}점 ${dir} 평균 ${after.toFixed(2)}점이 됩니다 (허용 79.5~80.5). 업적 점수 0.1점은 평균을 ${(0.7 / count).toFixed(2)}점, 역량 항목 0.1점은 ${(0.03 / count).toFixed(3)}점 바꿉니다.`;
+}
+
+// ── 평균 안내 (2026-10-15 피드백: "어느 항목을 몇 점 고치면 되는지" 사람별로 구체적으로) ──
+
+export type GuideRow = { id: string; name: string; total: number | null; ach: number | null };
+export type GuideChange = { id: string; name: string; from: number; to: number };
+export type GuideOption = { title: string; changes: GuideChange[]; after: number };
+export type Guide =
+  | { kind: "na" }
+  | { kind: "pending"; filled: number; n: number; avg: number | null; perPerson: number | null }
+  | { kind: "ok"; avg: number }
+  | { kind: "off"; avg: number; options: GuideOption[] };
+
+const tenth = (x: number) => Math.round(x * 10);
+const clampScore = (t: number) => Math.min(100, Math.max(10, t)); // 1/10점 단위로 1~10
+
+/**
+ * 평가자 평균 안내. 아직 다 안 넣었으면 "남은 사람에게 평균 몇 점을 주면 되는지",
+ * 다 넣었는데 벗어나면 ① 지금 보는 사람의 업적만 고치기 ② 모두의 업적을 고르게 고치기 두 가지를 사람·점수로 제안한다.
+ */
+export function averageGuide(rows: GuideRow[], focusId: string): Guide {
+  const n = rows.length;
+  if (n < AVG_MIN_PEOPLE) return { kind: "na" };
+  const filled = rows.filter((r) => r.total !== null);
+  const sum = filled.reduce((a, r) => a + r.total!, 0);
+  const avg = filled.length ? Math.round((sum / filled.length) * 100) / 100 : null;
+  if (filled.length < n) {
+    const rem = n - filled.length;
+    const per = Math.round(((AVG_TARGET * n - sum) / rem) * 10) / 10;
+    return { kind: "pending", filled: filled.length, n, avg, perPerson: per >= 10 && per <= 100 ? per : null };
   }
-  const after = Math.round((avg + ((need < 0 ? -1 : 1) * (ach * 7 + comp * 0.3)) / count) * 100) / 100;
-  const parts = [ach ? `업적 점수 합계를 ${ach}점` : null, comp ? `역량 항목 점수 합계를 ${comp}점` : null].filter(Boolean).join(", ");
-  return `지금 평균 ${avg.toFixed(2)}점입니다. 80점(허용 79.5~80.5)에 맞추려면 ${parts} ${dir} 평균 ${after.toFixed(2)}점이 됩니다. ${count}명 기준으로 업적 점수 1점은 평균을 ${(7 / count).toFixed(2)}점, 역량 항목 1점은 ${(0.3 / count).toFixed(2)}점 바꿉니다. 여러 사람에게 나눠 고쳐도 됩니다.`;
+  if (Math.abs(sum / n - AVG_TARGET) <= AVG_TOLERANCE + 1e-9) return { kind: "ok", avg: avg! };
+  const need = AVG_TARGET * n - sum; // 옮길 합계
+  const options: GuideOption[] = [];
+  const afterOf = (changes: GuideChange[]) => Math.round(((sum + changes.reduce((a, c) => a + (c.to - c.from) * 7, 0)) / n) * 100) / 100;
+  const focus = rows.find((r) => r.id === focusId && r.ach !== null);
+  if (focus) {
+    const to = clampScore(tenth(focus.ach!) + Math.round((need / 7) * 10)) / 10;
+    if (to !== focus.ach) {
+      const ch = [{ id: focus.id, name: focus.name, from: focus.ach!, to }];
+      options.push({ title: `${focus.name} 님 업적 점수만 고치기`, changes: ch, after: afterOf(ch) });
+    }
+  }
+  let step = Math.round((need / 7 / n) * 10);
+  if (step === 0) step = need < 0 ? -1 : 1;
+  const spread = rows
+    .filter((r) => r.ach !== null)
+    .map((r) => ({ id: r.id, name: r.name, from: r.ach!, to: clampScore(tenth(r.ach!) + step) / 10 }))
+    .filter((c) => c.to !== c.from);
+  if (spread.length) options.push({ title: `모두의 업적 점수를 ${step > 0 ? "+" : ""}${(step / 10).toFixed(1)}점씩`, changes: spread, after: afterOf(spread) });
+  return { kind: "off", avg: avg!, options };
 }

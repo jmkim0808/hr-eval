@@ -27,7 +27,7 @@ function useExport() {
   return { pending, error, run: (fn: () => Promise<string | null>) => start(async () => setError(await fn())), refresh: () => router.refresh() };
 }
 
-export function FinalExcelButton({ enabled }: { enabled: boolean }) {
+export function FinalExcelButton({ enabled, year }: { enabled: boolean; year?: number }) {
   const x = useExport();
   return (
     <div className="flex flex-col gap-2">
@@ -37,7 +37,7 @@ export function FinalExcelButton({ enabled }: { enabled: boolean }) {
         disabled={!enabled || x.pending}
         onClick={() =>
           x.run(async () => {
-            const r = await exportFinalAction();
+            const r = await exportFinalAction(year);
             if (!r.ok) return r.message;
             await downloadWorkbook(`${r.value.year}_최종결과_${stamp()}.xlsx`, (wb) => addSheet(wb, r.value.sheet), { target: `인사평가 ${r.value.year} 최종결과 엑셀`, rows: r.value.sheet.rows.length });
             return null;
@@ -53,7 +53,7 @@ export function FinalExcelButton({ enabled }: { enabled: boolean }) {
   );
 }
 
-export function BackupButton({ variant = "outline" }: { variant?: "outline" | "default" }) {
+export function BackupButton({ variant = "outline", year }: { variant?: "outline" | "default"; year?: number }) {
   const x = useExport();
   return (
     <>
@@ -62,7 +62,7 @@ export function BackupButton({ variant = "outline" }: { variant?: "outline" | "d
         disabled={x.pending}
         onClick={() =>
           x.run(async () => {
-            const r = await exportBackupAction();
+            const r = await exportBackupAction(year);
             if (!r.ok) return r.message;
             await downloadWorkbook(`${r.value.year}_전체기록백업_${stamp()}.xlsx`, (wb) => r.value.sheets.forEach((s) => addSheet(wb, s)), {
               target: `인사평가 ${r.value.year} 전체 기록 백업 엑셀`,
@@ -88,7 +88,7 @@ export function BackupNotice() {
       <CircleAlert aria-hidden="true" />
       <AlertTitle>지금 백업을 내려받아 보관하세요</AlertTitle>
       <AlertDescription>
-        <p>단계를 넘기거나 확정한 뒤에는 이 시점의 전체 기록 엑셀을 받아 사내 보안 저장소에 보관합니다. 무료 DB는 자동 백업이 없습니다.</p>
+        <p>단계를 넘기거나 확정한 뒤에는 이 시점의 전체 기록 엑셀을 받아 사내 보안 저장소에 보관합니다. DB 백업과 별도로, 암호화되지 않은 상태로 사람이 읽을 수 있는 유일한 사본입니다.</p>
         <BackupButton variant="default" />
       </AlertDescription>
     </Alert>

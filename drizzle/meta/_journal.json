@@ -134,6 +134,13 @@
       "when": 1791794953286,
       "tag": "0018_encrypt_columns",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1792060951710,
+      "tag": "0019_self_proxy",
+      "breakpoints": true
     }
   ]
 }

@@ -53,6 +53,7 @@ async function loadForm(personId: string) {
     updatedAt: ev?.updatedAt ?? null,
     version: ev?.version ?? 0,
     draft: { scores, achievement: dec(ev?.achievementText ?? ""), improvement: dec(ev?.improvementText ?? "") } satisfies SelfDraft,
+    proxyBy: ev?.selfProxyBy ?? null,
   };
 }
 
@@ -71,6 +72,23 @@ export async function saveSelf(actor: Actor, personId: string, version: number, 
     const issues = checkSelfSubmit(form.person.formType, clean, form.cycle.year);
     if (issues) return { ok: false, code: "incomplete", message: "빠진 칸이 있습니다. 빨간 테두리 칸을 채워 주세요.", issues };
   }
+  return writeSelf(actor, personId, version, clean, submit, null);
+}
+
+/** 관리자 대신 입력 (2026-10-15): 출장 등으로 직접 못 쓴 평가지를 받아서 넣는다. 2차평가가 끝나기 전까지 */
+export const SELF_PROXY_STAGES = ["self_review", "first_review", "second_review"];
+export async function saveSelfByAdmin(actor: Actor, personId: string, version: number, draft: SelfDraft, submit: boolean): Promise<SaveResult> {
+  const form = await getFormForAdmin(actor, personId);
+  if (!SELF_PROXY_STAGES.includes(form.cycle.status)) return fail("locked", "2차평가가 끝난 뒤에는 평가지를 대신 입력할 수 없습니다.");
+  const clean: SelfDraft = { scores: cleanScores(form.person.formType, draft.scores), achievement: draft.achievement, improvement: draft.improvement };
+  if (submit) {
+    const issues = checkSelfSubmit(form.person.formType, clean, form.cycle.year);
+    if (issues) return { ok: false, code: "incomplete", message: "빠진 칸이 있습니다. 빨간 테두리 칸을 채워 주세요.", issues };
+  }
+  return writeSelf(actor, personId, version, clean, submit, actor.email);
+}
+
+async function writeSelf(actor: Actor, personId: string, version: number, clean: SelfDraft, submit: boolean, proxyBy: string | null): Promise<SaveResult> {
   const db = getDb();
   return db.transaction(async (tx) => {
     const now = new Date();
@@ -80,7 +98,7 @@ export async function saveSelf(actor: Actor, personId: string, version: number, 
       if (version !== 0) return fail("conflict", "다른 창에서 고친 내용이 있습니다.");
       const [ins] = await tx
         .insert(evaluations)
-        .values({ personId, formVersion: FORM_VERSION, achievementText: enc(clean.achievement), improvementText: enc(clean.improvement), version: 1, selfSubmittedAt: submit ? now : null })
+        .values({ personId, formVersion: FORM_VERSION, achievementText: enc(clean.achievement), improvementText: enc(clean.improvement), version: 1, selfSubmittedAt: submit ? now : null, selfProxyBy: proxyBy })
         .returning({ id: evaluations.id });
       evId = ins!.id;
     } else {
@@ -94,13 +112,14 @@ export async function saveSelf(actor: Actor, personId: string, version: number, 
           version: ev.version + 1,
           updatedAt: now,
           ...(submit ? { selfSubmittedAt: now } : {}),
+          ...(proxyBy ? { selfProxyBy: proxyBy } : {}),
         })
         .where(eq(evaluations.id, ev.id));
     }
     await tx.delete(evaluationScores).where(and(eq(evaluationScores.evaluationId, evId), eq(evaluationScores.rater, "self")));
     const entries = Object.entries(clean.scores);
     if (entries.length) await tx.insert(evaluationScores).values(entries.map(([itemCode, score]) => ({ evaluationId: evId, rater: "self" as const, itemCode, score: encNum(score)! })));
-    if (submit) await tx.insert(auditLogs).values({ actorEmail: actor.email, action: "self.submit", personId, detail: {} });
+    if (submit || proxyBy) await tx.insert(auditLogs).values({ actorEmail: actor.email, action: proxyBy ? (submit ? "self.proxy_submit" : "self.proxy_save") : "self.submit", personId, detail: {} });
     return ok({ version: version + 1, savedAt: now.toISOString() });
   });
 }

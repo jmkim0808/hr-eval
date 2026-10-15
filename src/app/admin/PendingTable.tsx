@@ -88,7 +88,19 @@ export function PendingTable({ rows, canRemind }: { rows: PendingRow[]; canRemin
                 )}
               </TableCell>
               <TableCell>{r.department || "—"}</TableCell>
-              <TableCell className="text-text-secondary">{r.role}</TableCell>
+              <TableCell className="text-text-secondary">
+                {r.role}
+                {r.leftTargets && r.leftTargets.length > 0 && (
+                  <span className="mt-0.5 flex flex-wrap gap-x-2 text-label">
+                    대신 입력:
+                    {r.leftTargets.map((t) => (
+                      <Link key={t.id} href={`/admin/proxy/${t.id}`} className="text-primary underline-offset-4 hover:underline">
+                        {t.name}
+                      </Link>
+                    ))}
+                  </span>
+                )}
+              </TableCell>
               <TableCell>
                 {r.status === "writing" ? (
                   <Badge variant="info">

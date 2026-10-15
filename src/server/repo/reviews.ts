@@ -2,7 +2,7 @@
 import { and, eq, inArray, or } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { FORMS, type FormType } from "@/domain/forms";
-import { canScore, canSeeForm, checkAverage, missingScores, raterTotal, REVIEW, reviewKindOf, scoreCodes, seesFirstScores, type ReviewKind } from "@/domain/review";
+import { ACHIEVEMENT, canScore, canSeeForm, checkAverage, isScore, missingScores, raterTotal, REVIEW, reviewKindOf, scoreCodes, seesFirstScores, type ReviewKind } from "@/domain/review";
 import { fail, ok, type Result } from "@/lib/result";
 import { getDb } from "@/server/db/client";
 import { auditLogs, cyclePeople, evaluations, evaluationScores, reviewCycles } from "@/server/db/schema";
@@ -103,7 +103,7 @@ export async function getReview(actor: Actor, kind: ReviewKind, personId: string
   };
 }
 
-export type BundlePerson = { id: string; name: string; total: number | null; submitted: boolean };
+export type BundlePerson = { id: string; name: string; total: number | null; ach: number | null; submitted: boolean };
 
 /** 같은 묶음 사람들의 내 점수(평가자 점수)와 제출 여부 — 평균 80점 확인용 */
 export async function bundleTotals(actor: Actor, kind: ReviewKind): Promise<BundlePerson[]> {
@@ -125,7 +125,7 @@ export async function bundleTotals(actor: Actor, kind: ReviewKind): Promise<Bund
   }
   return group.people.map((p) => {
     const e = by.get(p.id);
-    return { id: p.id, name: p.name, total: e ? raterTotal(e.form, e.s) : null, submitted: p.status === "done" };
+    return { id: p.id, name: p.name, total: e ? raterTotal(e.form, e.s) : null, ach: e?.s[ACHIEVEMENT] ?? null, submitted: p.status === "done" };
   });
 }
 
@@ -141,7 +141,7 @@ export async function saveReview(actor: Actor, kind: ReviewKind, personId: strin
   const scores: Record<string, number> = {};
   for (const [k, v] of Object.entries(raw)) {
     if (!codes.has(k)) continue;
-    if (!Number.isInteger(v) || v < 1 || v > 10) return fail("range", "점수는 1~10 사이 숫자만 넣을 수 있습니다.");
+    if (!isScore(v)) return fail("range", "점수는 1~10 사이, 소수 첫째 자리까지 넣을 수 있습니다.");
     scores[k] = v;
   }
   if (submit) {
@@ -180,3 +180,66 @@ export async function saveReview(actor: Actor, kind: ReviewKind, personId: strin
 }
 
 export const itemsOf = (form: FormType) => FORMS[form];
+
+// ── 내 평가 현황 (2026-10-15 피드백): 내가 맡은 사람 전체의 1차·2차 역량·업적 점수 ──
+
+export type OverviewScores = { competency: number | null; achievement: number | null; total: number | null };
+export type OverviewRow = {
+  id: string;
+  name: string;
+  department: string;
+  position: string;
+  selfSubmitted: boolean;
+  status: ReviewStatus;
+  /** 1차(팀장 평가 묶음에서는 임원) 점수 */
+  first: OverviewScores;
+  /** 2차 점수 — 2차 평가자(임원)에게만. 팀장(1차 평가자)에게는 언제나 null */
+  second: OverviewScores | null;
+};
+
+const scoresOf = (form: FormType, s: Record<string, number>): OverviewScores => {
+  const codes = FORMS[form].map((i) => i.code);
+  const has = codes.filter((c) => s[c] !== undefined);
+  return {
+    competency: has.length === codes.length ? Math.round(codes.reduce((a, c) => a + s[c]! * 10, 0)) / 10 : null,
+    achievement: s[ACHIEVEMENT] ?? null,
+    total: raterTotal(form, s),
+  };
+};
+
+/** 내 평가 현황. 팀장(1차)은 자기 점수만, 임원(2차)은 1차·2차를 본다. 2차 점수를 팀장에게 주는 경로는 없다 */
+export async function reviewOverview(actor: Actor, kind: ReviewKind) {
+  const group = (await listReviewGroups(actor)).find((g) => g.kind === kind);
+  if (!group) notFound();
+  const ids = group.people.map((p) => p.id);
+  const db = getDb();
+  const evs = ids.length ? await db.select({ id: evaluations.id, personId: evaluations.personId, self: evaluations.selfSubmittedAt }).from(evaluations).where(inArray(evaluations.personId, ids)) : [];
+  const raters: ("first" | "second")[] = kind === "second" ? ["first", "second"] : ["first"];
+  const scores = evs.length
+    ? await db.select({ ev: evaluationScores.evaluationId, rater: evaluationScores.rater, item: evaluationScores.itemCode, score: evaluationScores.score }).from(evaluationScores).where(and(inArray(evaluationScores.evaluationId, evs.map((e) => e.id)), inArray(evaluationScores.rater, raters)))
+    : [];
+  const forms = new Map((await db.select({ id: cyclePeople.id, form: cyclePeople.formType }).from(cyclePeople).where(inArray(cyclePeople.id, ids.length ? ids : ["00000000-0000-0000-0000-000000000000"]))).map((r) => [r.id, r.form as FormType]));
+  const evOf = new Map(evs.map((e) => [e.personId, e]));
+  const by = new Map<string, { first: Record<string, number>; second: Record<string, number> }>();
+  for (const s of scores) {
+    const e = by.get(s.ev) ?? { first: {}, second: {} };
+    e[s.rater as "first" | "second"][s.item] = decNum(s.score)!;
+    by.set(s.ev, e);
+  }
+  const rows: OverviewRow[] = group.people.map((p) => {
+    const ev = evOf.get(p.id);
+    const sc = (ev && by.get(ev.id)) || { first: {}, second: {} };
+    const form = forms.get(p.id)!;
+    return {
+      id: p.id,
+      name: p.name,
+      department: p.department,
+      position: p.position,
+      selfSubmitted: !!ev?.self,
+      status: p.status,
+      first: scoresOf(form, sc.first),
+      second: kind === "second" ? scoresOf(form, sc.second) : null,
+    };
+  });
+  return { group, rows };
+}

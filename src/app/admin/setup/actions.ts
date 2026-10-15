@@ -6,9 +6,8 @@ import { z } from "zod";
 import { periodsSchema, type PeriodErrors, type Periods } from "@/domain/periods";
 import { checkRoster, rawRowsSchema, type RosterCheck } from "@/domain/roster";
 import { fail, ok, type Result } from "@/lib/result";
-import { seoulYear } from "@/lib/time";
 import { requireAdmin } from "@/server/authz/actor";
-import { getCycleDetail, savePeriods, startInvites } from "@/server/repo/cycles";
+import { getCycleDetail, savePeriods, sendPeriodChange, setupYear, startInvites } from "@/server/repo/cycles";
 import { batchProgress, drainOutbox, retryFailed, type BatchProgress } from "@/server/repo/outbox";
 import { replaceRoster, updateReviewer } from "@/server/repo/roster";
 
@@ -17,11 +16,15 @@ const PERIOD_KEYS = ["selfStart", "selfEnd", "firstStart", "firstEnd", "secondSt
 export type RosterPreview = Pick<RosterCheck, "issues" | "counts">;
 
 /** 미리보기: 브라우저가 읽은 줄을 서버가 같은 규칙으로 다시 검사 */
+const NEED_NEW = "지난 평가가 마감되었습니다. [평가 관리]에서 새 정기평가를 먼저 만들어 주세요.";
+
 export async function previewRosterAction(rows: unknown): Promise<Result<RosterPreview>> {
-  await requireAdmin();
+  const actor = await requireAdmin();
   const parsed = rawRowsSchema.safeParse(rows);
   if (!parsed.success) return fail("invalid", "명단 형식이 템플릿과 다릅니다. 템플릿을 다시 내려받아 작성해 주세요.");
-  const r = checkRoster(parsed.data, seoulYear());
+  const year = await setupYear(actor);
+  if (!year) return fail("no_cycle", NEED_NEW);
+  const r = checkRoster(parsed.data, year);
   return ok({ issues: r.issues, counts: r.counts });
 }
 
@@ -29,7 +32,8 @@ export async function applyRosterAction(rows: unknown): Promise<Result<RosterPre
   const actor = await requireAdmin();
   const parsed = rawRowsSchema.safeParse(rows);
   if (!parsed.success) return fail("invalid", "명단 형식이 템플릿과 다릅니다.");
-  const year = seoulYear();
+  const year = await setupYear(actor);
+  if (!year) return fail("no_cycle", NEED_NEW);
   const r = checkRoster(parsed.data, year);
   if (r.counts.needsCheck > 0) return fail("needs_check", `확인 필요 ${r.counts.needsCheck}명을 고쳐 다시 올려 주세요.`);
   const saved = await replaceRoster(actor, year, r.people);
@@ -63,7 +67,9 @@ export async function savePeriodsAction(_prev: PeriodsState, form: FormData): Pr
     for (const i of parsed.error.issues) errors[i.path[0] as keyof Periods] = "날짜를 골라 주세요";
     return { message: "비어 있는 날짜가 있습니다.", errors, values };
   }
-  const r = await savePeriods(actor, seoulYear(), parsed.data);
+  const year = await setupYear(actor);
+  if (!year) return { message: NEED_NEW, values };
+  const r = await savePeriods(actor, year, parsed.data);
   if (!r.ok) return { message: r.message, errors: "errors" in r ? r.errors : undefined, values };
   revalidatePath("/admin/setup");
   revalidatePath("/admin");
@@ -81,9 +87,21 @@ function kickDrain() {
   });
 }
 
+/** 바뀐 일정 안내 메일 (2026-10-15) */
+export async function sendPeriodChangeAction(): Promise<Result<{ batchId: string; count: number }>> {
+  const actor = await requireAdmin();
+  const sy = await setupYear(actor);
+  const cycle = sy ? await getCycleDetail(actor, sy) : null;
+  if (!cycle) return fail("no_roster", "직원 명단을 먼저 올려 주세요.");
+  const r = await sendPeriodChange(actor, cycle.id);
+  if (r.ok) kickDrain();
+  return r;
+}
+
 export async function sendInvitesAction(version: number): Promise<Result<{ batchId: string; count: number }>> {
   const actor = await requireAdmin();
-  const cycle = await getCycleDetail(actor, seoulYear());
+  const sy = await setupYear(actor);
+  const cycle = sy ? await getCycleDetail(actor, sy) : null;
   if (!cycle) return fail("no_roster", "직원 명단을 먼저 올려 주세요.");
   const r = await startInvites(actor, cycle.id, version);
   if (r.ok) {

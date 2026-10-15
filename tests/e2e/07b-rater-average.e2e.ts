@@ -33,28 +33,35 @@ for (const id of ids.slice(0, 2)) {
   await page.goto(`${BASE}/me/review/first/${id}`);
   await fill("9", "8");
   await page.getByRole("button", { name: "제출" }).click();
-  await page.getByText("제출함").waitFor();
+  await page.waitForURL((u) => !u.pathname.endsWith(id), { timeout: 15000 }); // 제출하면 다음 사람으로 넘어간다
 }
 await page.goto(`${BASE}/me/review/first/${ids[2]}`);
 await fill("8", "8"); // 80점 → 평균 82
 await page.waitForTimeout(500);
-await check("점수를 넣는 동안 내 평균과 조정 안내가 바로 보인다", async () =>
-  (await page.getByTestId("my-average").innerText()) === "82.00점" && (await page.getByTestId("average-advice").innerText()).includes("업적 점수 합계를 1점 낮추면"),
+const advice = await page.getByTestId("average-advice").innerText().catch(() => "");
+await check("점수를 넣는 동안 '내가 준 점수 평균'과 사람별 조정 제안(이 사람 업적 8.0 → 7.1 / 모두 −0.3)이 화면 위쪽에 바로 보인다 (2026-10-15)", async () =>
+  (await page.getByTestId("my-average").innerText()) === "82.00점" &&
+  (await page.getByText("내가 준 점수 평균").count()) >= 1 &&
+  advice.includes("업적 8.0 → 7.1") &&
+  advice.includes("-0.3점씩") &&
+  (await page.getByTestId("average-panel").evaluate((el) => getComputedStyle(el).position)) === "sticky",
 );
 await page.getByRole("button", { name: "제출" }).click();
 await page.waitForTimeout(1500);
 await check("묶음의 마지막 사람을 제출할 때 평균이 80 ± 0.5를 벗어나면 제출이 막히고 몇 점을 어떻게 고칠지 보인다", async () => {
   const t = await page.getByTestId("average-block").innerText();
   const [r] = await sql`select first_submitted_at from evaluations where person_id = ${ids[2]!}`;
-  return t.includes("평균이 80점에 맞지 않아 제출할 수 없습니다") && t.includes("지금 평균 82.00점") && t.includes("업적 점수 합계를 1점 낮추면 평균 79.67점") && !r?.first_submitted_at;
+  return t.includes("평균이 80점에 맞지 않아 제출할 수 없습니다") && (await page.getByTestId("average-advice").innerText()).includes("업적 8.0 → 7.1") && !r?.first_submitted_at;
 });
 await page.screenshot({ path: "/tmp/hr-e2e/07b-average.png", fullPage: true });
-await inputs().last().fill("7"); // 안내대로 업적 1점 낮춤 → 73점, 평균 79.67
+await inputs().last().fill("7.1"); // 안내대로 업적 8.0 → 7.1 → 73.7점, 평균 79.90 (0.1점 단위, 2026-10-15)
+await page.waitForTimeout(300);
+const avgAfter = await page.getByTestId("my-average").innerText();
 await page.getByRole("button", { name: "제출" }).click();
-await page.getByText("제출함").waitFor({ timeout: 8000 }).catch(() => null);
-await check("안내대로 고치면 제출된다", async () => {
+await page.waitForURL(/\/me\/review\/first\?done=1/, { timeout: 15000 }).catch(() => null);
+await check("안내대로 고치면(소수점 가능) 제출되고, 마지막이면 내 평가 현황으로 넘어간다", async () => {
   const [r] = await sql`select first_submitted_at from evaluations where person_id = ${ids[2]!}`;
-  return !!r?.first_submitted_at && (await page.getByTestId("my-average").innerText()) === "79.67점";
+  return !!r?.first_submitted_at && avgAfter === "79.90점" && page.url().includes("done=1");
 });
 await check("모두 제출한 뒤 다시 고쳐 평균을 벗어나면 다시 제출할 수 없다", async () => {
   await page.goto(`${BASE}/me/review/first/${ids[0]}`);

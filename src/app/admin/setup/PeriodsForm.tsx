@@ -1,11 +1,11 @@
 "use client";
 
-import { CalendarDays, CircleAlert, CircleCheck, Save } from "lucide-react";
-import { useActionState } from "react";
+import { CalendarDays, CircleAlert, CircleCheck, Mail, Save } from "lucide-react";
+import { useActionState, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { FieldError, Input, Label } from "@/components/ui/input";
 import type { Periods } from "@/domain/periods";
-import { savePeriodsAction, type PeriodsState } from "./actions";
+import { savePeriodsAction, sendPeriodChangeAction, type PeriodsState } from "./actions";
 
 const RANGES = [
   { label: "개인작성 기간", start: "selfStart", end: "selfEnd" },
@@ -13,7 +13,7 @@ const RANGES = [
   { label: "2차평가 기간", start: "secondStart", end: "secondEnd" },
 ] as const;
 
-export function PeriodsForm({ initial, locked, lockMessage }: { initial: Partial<Periods>; locked: boolean; lockMessage?: string }) {
+export function PeriodsForm({ initial, locked, lockMessage, sent = false }: { initial: Partial<Periods>; locked: boolean; lockMessage?: string; sent?: boolean }) {
   const [state, action, pending] = useActionState(savePeriodsAction, { values: initial } as PeriodsState);
   const v = state.values ?? initial;
   const err = state.errors ?? {};
@@ -63,6 +63,7 @@ export function PeriodsForm({ initial, locked, lockMessage }: { initial: Partial
             {state.message}
           </span>
         )}
+        {sent && !locked && <PeriodChangeNotice highlight={!!state.ok} />}
         {locked && (
           <span className="flex items-center gap-1.5 text-caption text-muted-foreground">
             <CalendarDays className="size-3.5" aria-hidden="true" />
@@ -71,5 +72,41 @@ export function PeriodsForm({ initial, locked, lockMessage }: { initial: Partial
         )}
       </div>
     </form>
+  );
+}
+
+/** 안내 메일을 보낸 뒤 기간을 바꿨으면 바뀐 일정을 다시 알린다 (2026-10-15 피드백) */
+function PeriodChangeNotice({ highlight }: { highlight: boolean }) {
+  const [ask, setAsk] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [pending, start] = useTransition();
+  if (msg) return <span role="status" className={`text-caption ${msg.ok ? "text-success" : "text-danger"}`} data-testid="period-change-result">{msg.text}</span>;
+  if (!ask)
+    return (
+      <Button type="button" variant={highlight ? "default" : "ghost"} size="sm" onClick={() => setAsk(true)}>
+        <Mail aria-hidden="true" />
+        변경 안내 메일 보내기
+      </Button>
+    );
+  return (
+    <span className="flex items-center gap-2 text-caption">
+      대상자·평가자 모두에게 바뀐 일정을 보냅니다.
+      <Button
+        type="button"
+        size="sm"
+        disabled={pending}
+        onClick={() =>
+          start(async () => {
+            const r = await sendPeriodChangeAction();
+            setMsg(r.ok ? { ok: true, text: `${r.value.count}명에게 변경 안내 메일을 보냈습니다.` } : { ok: false, text: r.message });
+          })
+        }
+      >
+        보내기
+      </Button>
+      <Button type="button" size="sm" variant="ghost" onClick={() => setAsk(false)}>
+        취소
+      </Button>
+    </span>
   );
 }

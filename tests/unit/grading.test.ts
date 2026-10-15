@@ -120,3 +120,16 @@ describe("등급조정 (PRD 12)", () => {
     expect(e.get("p1")).toBe(40);
   });
 });
+
+describe("0.1점 단위 점수 (2026-10-15)", () => {
+  it("소수 점수도 부동소수 오차 없이 계산한다", () => {
+    const f = fill("member", 7.3, 8.6), sc = fill("member", 6.9, 8.1);
+    const r = computeScores("member", f, sc, 0);
+    if (r.blank) throw new Error();
+    // 역량 = 10 × (7.3×0.6 + 6.9×0.4) = 71.4, 업적 = (8.6×0.6 + 8.1×0.4)×10 = 84
+    expect(r.competency).toBe(71.4);
+    expect(r.achievement).toBe(84);
+    expect(r.final).toBe(80.22); // 71.4×0.3 + 84×0.7
+    expect(r.firstTotal).toBe(82.1); // 73×0.3 + 86×0.7
+  });
+});

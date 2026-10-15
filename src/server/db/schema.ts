@@ -98,7 +98,7 @@ export const emailOutbox = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     cycleId: uuid("cycle_id").references(() => reviewCycles.id, { onDelete: "cascade" }),
-    kind: text("kind", { enum: ["invite", "reminder", "stage_notice", "result_notice", "admin_alert"] }).notNull(),
+    kind: text("kind", { enum: ["invite", "reminder", "stage_notice", "result_notice", "admin_alert", "period_change"] }).notNull(),
     toEmail: text("to_email").notNull(),
     personId: uuid("person_id"),
     payload: jsonb("payload").$type<Record<string, string>>().notNull().default(sql`'{}'::jsonb`),
@@ -172,6 +172,8 @@ export const evaluations = pgTable("evaluations", {
   selfSubmittedAt: timestamp("self_submitted_at", { withTimezone: true }),
   firstSubmittedAt: timestamp("first_submitted_at", { withTimezone: true }),
   secondSubmittedAt: timestamp("second_submitted_at", { withTimezone: true }),
+  /** 본인 평가지를 관리자가 대신 입력했으면 그 관리자 이메일 (2026-10-15) */
+  selfProxyBy: text("self_proxy_by"),
   version: integer("version").notNull().default(0),
   ...timestamps,
 });

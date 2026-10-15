@@ -40,11 +40,11 @@ await page.goto(`${BASE}/admin/setup`);
 const dl = page.waitForEvent("download");
 await page.click('button:has-text("템플릿 내려받기")');
 const file = await (await dl).path();
-await check("[템플릿 내려받기]로 받은 엑셀의 제목 줄이 사번·이름·이메일·부서·직급·입사일·팀장 여부·담당 임원이다", async () => {
+await check("[템플릿 내려받기]로 받은 엑셀의 제목 줄이 사번·이름·이메일·부서·직급·입사일·팀장 여부·담당 임원·1차/2차 평가자 사번이다", async () => {
   const wb = new ExcelJS.Workbook();
   await wb.xlsx.readFile(file!);
   const row = wb.worksheets[0]!.getRow(1).values as unknown[];
-  return row.slice(1).join("|") === H.join("|");
+  return row.slice(1).join("|") === [...H, "1차 평가자 사번", "2차 평가자 사번"].join("|"); // 평가자 직접 지정 칸 (2026-10-15, 선택)
 });
 
 async function upload(path: string) {

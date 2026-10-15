@@ -1,7 +1,9 @@
 // 직원 명단 템플릿 규칙 (PRD 02). 브라우저와 서버가 같은 규칙으로 검사한다 (ADR-0008).
 import { z } from "zod";
 
-export const ROSTER_HEADERS = ["사번", "이름", "이메일", "부서", "직급", "입사일", "팀장 여부", "담당 임원"] as const;
+export const ROSTER_HEADERS = ["사번", "이름", "이메일", "부서", "직급", "입사일", "팀장 여부", "담당 임원", "1차 평가자 사번", "2차 평가자 사번"] as const;
+/** 앞 8칸은 필수 제목, 뒤 2칸(평가자 직접 지정, 2026-10-15)은 없어도 된다 (이전 템플릿 호환) */
+export const ROSTER_REQUIRED_HEADERS = 8;
 export const ROSTER_MAX_ROWS = 1000;
 export const ROSTER_MAX_BYTES = 1024 * 1024;
 
@@ -17,7 +19,20 @@ export const POSITION_GROUP: Record<string, 2 | 3 | 4 | 5> = {
   사원: 5,
 };
 
-export type RawRosterRow = { rowNo: number; employeeNo: string; name: string; email: string; department: string; position: string; hireDate: string; isTeamLeader: string; executiveEmail: string };
+export type RawRosterRow = {
+  rowNo: number;
+  employeeNo: string;
+  name: string;
+  email: string;
+  department: string;
+  position: string;
+  hireDate: string;
+  isTeamLeader: string;
+  executiveEmail: string;
+  /** 비우면 자동 지정, 채우면 그 사번의 사람으로 (부서와 팀장이 맞지 않는 경우, 2026-10-15) */
+  firstReviewerNo?: string;
+  secondReviewerNo?: string;
+};
 
 export const rawRowSchema = z.object({
   rowNo: z.number().int().min(2),
@@ -29,6 +44,8 @@ export const rawRowSchema = z.object({
   hireDate: z.string().max(20),
   isTeamLeader: z.string().max(10),
   executiveEmail: z.string().max(254),
+  firstReviewerNo: z.string().max(30).optional(),
+  secondReviewerNo: z.string().max(30).optional(),
 });
 export const rawRowsSchema = z.array(rawRowSchema).max(ROSTER_MAX_ROWS);
 
@@ -83,6 +100,7 @@ const no = (s: string) => ["아니오", "아니요", "n", "no", "x", ""].include
  * - 팀장: 1그룹·팀장용, 1차 평가자 = 담당 임원, 2차 없음
  * - 팀원: 직급으로 그룹, 1차 평가자 = 같은 부서 팀장, 2차 평가자 = 담당 임원
  * - 임원 직급: 평가 대상이 아니고 평가자로만 명단에 남음
+ * - "1차 평가자 사번"·"2차 평가자 사번"을 적으면 자동 지정 대신 그 사람으로 (2026-10-15). 적은 칸은 담당 임원·부서 팀장이 없어도 된다
  */
 export function checkRoster(rows: RawRosterRow[], cycleYear: number): RosterCheck {
   const issues: RosterIssue[] = [];
@@ -144,23 +162,42 @@ export function checkRoster(rows: RawRosterRow[], cycleYear: number): RosterChec
     void r.executiveEmail;
   }
 
-  // 평가자 자동 채움
+  // 평가자 자동 채움 (직접 지정한 칸이 우선)
   const byEmail = new Map(people.map((p) => [p.email, p]));
+  const byNo = new Map(people.filter((p) => p.employeeNo).map((p) => [p.employeeNo, p]));
+  /** 직접 지정한 사번 → 평가자. 틀리면 이유를 남기고 null */
+  const pick = (p: RosterPerson, raw: string | undefined, label: string): RosterPerson | null | undefined => {
+    const no = (raw ?? "").trim();
+    if (!no) return undefined;
+    const r = byNo.get(no);
+    if (!r) return add(p, `${label} 사번 ${no}이(가) 명단에 없습니다`), null;
+    if (r.email === p.email) return add(p, `${label}를 본인으로 지정할 수 없습니다`), null;
+    if (r.excludedReason === "7월 이후 입사") return add(p, `${label}(${r.name})가 평가 제외자입니다`), null;
+    return r;
+  };
   const leaderOf = new Map<string, RosterPerson>();
   for (const p of people) if (p.isTeamLeader && !p.isExecutive && p.department && !leaderOf.has(p.department)) leaderOf.set(p.department, p);
   for (const [i, p] of people.entries()) {
     if (!p.isTarget) continue;
     const exec = rows[i]!.executiveEmail.trim().toLowerCase();
     const execP = exec ? byEmail.get(exec) : undefined;
-    if (!exec) add(p, "담당 임원이 비어 있습니다");
-    else if (!execP || !execP.isExecutive) add(p, "담당 임원 이메일이 명단의 임원과 맞지 않습니다");
+    const first = pick(p, rows[i]!.firstReviewerNo, "1차 평가자");
+    const second = pick(p, rows[i]!.secondReviewerNo, "2차 평가자");
+    // 담당 임원은 자동 지정에 쓸 때만 필요하다
+    const needExec = p.formType === "leader" ? first === undefined : second === undefined;
+    if (needExec) {
+      if (!exec) add(p, "담당 임원이 비어 있습니다 (또는 평가자 사번을 직접 적어 주세요)");
+      else if (!execP || !execP.isExecutive) add(p, "담당 임원 이메일이 명단의 임원과 맞지 않습니다");
+    }
     if (p.formType === "leader") {
-      p.firstReviewerEmail = execP?.isExecutive ? execP.email : null;
+      p.firstReviewerEmail = first !== undefined ? (first?.email ?? null) : execP?.isExecutive ? execP.email : null;
+      if (second !== undefined) add(p, "팀장은 2차 평가자가 없습니다 (2차 평가자 사번 칸을 비워 주세요)");
     } else {
       const leader = leaderOf.get(p.department);
-      p.firstReviewerEmail = leader && leader.email !== p.email ? leader.email : null;
-      p.secondReviewerEmail = execP?.isExecutive ? execP.email : null;
-      if (!p.firstReviewerEmail) add(p, `${p.department}에 팀장이 없습니다 (1차 평가자)`);
+      p.firstReviewerEmail = first !== undefined ? (first?.email ?? null) : leader && leader.email !== p.email ? leader.email : null;
+      p.secondReviewerEmail = second !== undefined ? (second?.email ?? null) : execP?.isExecutive ? execP.email : null;
+      if (first === undefined && !p.firstReviewerEmail) add(p, `${p.department}에 팀장이 없습니다 (1차 평가자 사번을 직접 적어 주세요)`);
+      if (p.firstReviewerEmail && p.firstReviewerEmail === p.secondReviewerEmail) add(p, "1차 평가자와 2차 평가자가 같은 사람입니다");
     }
   }
 

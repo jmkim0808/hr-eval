@@ -4,21 +4,26 @@ import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { fail, type Result } from "@/lib/result";
 import { requireAdmin } from "@/server/authz/actor";
-import { getCurrentCycle } from "@/server/repo/cycles";
+import { getCurrentCycle, getCycleDetail } from "@/server/repo/cycles";
 import { exportBackup, exportFinal, type Sheet } from "@/server/repo/export";
 import { drainOutbox } from "@/server/repo/outbox";
 import { closeCycle, sendResultNotices } from "@/server/repo/results";
 
-export async function exportFinalAction(): Promise<Result<{ year: number; sheet: Sheet }>> {
+/** year를 주면 그 해 평가(지난 평가 보기), 없으면 최근 평가 */
+async function cycleFor(actor: Awaited<ReturnType<typeof requireAdmin>>, year?: unknown) {
+  return typeof year === "number" && Number.isInteger(year) ? getCycleDetail(actor, year) : getCurrentCycle(actor);
+}
+
+export async function exportFinalAction(year?: unknown): Promise<Result<{ year: number; sheet: Sheet }>> {
   const actor = await requireAdmin();
-  const c = await getCurrentCycle(actor);
+  const c = await cycleFor(actor, year);
   if (!c) return fail("no_cycle", "진행 중인 평가가 없습니다.");
   return exportFinal(actor, c.id);
 }
 
-export async function exportBackupAction(): Promise<Result<{ year: number; sheets: Sheet[] }>> {
+export async function exportBackupAction(year?: unknown): Promise<Result<{ year: number; sheets: Sheet[] }>> {
   const actor = await requireAdmin();
-  const c = await getCurrentCycle(actor);
+  const c = await cycleFor(actor, year);
   if (!c) return fail("no_cycle", "진행 중인 평가가 없습니다.");
   return exportBackup(actor, c.id);
 }

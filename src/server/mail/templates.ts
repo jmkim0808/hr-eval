@@ -44,7 +44,21 @@ export function renderOutbox(kind: string, to: string, payload: Record<string, s
   if (kind === "stage_notice") return stageNoticeMail(to, payload);
   if (kind === "admin_alert") return payload.digest ? errorDigestMail(to, payload) : adminAlertMail(to, payload);
   if (kind === "result_notice") return resultNoticeMail(to, payload);
+  if (kind === "period_change") return periodChangeMail(to, payload);
   throw new Error(`unknown mail kind ${kind}`);
+}
+
+/** 일정 변경 안내 (2026-10-15): 바뀐 기간만 (점수 없음) */
+export function periodChangeMail(to: string, p: Record<string, string>): MailMessage {
+  const link = `${env.appUrl}/`;
+  const subject = `[파워넷 인사평가] ${p.year}년 정기평가 일정이 바뀌었습니다`;
+  const lines = [
+    `${p.name} 님, ${p.year}년 정기평가 일정이 아래와 같이 바뀌었습니다.`,
+    `개인작성 ${p.selfRange} · 1차평가 ${p.firstRange} · 2차평가 ${p.secondRange}`,
+    `가점 인정 기준일은 ${p.bonusCutoff}입니다.`,
+    "사내 포털에서 인사평가를 열거나 아래 링크로 들어와 2차 인증(메일 인증번호)을 하면 내 할 일이 열립니다.",
+  ];
+  return { to, subject, text: `${lines.join("\n")}\n${link}\n\n㈜파워넷 인사평가 · 대외비`, html: wrap("일정 변경 안내", [...lines.map(esc), `<a href="${esc(link)}">${esc(link)}</a>`]) };
 }
 
 /** 독촉 이메일: 할 일·기한·링크만 (점수 없음) */

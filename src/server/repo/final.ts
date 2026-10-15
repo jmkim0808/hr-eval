@@ -1,6 +1,6 @@
 // 최종평가 (PRD 10). 관리자만. 계산은 domain/grading, 여기서는 읽고 저장만 한다.
 import { and, eq, inArray } from "drizzle-orm";
-import { scoreCodes } from "@/domain/review";
+import { isScore, scoreCodes } from "@/domain/review";
 import { replayAdjustments } from "@/server/repo/adjust";
 import { fail, ok, type Result } from "@/lib/result";
 import { bonusTotal, type BonusCode } from "@/domain/bonus";
@@ -171,7 +171,7 @@ export async function fillBlankScores(actor: Actor, personId: string, input: { f
     for (const [code, v] of Object.entries(input[rater] ?? {})) {
       if (!codes.has(code)) continue;
       if (f[rater][code]) return fail("filled", "이미 들어간 점수는 고칠 수 없습니다.");
-      if (!Number.isInteger(v) || v < 1 || v > 10) return fail("range", "점수는 1~10 사이 숫자만 넣을 수 있습니다.");
+      if (!isScore(v)) return fail("range", "점수는 1~10 사이, 소수 첫째 자리까지 넣을 수 있습니다.");
       rows.push({ rater, itemCode: code, score: v });
     }
   }

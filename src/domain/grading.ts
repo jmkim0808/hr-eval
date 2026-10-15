@@ -48,11 +48,13 @@ export function computeScores(form: FormType, first: Scores, second: Scores, bon
   if (form === "member" && all.some((c) => !second[c])) missing.push("second");
   if (missing.length) return { blank: true, missing };
 
-  // 역량·업적을 1/100점으로: 팀원은 (6f+4s)/10 을 정수로 다룬다
-  const weighted = (c: string) => (form === "member" ? 6 * first[c]! + 4 * second[c]! : 10 * first[c]!); // ×10 배
-  const comp100 = codes.reduce((s, c) => s + weighted(c), 0) * 10; // Σ/10 ×100
-  const ach100 = weighted(ACHIEVEMENT) * 100; // (/10 ×10) ×100
-  const single = (sc: Scores) => (codes.reduce((s, c) => s + sc[c]!, 0) * 100 * 3 + sc[ACHIEVEMENT]! * 1000 * 7) / 10;
+  // 점수는 0.1점 단위(2026-10-15 결정) → 1/10점 정수(t)로 바꿔 계산해 부동소수 오차를 없앤다
+  const t = (x: number) => Math.round(x * 10);
+  // 가중 점수 ×100: 팀원은 (6f+4s)/10, 팀장은 f
+  const weighted = (c: string) => (form === "member" ? 6 * t(first[c]!) + 4 * t(second[c]!) : 10 * t(first[c]!));
+  const comp100 = codes.reduce((s, c) => s + weighted(c), 0); // Σ 가중 ×100
+  const ach100 = weighted(ACHIEVEMENT) * 10; // 가중 업적 ×10 ×100
+  const single = (sc: Scores) => codes.reduce((s, c) => s + t(sc[c]!), 0) * 3 + t(sc[ACHIEVEMENT]!) * 70;
   const bonus100 = h(bonus);
   const final100 = (comp100 * 3 + ach100 * 7) / 10 + bonus100;
   return {

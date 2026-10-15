@@ -1,14 +1,16 @@
-import { ArrowRightLeft, Mail } from "lucide-react";
+import { ArrowRightLeft, CalendarPlus, Mail } from "lucide-react";
+import Link from "next/link";
+import { buttonVariants } from "@/components/ui/button";
+import { Empty } from "@/components/ui/empty";
 import { AdminNav } from "@/components/AdminNav";
 import { PageHeader } from "@/components/PageHeader";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { seoulYear } from "@/lib/time";
 import { requireAdmin } from "@/server/authz/actor";
 import { fmtDay, fmtRange } from "@/domain/periods";
 import { inviteMail } from "@/server/mail/templates";
-import { getCycleDetail, inviteReadiness, latestBatch } from "@/server/repo/cycles";
+import { getCycleDetail, inviteReadiness, latestBatch, setupYear } from "@/server/repo/cycles";
 import { batchProgress } from "@/server/repo/outbox";
 import { listReviewerCandidates, listTargets } from "@/server/repo/roster";
 import { InviteCard } from "./InviteCard";
@@ -20,7 +22,22 @@ const GROUP = { 1: "1그룹 팀장", 2: "2그룹 부장", 3: "3그룹 차장", 4
 
 export default async function SetupPage() {
   const a = await requireAdmin();
-  const year = seoulYear();
+  const sy = await setupYear(a);
+  if (sy === null)
+    return (
+      <>
+        <AdminNav current="/admin/setup" />
+        <main className="flex flex-col gap-6 px-8 py-6">
+          <PageHeader title="평가 시작 설정" description="누구를, 누가, 언제까지 평가할지 정합니다" />
+          <Card data-testid="need-new-cycle">
+            <Empty icon={<CalendarPlus aria-hidden="true" />} title="지난 정기평가가 마감되었습니다" action={<Link className={buttonVariants()} href="/admin/cycles">평가 관리에서 새 정기평가 만들기</Link>}>
+              새 평가를 만들면 여기서 명단·기간·안내 메일을 준비합니다. 지난 평가는 평가 관리에서 볼 수 있습니다.
+            </Empty>
+          </Card>
+        </main>
+      </>
+    );
+  const year = sy;
   const cycle = await getCycleDetail(a, year);
   const targets = cycle ? await listTargets(a, cycle.id) : [];
   const cand = cycle ? await listReviewerCandidates(a, cycle.id) : [];
@@ -61,7 +78,7 @@ export default async function SetupPage() {
         <Card>
           <CardHeader>
             <CardTitle>① 직원 명단</CardTitle>
-            <CardDescription>사번 · 이름 · 이메일 · 부서 · 직급 · 입사일 · 팀장 여부 · 담당 임원</CardDescription>
+            <CardDescription>사번 · 이름 · 이메일 · 부서 · 직급 · 입사일 · 팀장 여부 · 담당 임원 · 1차·2차 평가자 사번(선택, 비우면 자동 지정)</CardDescription>
           </CardHeader>
           <CardContent>
             <RosterUpload locked={!!cycle && cycle.status !== "setup"} />
@@ -127,7 +144,7 @@ export default async function SetupPage() {
             <CardDescription>기간 안에서는 자유롭게 쓰고 고칠 수 있습니다. 기간이 지나도 저절로 잠기지 않고, 관리자가 다음 단계로 넘기면 잠깁니다</CardDescription>
           </CardHeader>
           <CardContent>
-            <PeriodsForm initial={periods} locked={!cycle || periodsLocked} lockMessage={!cycle ? "직원 명단을 먼저 반영하면 기간을 정할 수 있습니다." : undefined} />
+            <PeriodsForm initial={periods} locked={!cycle || periodsLocked} lockMessage={!cycle ? "직원 명단을 먼저 반영하면 기간을 정할 수 있습니다." : undefined} sent={!!cycle && cycle.status !== "setup"} />
           </CardContent>
         </Card>
 

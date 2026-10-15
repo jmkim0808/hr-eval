@@ -47,7 +47,7 @@ await inputs().first().fill("11");
 await lp.waitForTimeout(2200);
 await check("11 같은 범위 밖 숫자는 저장되지 않고 이유가 보인다", async () => {
   const [r] = await sql`select count(*)::int n from evaluation_scores s join evaluations e on e.id = s.evaluation_id where e.person_id = ${ids["김대리"]!} and s.rater = 'first'`;
-  return (await lp.getByText("1~10 사이 숫자만 넣을 수 있습니다").count()) >= 1 && r!.n === 0;
+  return (await lp.getByText("1~10 사이, 소수 첫째 자리까지 넣을 수 있습니다").count()) >= 1 && r!.n === 0;
 });
 
 async function fillAll(v: string) {
@@ -56,24 +56,25 @@ async function fillAll(v: string) {
 }
 await fillAll("8");
 await lp.getByRole("button", { name: "제출" }).click();
-await lp.getByRole("link", { name: "다음 사람" }).waitFor();
-await lp.getByRole("link", { name: "다음 사람" }).click();
+await lp.getByTestId("submitted-toast").waitFor();
+const toastOk = (await lp.getByTestId("submitted-toast").innerText()).includes("제출했습니다");
 await lp.waitForURL((u) => !u.pathname.endsWith(ids["김대리"]!));
-await check("[제출] 뒤 [다음 사람]을 누르면 같은 묶음의 다음 팀원이 열린다", async () => {
+await check("[제출]하면 \"제출했습니다\" 알림 뒤 아직 안 한 다음 팀원으로 저절로 넘어간다 (2026-10-15)", async () => {
   const id = lp.url().split("/").pop();
-  return id === ids["박과장"] || id === ids["이주임"];
+  return toastOk && (id === ids["박과장"] || id === ids["이주임"]);
 });
 for (let k = 0; k < 2; k++) {
   await inputs().first().waitFor();
+  const here = lp.url();
   await fillAll("8"); // 평균 80점 규칙(3명 이상)에 맞게 모두 80점
   await lp.getByRole("button", { name: "제출" }).click();
-  await lp.getByText("제출함").waitFor();
-  const next = lp.getByRole("link", { name: "다음 사람" });
-  if (k === 0) {
-    await next.click();
-    await lp.waitForTimeout(800);
-  }
+  await lp.waitForURL((u) => u.href !== here, { timeout: 15000 });
 }
+await lp.waitForLoadState("networkidle");
+await check("모두 제출하면 내 평가 현황으로 넘어가 \"모두 제출했습니다\"와 팀원별 1차 역량·업적·점수가 보인다 (2026-10-15)", async () => {
+  const t = await lp.locator("main").innerText();
+  return lp.url().includes("/me/review/first?done=1") && (await lp.getByTestId("all-done").count()) === 1 && (await lp.locator("tr[data-person]").count()) === 3 && t.includes("80.00") && !t.includes("2차 평가");
+});
 await lp.goto(`${BASE}/me`);
 await check("다 끝나면 내 할 일에 \"3명 중 3명 완료\"가 보이고 묶음이 아래로 내려간다", async () => {
   const after = await reviewTaskPos();

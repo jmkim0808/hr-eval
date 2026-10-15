@@ -48,16 +48,20 @@ describe("평가하기 권한 (PRD 07)", () => {
     expect(seesFirstScores("first")).toBe(false);
     expect(seesFirstScores("second")).toBe(true);
   });
-  it("범위 밖 숫자는 저장하지 않는다", () => {
+  it("범위 밖 숫자는 저장하지 않는다 (0.1점 단위는 허용, 2026-10-15)", () => {
     expect(parseScore("11")).toBe("invalid");
     expect(parseScore("0")).toBe("invalid");
-    expect(parseScore("3.5")).toBe("invalid");
+    expect(parseScore("0.9")).toBe("invalid");
+    expect(parseScore("3.5")).toBe(3.5);
+    expect(parseScore("7.3")).toBe(7.3);
+    expect(parseScore("7.35")).toBe("invalid");
+    expect(parseScore("10.1")).toBe("invalid");
     expect(parseScore("10")).toBe(10);
     expect(parseScore("")).toBeNull();
   });
 });
 
-import { averageAdvice, checkAverage, raterTotal } from "@/domain/review";
+import { averageAdvice, averageGuide, checkAverage, raterTotal } from "@/domain/review";
 
 describe("평가자 평균 80점", () => {
   const all = (v: number, ach: number) => ({ ...Object.fromEntries(["responsibility", "teamwork", "discipline", "objectivity", "execution", "knowledge", "information", "contribution", "communication", "trust"].map((c) => [c, v])), achievement: ach });
@@ -78,6 +82,26 @@ describe("평가자 평균 80점", () => {
       expect(Math.abs(Number(m![1]) - 80)).toBeLessThanOrEqual(0.5);
     }
     expect(averageAdvice(83, 3)).toContain("낮추면");
-    expect(averageAdvice(82, 3)).toContain("업적 점수 1점은 평균을 2.33점, 역량 항목 1점은 0.10점");
+    expect(averageAdvice(82, 3)).toContain("업적 점수 합계를 0.9점 낮추면 평균 79.90점");
+  });
+});
+
+describe("평균 안내 — 사람별 구체 제안 (2026-10-15)", () => {
+  const row = (id: string, total: number | null, ach: number | null) => ({ id, name: id, total, ach });
+  it("다 넣기 전에는 남은 사람에게 평균 몇 점을 주면 되는지", () => {
+    const g = averageGuide([row("a", 90, 9), row("b", 80, 8), row("c", null, null), row("d", null, null)], "a");
+    expect(g).toMatchObject({ kind: "pending", filled: 2, n: 4, perPerson: 75 });
+  });
+  it("다 넣었는데 87.5점이면: 지금 사람 업적만 고치기와 모두 고르게 고치기 두 가지", () => {
+    const g = averageGuide([row("a", 90, 9), row("b", 80, 8), row("c", 80, 8), row("d", 100, 10)], "d");
+    if (g.kind !== "off") throw new Error(g.kind);
+    expect(g.options[0]).toMatchObject({ changes: [{ id: "d", from: 10, to: 5.7 }] });
+    expect(Math.abs(g.options[0]!.after - 80)).toBeLessThanOrEqual(0.5);
+    expect(g.options[1]!.changes.every((c) => Math.abs(c.to - c.from + 1.1) < 1e-9)).toBe(true);
+    expect(Math.abs(g.options[1]!.after - 80)).toBeLessThanOrEqual(0.5);
+  });
+  it("기준 안이면 ok, 2명 이하면 적용 안 함", () => {
+    expect(averageGuide([row("a", 80, 8), row("b", 80.3, 8), row("c", 79.9, 8)], "a").kind).toBe("ok");
+    expect(averageGuide([row("a", 90, 9), row("b", 70, 7)], "a").kind).toBe("na");
   });
 });
