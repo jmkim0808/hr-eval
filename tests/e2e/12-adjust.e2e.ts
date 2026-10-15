@@ -82,7 +82,7 @@ await check("[적용] 뒤 그룹의 등급별 인원은 그대로이고, 두 사
   const upClass = (await up.getAttribute("class")) ?? "";
   const downClass = (await down.getAttribute("class")) ?? "";
   return (
-    counts0.includes("지금 S 1 · A 2 · B 4 · C 2 · D 1") && t.includes("지금 S 1 · A 2 · B 4 · C 2 · D 1") && (await gradeOf("삼번")) === "S" && (await gradeOf("일번")) === "A" && upClass.includes("grade-up") && downClass.includes("grade-down")
+    counts0.includes("최종(대표이사 조정 포함) S 1 · A 2 · B 4 · C 2 · D 1") && t.includes("최종(대표이사 조정 포함) S 1 · A 2 · B 4 · C 2 · D 1") && (await gradeOf("삼번")) === "S" && (await gradeOf("일번")) === "A" && upClass.includes("grade-up") && downClass.includes("grade-down")
   );
 });
 await check("조정해도 두 사람의 최종점수 숫자는 바뀌지 않는다", async () => (await finalOf("삼번")) === before.삼번 && (await finalOf("일번")) === before.일번);
@@ -98,7 +98,7 @@ await row("삼번").getByRole("button", { name: "되돌리기" }).click();
 await page.waitForTimeout(1500);
 await page.reload();
 await check("[되돌리기]를 누르면 두 사람이 원래 등급으로 돌아간다", async () =>
-  (await gradeOf("삼번")) === "A" && (await gradeOf("일번")) === "S" && (await row("삼번").getByText("조정").count()) === 0 && (await row("일번").getByText("밀려남").count()) === 0,
+  (await gradeOf("삼번")) === "A" && (await gradeOf("일번")) === "S" && (await row("삼번").getByText(/^조정 · /).count()) === 0 && (await row("일번").getByText("밀려남").count()) === 0,
 );
 
 await b.close();
