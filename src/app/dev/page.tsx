@@ -11,6 +11,7 @@ import { getDb } from "@/server/db/client";
 import { appUsers, cyclePeople, reviewCycles } from "@/server/db/schema";
 import { sentInLogMode } from "@/server/mail/sender";
 import { PickButton } from "./DevPicker";
+import { PastYearButton } from "./PastYearButton";
 
 export const dynamic = "force-dynamic";
 
@@ -26,6 +27,7 @@ export default async function DevPortalPage() {
     ? await db.select().from(cyclePeople).where(and(eq(cyclePeople.cycleId, cycle.id))).orderBy(desc(cyclePeople.isExecutive), desc(cyclePeople.isTeamLeader), cyclePeople.department, cyclePeople.name)
     : [];
   const canLogin = !!cycle && cycle.status !== "setup";
+  const hasPast = !!cycle && (await db.select({ id: reviewCycles.id }).from(reviewCycles).where(eq(reviewCycles.year, cycle.year - 1)).limit(1)).length > 0;
   const role = (p: typeof cyclePeople.$inferSelect) => (p.accessBlocked ? "접근 차단" : p.isExecutive ? "임원" : p.isTeamLeader ? "팀장" : p.isTarget ? "직원" : "평가 비대상");
   const mails = [...sentInLogMode].reverse().slice(0, 20);
   return (
@@ -35,9 +37,9 @@ export default async function DevPortalPage() {
         <FlaskConical aria-hidden="true" />
         <AlertTitle>이렇게 시험합니다</AlertTitle>
         <AlertDescription>
-          <span>① 사람을 고르면 2차 인증 화면으로 갑니다. 인증번호는 메일 대신 화면에 바로 보입니다.</span>
-          <span>② 다른 사람으로 바꾸려면 이 화면(위쪽 노란 줄의 [사람 바꾸기])으로 돌아와 다시 고릅니다.</span>
-          <span>③ 두 사람을 동시에 보려면 다른 브라우저(예: 엣지와 크롬)를 하나 더 씁니다.</span>
+          <p>① 사람을 고르면 2차 인증 화면으로 갑니다. 인증번호는 메일 대신 화면에 바로 보입니다.</p>
+          <p>② 다른 사람으로 바꾸려면 이 화면(위쪽 노란 줄의 [사람 바꾸기])으로 돌아와 다시 고릅니다.</p>
+          <p>③ 두 사람을 동시에 보려면 다른 브라우저(예: 엣지와 크롬)를 하나 더 씁니다.</p>
         </AlertDescription>
       </Alert>
 
@@ -110,6 +112,19 @@ export default async function DevPortalPage() {
             </TableBody>
           </Table>
         )}
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>지난 평가 기록 시험용 데이터</CardTitle>
+          <CardDescription>
+            올해 명단을 그대로 써서 작년 정기평가(마감)를 가짜 점수·업적 글·평가의견·가점으로 만듭니다. 올해 안내 이메일을 보낸 뒤, 관리자로 보안 열쇠를 연 상태에서 누르세요.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <PastYearButton disabled={!canLogin || hasPast} />
+          {hasPast && <p className="mt-2 text-caption text-muted-foreground">작년 기록이 이미 있습니다.</p>}
+        </CardContent>
       </Card>
 
       <Card>

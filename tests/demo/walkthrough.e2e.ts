@@ -150,6 +150,7 @@ async function scoreAll(p: Page, kind: "first" | "second" | "leader", score: str
     await p.goto(new URL(href, BASE).toString());
     const v = score === "vary" ? scoreOf(links.length, links.indexOf(href)) : score;
     for (const i of await p.locator('input[aria-label$=" 점수"]:not([disabled])').all()) await i.fill(v);
+    if (await p.locator("#review-comment").count()) await p.fill("#review-comment", `${kind === "second" ? "2차" : kind === "leader" ? "임원" : "1차"} 시험 의견입니다.`);
     await p.getByRole("button", { name: "제출" }).click();
     await p.waitForTimeout(1200);
     if (await bad(p)) errors.push(`${kind} ${href}`);
@@ -162,6 +163,7 @@ const leadLinks = await reviewLinks(lead, "first");
 for (const [i, href] of leadLinks.entries()) {
   await lead.goto(new URL(href, BASE).toString());
   for (const inp of await lead.locator('input[aria-label$=" 점수"]:not([disabled])').all()) await inp.fill(i === leadLinks.length - 1 ? "10" : scoreOf(leadLinks.length, i));
+  await lead.fill("#review-comment", "1차 시험 의견입니다.");
   await lead.getByRole("button", { name: "제출" }).click();
   await lead.waitForTimeout(1200);
 }
@@ -201,6 +203,11 @@ await admin.waitForSelector("text=/명 일치/");
 await admin.getByRole("button", { name: /명 반영하기/ }).click();
 await admin.waitForSelector("text=반영 완료");
 await check("가점 템플릿을 내려받아 채워 올리면 11명 반영된다", async () => (await admin.locator("main").innerText()).includes("11"));
+{
+  const k = await as("김대리");
+  await k.goto(`${BASE}/me/bonus`);
+  await check("[2026-10-15] 직원이 [내 가점]에서 넣자마자 자기 가점(합계 1)과 바뀐 기록을 본다", async () => (await k.getByTestId("my-bonus-total").innerText()) === "1" && (await k.getByTestId("bonus-history").count()) === 1);
+}
 
 // ── 7. 최종평가 · 대표이사 · 확정 ──
 await admin.goto(`${BASE}/admin/final`);
@@ -221,6 +228,16 @@ await check("대표이사 화면에 등급 결과가 보인다 (업적 글은 �
   }
   return t.includes("최종점수") && !t.includes("올해 업적");
 });
+// 대표이사 조정 (등급별 비중과 상관없이 S~D)
+await ceo.goto(`${BASE}/report?group=5`);
+const lastRow = ceo.locator("tbody tr").filter({ has: ceo.locator("select") }).last();
+const lastName = (await lastRow.locator("td").nth(1).innerText()).trim();
+await ceo.getByRole("combobox", { name: `${lastName} 대표이사 조정` }).selectOption("S");
+await ceo.waitForTimeout(2000);
+await ceo.reload();
+await check("[2026-10-15] 대표이사가 등급 결과 화면에서 비중과 상관없이 S로 바꾸면 바로 반영되고 '대표 조정'으로 보인다", async () =>
+  (await ceo.locator(`tr[data-person="${lastName}"] [data-grade]`).innerText()).trim() === "S" && (await ceo.locator(`tr[data-person="${lastName}"]`).getByText(/대표 조정/).count()) === 1,
+);
 await admin.goto(`${BASE}/admin/final`);
 await admin.getByRole("button", { name: "확정", exact: true }).click();
 await admin.locator('[role="alertdialog"]').getByRole("button", { name: "확정", exact: true }).click();
@@ -236,7 +253,7 @@ const kim = await as("김대리");
 await kim.goto(`${BASE}/me/result`);
 await check("직원이 내 평가결과에서 점수·가점·등급·상위 %를 본다 (조정 여부는 없음)", async () => {
   const t = await kim.locator("main").innerText();
-  return ["1차 점수", "2차 점수", "최종점수", "평가등급", "상위"].every((w) => t.includes(w)) && !t.includes("조정");
+  return ["1차 점수", "2차 점수", "최종점수", "평가등급", "상위"].every((w) => t.includes(w)) && !t.includes("조정") && t.includes("1차 시험 의견입니다.") && t.includes("2차 시험 의견입니다.");
 });
 await admin.goto(`${BASE}/admin/results`);
 // 결과 메일이 다 나가야 [평가 마감]이 보인다 (보고 있는 동안 10통씩 보냄)
@@ -246,6 +263,20 @@ await admin.locator('[role="alertdialog"]').getByRole("button", { name: "마감"
 await admin.waitForTimeout(2000);
 await admin.goto(`${BASE}/admin`);
 await check("평가를 마감하면 진행 현황에 \"정기평가 마감\"과 보관 기한이 보인다", async () => (await admin.locator('[data-testid="closed-line"]').count()) === 1 && (await admin.locator('[data-testid="retention"]').innerText()).includes("3년"));
+
+// 지난 평가 기록: 시험용 포털에서 작년 기록을 만들고 직원·팀장이 본다
+await admin.goto(`${BASE}/dev`);
+await admin.getByTestId("make-past-year").click();
+await admin.getByText(/기록을 \d+명분 만들었습니다/).waitFor({ timeout: 30_000 }).catch(() => null);
+await kim.goto(`${BASE}/me/history`);
+await check("[2026-10-15] 시험용 포털에서 작년 기록을 만들면 직원의 [지난 평가 기록]에 작년·올해가 보이고 업적 글을 열 수 있다", async () => {
+  const years = await kim.locator("[data-year]").count();
+  await kim.locator("[data-year] a").last().click();
+  await kim.waitForLoadState("networkidle");
+  return years === 2 && (await kim.getByTestId("history-achievement").innerText()).length > 20;
+});
+await lead.goto(`${BASE}/me/history`);
+await check("[2026-10-15] 팀장의 [지난 평가 기록]에 그 해 평가한 팀원이 보인다", async () => (await lead.locator('[data-testid^="reviewed-"]').first().innerText()).includes("김대리"));
 
 await check("한 바퀴 동안 어느 화면에서도 오류가 나지 않았다", async () => {
   if (errors.length) console.log("오류:", errors);
