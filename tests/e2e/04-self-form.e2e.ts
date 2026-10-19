@@ -42,7 +42,7 @@ await page.click(`text=내 평가지 작성 — 마감 ${end}`);
 await page.waitForURL(/\/me\/form\//);
 const formUrl = page.url();
 await check("팀원에게는 팀원용 10개 항목(일처리·신뢰성 포함, 리더쉽 없음)이 보인다", async () => {
-  const groups = await page.locator('[role="group"]').count();
+  const groups = await page.locator('[role="group"][aria-labelledby^="label-"]').count();
   const t = await page.locator("main").innerText();
   return groups === 10 && t.includes("팀원용 인사평가지") && t.includes("일처리") && t.includes("신뢰성") && !t.includes("리더쉽");
 });
@@ -52,7 +52,7 @@ await check("평가자 점수 칸과 가점 칸은 보이지 않고 \"가점은 
 });
 
 // 업적 빈 채 제출
-for (const g of await page.locator('[role="group"]').all()) await g.getByRole("button", { name: "7점" }).click();
+for (const g of await page.locator('[role="group"][aria-labelledby^="label-"]').all()) await g.getByRole("button", { name: "7점" }).click();
 await page.fill("#improvement", "내년에는 거래처 관리 체계를 정리하겠습니다.");
 await page.getByRole("button", { name: "제출" }).click();
 await page.waitForTimeout(1500);
@@ -117,7 +117,7 @@ await login(lp, "lead@powernet.test");
 await lp.goto(`${BASE}/me/form/${ld!.id}`);
 await check("팀장에게는 팀장역량(리더쉽·소통·계획)이 들어간 팀장용 항목이 보인다", async () => {
   const t = await lp.locator("main").innerText();
-  return (await lp.locator('[role="group"]').count()) === 10 && t.includes("팀장용 인사평가지") && t.includes("리더쉽") && t.includes("계획") && !t.includes("일처리");
+  return (await lp.locator('[role="group"][aria-labelledby^="label-"]').count()) === 10 && t.includes("팀장용 인사평가지") && t.includes("리더쉽") && t.includes("계획") && !t.includes("일처리");
 });
 await lp.goto(`${BASE}/me`);
 await lp.screenshot({ path: "/tmp/hr-e2e/04-tasks.png", fullPage: true });
