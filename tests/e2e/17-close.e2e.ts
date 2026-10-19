@@ -80,7 +80,9 @@ await check("마감 뒤에는 모든 화면이 보기 전용이다", async () =>
   const ep = await (await b.newContext()).newPage();
   await login(ep, "p1@powernet.test");
   await ep.goto(`${BASE}/me/form/${ids["일번"]}`);
-  if ((await ep.locator("main textarea:not([disabled]), main button:not([disabled])").count()) > 0) editable.push("self form");
+  // 보기 방식 단추·흐름 레일(2026-10-19)은 보는 곳만 바꾸는 단추라 뺀다
+  const selfEditable = await ep.locator("main textarea:not([disabled]), main button:not([disabled])").evaluateAll((els) => els.filter((e) => !e.closest('[data-testid="mode-switch"], [data-testid="flow-rail"]')).length);
+  if (selfEditable > 0) editable.push("self form");
   if (editable.length) console.log(editable);
   return editable.length === 0;
 });
