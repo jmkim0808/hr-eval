@@ -182,7 +182,7 @@ export function ReviewForm(p: Props) {
     ...p.items.map((it) => ({ key: it.code, group: it.group, label: it.name, done: vals[it.code] !== undefined, value: vals[it.code]?.toFixed(1), error: missing.has(it.code) })),
     { key: ACHIEVEMENT, group: "업적", label: "업적 점수", done: vals[ACHIEVEMENT] !== undefined, value: vals[ACHIEVEMENT]?.toFixed(1), error: missing.has(ACHIEVEMENT) },
     ...(p.showMine ? [{ key: "_comment", group: "의견", label: "평가의견 (선택)", done: comment.trim().length > 0, value: comment.trim() ? "작성함" : undefined }] : []),
-    { key: "_done", group: "마무리", label: p.editable ? "확인 · 제출" : "요약", done: false },
+    { key: "_done", group: "마무리", label: p.editable ? "마지막 확인" : "요약", done: false },
   ];
   const stepKeys = steps.map((x) => x.key);
   const at = Math.min(cur, steps.length - 1);

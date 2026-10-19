@@ -41,6 +41,7 @@ await check(`인증하면 내 할 일이 열리고 맨 위에 "내 평가지 작
 await page.click(`text=내 평가지 작성 — 마감 ${end}`);
 await page.waitForURL(/\/me\/form\//);
 const formUrl = page.url();
+await page.locator('[role="group"][aria-labelledby^="label-"]').first().waitFor(); // 보기 방식(한눈에 보기)이 적용될 때까지
 await check("팀원에게는 팀원용 10개 항목(일처리·신뢰성 포함, 리더쉽 없음)이 보인다", async () => {
   const groups = await page.locator('[role="group"][aria-labelledby^="label-"]').count();
   const t = await page.locator("main").innerText();
@@ -66,6 +67,7 @@ await check("쓰다가 1~2초 멈추면 \"저장됨 (시각)\"이 보인다", as
 await page.close();
 const p2 = await ctx.newPage();
 await p2.goto(formUrl);
+await p2.locator('[role="group"][aria-labelledby^="label-"], [data-testid="flow-card"]').first().waitFor().catch(() => null);
 await check("창을 닫았다 다시 열어도 쓰던 내용이 그대로 있다", async () =>
   (await p2.inputValue("#achievement")) === "신규 거래처 3곳을 확보했습니다." && (await p2.locator('[data-pressed]').count()) === 10,
 );
@@ -75,6 +77,7 @@ await p2.waitForURL(`${BASE}/me`);
 await check(`제출하면 내 할 일에 "제출 완료 — ${end}까지 고칠 수 있습니다"가 보인다`, async () => (await p2.getByText(`제출 완료 — ${end}까지 고칠 수 있습니다`).count()) === 1);
 
 await p2.goto(formUrl);
+await p2.locator('[role="group"][aria-labelledby^="label-"], [data-testid="flow-card"]').first().waitFor().catch(() => null);
 await p2.fill("#achievement", "신규 거래처 4곳을 확보했습니다.");
 await p2.waitForSelector("text=/저장됨/", { timeout: 8000 });
 await p2.waitForTimeout(1600);
@@ -85,6 +88,7 @@ await check("제출한 뒤 다시 열어 고치고 저장할 수 있다", async 
 const w1 = p2;
 const w2 = await ctx.newPage();
 await w2.goto(formUrl);
+await w2.locator('[role="group"][aria-labelledby^="label-"], [data-testid="flow-card"]').first().waitFor().catch(() => null);
 await w1.fill("#improvement", "창 1에서 고침");
 await w1.waitForTimeout(2500);
 await w2.fill("#improvement", "창 2에서 고침");
@@ -100,6 +104,7 @@ await w1.goto(`${BASE}/me`);
 await check("기간이 지나도 계속 쓸 수 있고 \"기한 지남\"이 보인다", async () => {
   const shown = (await w1.getByText("기한 지남").count()) === 1;
   await w1.goto(formUrl);
+  await w1.locator('[role="group"][aria-labelledby^="label-"], [data-testid="flow-card"]').first().waitFor().catch(() => null);
   await w1.fill("#improvement", "기한 뒤에도 고침");
   await w1.waitForSelector("text=/저장됨/", { timeout: 8000 });
   await w1.waitForTimeout(1600);
@@ -109,12 +114,14 @@ await check("기간이 지나도 계속 쓸 수 있고 \"기한 지남\"이 보�
 await w1.screenshot({ path: "/tmp/hr-e2e/04-form.png", fullPage: true });
 
 await w1.goto(`${BASE}/me/form/${ld!.id}`);
+await w1.locator('[role="group"][aria-labelledby^="label-"], [data-testid="flow-card"]').first().waitFor().catch(() => null);
 await check("다른 사람의 평가지 주소를 직접 넣어도 열리지 않는다", async () => (await w1.locator("#achievement").count()) === 0 && (await w1.getByText("최팀장").count()) === 0);
 
 // 팀장
 const lp = await (await b.newContext({ viewport: { width: 1300, height: 1000 } })).newPage();
 await login(lp, "lead@powernet.test");
 await lp.goto(`${BASE}/me/form/${ld!.id}`);
+await lp.locator('[role="group"][aria-labelledby^="label-"], [data-testid="flow-card"]').first().waitFor().catch(() => null);
 await check("팀장에게는 팀장역량(리더쉽·소통·계획)이 들어간 팀장용 항목이 보인다", async () => {
   const t = await lp.locator("main").innerText();
   return (await lp.locator('[role="group"][aria-labelledby^="label-"]').count()) === 10 && t.includes("팀장용 인사평가지") && t.includes("리더쉽") && t.includes("계획") && !t.includes("일처리");

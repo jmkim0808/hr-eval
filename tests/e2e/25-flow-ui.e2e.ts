@@ -50,7 +50,7 @@ await check("[본인] 확인 장에 '다 채웠어요'와 요약이 보이고 �
 await me.getByRole("button", { name: "한눈에 보기" }).click();
 await check("[본인] [한눈에 보기]로 바꾸면 모든 항목이 한 화면에 보인다", async () => (await me.locator('[role="group"][aria-labelledby^="label-"]').count()) === 10 && (await me.locator("#achievement").inputValue()).includes("12억"));
 await me.getByRole("button", { name: "한 장씩" }).click();
-await me.getByTestId("flow-rail").getByRole("button", { name: /확인 · 제출/ }).click();
+await me.getByTestId("flow-rail").getByRole("button", { name: /마지막 확인/ }).click();
 await me.getByRole("button", { name: "제출", exact: true }).click();
 await me.waitForURL(`${BASE}/me`, { timeout: 15000 }).catch(() => null);
 await check("[본인] 한 장씩으로 제출하면 저장·제출된다 (점수 8·7·9, 업적 글)", async () => {

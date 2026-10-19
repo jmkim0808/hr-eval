@@ -120,7 +120,7 @@ export function SelfForm({ personId, formType, year, editable, initial, lockedNo
     ...items.map((it) => ({ key: it.code, group: it.group, label: it.name, done: !!draft.scores[it.code], value: draft.scores[it.code] ? String(draft.scores[it.code]) : undefined, error: missing.has(it.code) && !draft.scores[it.code] })),
     { key: "achievement", group: "업적", label: `${year}년 개인역할 및 업적`, done: !!draft.achievement.trim(), value: draft.achievement.trim() ? "작성함" : undefined, error: !!issues?.achievement && !draft.achievement.trim() },
     { key: "improvement", group: "업적", label: `${year + 1}년 개선 및 발전`, done: !!draft.improvement.trim(), value: draft.improvement.trim() ? "작성함" : undefined, error: !!issues?.improvement && !draft.improvement.trim() },
-    { key: "_done", group: "마무리", label: editable ? "확인 · 제출" : "요약", done: false },
+    { key: "_done", group: "마무리", label: editable ? "마지막 확인" : "요약", done: false },
   ];
   const stepKeys = steps.map((x) => x.key);
   const step = steps[Math.min(cur, steps.length - 1)]!;
