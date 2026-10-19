@@ -129,7 +129,7 @@ for (const [ti, n] of targets.entries()) {
   await p.goto(`${BASE}/me`);
   await p.getByText(/내 평가지 작성/).first().click();
   await p.waitForSelector("#achievement");
-  for (const g of await p.locator('[role="group"]').all()) await g.getByRole("button", { name: "7점" }).click();
+  for (const g of await p.locator('[role="group"][aria-labelledby^="label-"]').all()) await g.getByRole("button", { name: "7점" }).click();
   await p.fill("#achievement", `${n}의 올해 업적입니다.`);
   await p.fill("#improvement", `${n}의 내년 계획입니다.`);
   await p.getByRole("button", { name: "제출" }).click();

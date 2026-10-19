@@ -103,7 +103,7 @@ async function selfSubmit(p: Page, n: string, slow = false) {
   await p.getByText(/내 평가지 작성/).first().click();
   await p.waitForSelector("#achievement");
   if (slow) await caption(p, "직원", "내 평가지 작성 — 자동 저장, 빠진 칸은 제출 전에 안내");
-  for (const g of await p.locator('[role="group"]').all()) {
+  for (const g of await p.locator('[role="group"][aria-labelledby^="label-"]').all()) {
     await g.getByRole("button", { name: "7점" }).click();
     if (slow) await p.waitForTimeout(120);
   }
