@@ -1,12 +1,15 @@
-import { CircleCheck, Clock, FilePen } from "lucide-react";
+import { CalendarClock, CircleCheck, Clock, FilePen, Medal, Target, Users } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/PageHeader";
+import { ScoreStrip } from "@/components/ScoreStrip";
+import { StatCard } from "@/components/StatCard";
+import { daysLeft, seoulToday } from "@/lib/time";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { fmtRange } from "@/domain/periods";
+import { fmtDay, fmtRange } from "@/domain/periods";
 import { REVIEW, type ReviewKind } from "@/domain/review";
 import { requireParticipant } from "@/server/authz/actor";
 import { reviewOverview, type OverviewScores } from "@/server/repo/reviews";
@@ -27,6 +30,10 @@ export default async function ReviewOverviewPage({ params, searchParams }: { par
   const showSecond = kind === "second";
   const firstLabel = kind === "leader" ? "임원" : "1차";
   const sp = await searchParams;
+  const mine = rows.map((r) => ({ name: r.name, total: (kind === "second" ? r.second?.total : r.first.total) ?? null })).filter((r): r is { name: string; total: number } => r.total !== null);
+  const myAvg = mine.length ? mine.reduce((x, r) => x + r.total, 0) / mine.length : null;
+  const left = group.range[1] ? daysLeft(group.range[1], seoulToday()) : null;
+  const bonusIn = rows.filter((r) => r.bonus).length;
 
   const cells = (s: OverviewScores, strong: boolean) => (
     <>
@@ -44,6 +51,21 @@ export default async function ReviewOverviewPage({ params, searchParams }: { par
           <CircleCheck aria-hidden="true" />
           <AlertDescription>맡은 {rows.length}명을 모두 제출했습니다. 기간 안에는 이름을 눌러 고쳐서 다시 제출할 수 있습니다.</AlertDescription>
         </Alert>
+      )}
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <StatCard label="제출" icon={<Users aria-hidden="true" />} hue="blue" value={<>{done} <span className="text-section-title font-semibold text-muted-foreground">/ {rows.length}</span></>} foot={`작성 중 ${rows.filter((r) => r.status === "writing").length} · 시작 전 ${rows.filter((r) => r.status === "todo").length}`} />
+        <StatCard label="내 평균" icon={<Target aria-hidden="true" />} hue="violet" value={myAvg === null ? "—" : myAvg.toFixed(1)} foot={rows.length <= 2 ? "2명 이하는 평균 규칙 없음" : myAvg === null ? "기준 80 ± 0.5" : `기준 80 ± 0.5 · ${myAvg >= 79.5 && myAvg <= 80.5 ? "기준 안" : `지금 ${(myAvg - 80 > 0 ? "+" : "") + (myAvg - 80).toFixed(1)}`}`} />
+        <StatCard label="마감" icon={<CalendarClock aria-hidden="true" />} hue="orange" value={left === null ? "—" : left >= 0 ? `D-${left}` : `${-left}일 지남`} foot={group.range[1] ? `${fmtDay(group.range[1])}까지` : undefined} />
+        <StatCard label="가점 들어옴" icon={<Medal aria-hidden="true" />} hue="green" value={<>{bonusIn} <span className="text-section-title font-semibold text-muted-foreground">/ {rows.length}</span></>} foot="잠정치 · 바로 반영" />
+      </div>
+      {mine.length > 0 && (
+        <Card className="gap-2 px-6">
+          <div>
+            <h2 className="text-subsection-title font-bold">내가 준 점수 분포</h2>
+            <p className="text-caption text-muted-foreground">점 하나가 한 사람 · 초록 띠가 평균 기준(79.5~80.5) · 점에 마우스를 올리면 점수</p>
+          </div>
+          <ScoreStrip people={mine} />
+        </Card>
       )}
       <Card className="pb-0">
         <Table data-testid="overview-table">

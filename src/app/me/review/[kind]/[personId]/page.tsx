@@ -4,15 +4,16 @@ import { notFound } from "next/navigation";
 import { CircleCheck, FilePen, Clock, ListChecks } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { PageHeader } from "@/components/PageHeader";
-import { Card } from "@/components/ui/card";
 import { FORMS } from "@/domain/forms";
 import { fmtRange } from "@/domain/periods";
 import { REVIEW, type ReviewKind } from "@/domain/review";
 import { cn } from "@/lib/utils";
 import { requireParticipant } from "@/server/authz/actor";
 import { getReview, listReviewGroups } from "@/server/repo/reviews";
-import { BonusBox } from "@/components/BonusBox";
+import { HUE } from "@/components/Tile";
 import { ReviewForm } from "./ReviewForm";
+
+const HUES = [HUE.blue, HUE.violet, HUE.green, HUE.orange, HUE.teal, HUE.pink];
 
 const ORDER = ["setup", "self_review", "first_review", "second_review", "final_review", "confirmed", "results_sent", "closed"];
 
@@ -40,7 +41,7 @@ export default async function ReviewPage({ params }: { params: Promise<{ kind: s
   const done = group.people.filter((p) => p.status === "done").length;
 
   return (
-    <main className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-6 sm:px-8 sm:py-8">
+    <main className="mx-auto flex w-full max-w-[1400px] flex-col gap-6 px-4 py-6 sm:px-8 sm:py-8">
       <PageHeader
         title={`평가하기 · ${def.label}`}
         description={`${r.cycle.year}년 정기평가 · ${def.windowLabel} 기간 ${range} · ${group.people.length}명 중 ${done}명 완료`}
@@ -50,27 +51,35 @@ export default async function ReviewPage({ params }: { params: Promise<{ kind: s
           </Link>
         }
       />
-      <div className="grid items-start gap-5 lg:grid-cols-[15rem_1fr]">
-        <Card className="gap-0 py-0" aria-label="평가할 사람">
-          <ul>
-            {group.people.map((p) => (
-              <li key={p.id} className="border-b last:border-b-0">
-                <Link
-                  href={`/me/review/${kind}/${p.id}`}
-                  aria-current={p.id === personId ? "page" : undefined}
-                  className={cn("flex items-center justify-between gap-2 px-4 py-2.5 text-body hover:bg-muted", p.id === personId && "bg-accent font-semibold text-accent-foreground")}
-                >
-                  <span className="flex flex-col">
-                    <span>{p.name}</span>
-                    <span className="text-label font-normal text-muted-foreground">{p.department || p.position}</span>
-                  </span>
-                  <StatusMark status={p.status} />
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </Card>
-        <div className="flex flex-col gap-5">
+      <nav aria-label="평가할 사람" className="-mx-1 flex gap-2.5 overflow-x-auto px-1 pb-1">
+        {group.people.map((q, n) => (
+          <Link
+            key={q.id}
+            href={`/me/review/${kind}/${q.id}`}
+            aria-current={q.id === personId ? "page" : undefined}
+            className={cn(
+              "flex shrink-0 items-center gap-2.5 rounded-2xl border border-border/70 bg-card py-2 pr-4 pl-2 shadow-card transition-colors hover:border-brand/40",
+              q.id === personId && "border-foreground ring-1 ring-foreground",
+            )}
+          >
+            <span
+              className={cn(
+                "relative flex size-9 items-center justify-center rounded-full text-caption font-bold",
+                HUES[n % HUES.length],
+                q.status === "done" && "ring-2 ring-success ring-offset-2 ring-offset-card",
+                q.status === "writing" && "outline-2 outline-offset-2 outline-brand outline-dashed",
+              )}
+            >
+              {q.name.slice(0, 1)}
+            </span>
+            <span className="flex flex-col leading-tight">
+              <span className="text-body font-semibold">{q.name}</span>
+              <StatusMark status={q.status} />
+            </span>
+          </Link>
+        ))}
+      </nav>
+      <div className="flex min-w-0 flex-col gap-5">
         <ReviewForm
           key={personId}
           kind={kind}
@@ -89,9 +98,9 @@ export default async function ReviewPage({ params }: { params: Promise<{ kind: s
           nextHref={next ? `/me/review/${kind}/${next.id}` : null}
           overviewHref={`/me/review/${kind}`}
           bundle={r.bundle}
+          bonus={r.bonus}
+          bonusFinal={["confirmed", "results_sent", "closed"].includes(r.cycle.status)}
         />
-        <BonusBox bonus={r.bonus} final={["confirmed", "results_sent", "closed"].includes(r.cycle.status)} />
-        </div>
       </div>
     </main>
   );

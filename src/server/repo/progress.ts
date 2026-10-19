@@ -178,3 +178,24 @@ export async function queueReminders(actor: Actor, cycleId: string, personIds: s
   await db.insert(auditLogs).values({ actorEmail: actor.email, action: "cycle.remind", cycleId, detail: { count: people.length } });
   return ok({ batchId, count: people.length });
 }
+
+/** 부서별 진행률 (2026-10-19 화면 개편): 지금 단계에서 제출이 끝난 대상자 비율. 팀장 평가(임원)는 2차 단계에 센다 */
+export async function deptProgress(actor: Actor, cycleId: string, status: string): Promise<{ department: string; total: number; done: number }[]> {
+  assert(can.manageCycle(actor));
+  if (!["self_review", "first_review", "second_review"].includes(status)) return [];
+  const rows = await getDb()
+    .select({ department: cyclePeople.department, formType: cyclePeople.formType, self: evaluations.selfSubmittedAt, first: evaluations.firstSubmittedAt, second: evaluations.secondSubmittedAt })
+    .from(cyclePeople)
+    .leftJoin(evaluations, eq(evaluations.personId, cyclePeople.id))
+    .where(and(eq(cyclePeople.cycleId, cycleId), eq(cyclePeople.isTarget, true)));
+  const by = new Map<string, { total: number; done: number }>();
+  for (const r of rows) {
+    const done = status === "self_review" ? !!r.self : status === "first_review" ? !!r.first : r.formType === "leader" ? !!r.first : !!r.second;
+    const d = r.department || "(부서 없음)";
+    const e = by.get(d) ?? { total: 0, done: 0 };
+    e.total++;
+    if (done) e.done++;
+    by.set(d, e);
+  }
+  return [...by].map(([department, v]) => ({ department, ...v })).sort((a, b) => b.done / b.total - a.done / a.total || a.department.localeCompare(b.department, "ko"));
+}

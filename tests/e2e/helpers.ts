@@ -79,7 +79,13 @@ export async function setPortalToken(page: Page, token: string | null) {
 }
 
 /** 1차 포털 로그인 + 2차 메일 인증번호 */
-export async function login(page: Page, email: string) {
+/** 기존 시험은 "한눈에 보기"로 돈다 (2026-10-19 화면 개편 뒤 기본은 "한 장씩" — 25번 시험에서 따로 본다) */
+export async function login(page: Page, email: string, mode: "all" | "card" = "all") {
+  await page.addInitScript((m) => {
+    try {
+      localStorage.setItem("hr-form-mode", m);
+    } catch {}
+  }, mode);
   await sql`delete from auth_codes where email = ${email}`;
   await setPortalToken(page, portalTokenFor(await employeeNoOf(email)));
   await page.goto(`${BASE}/login`);

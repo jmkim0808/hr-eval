@@ -43,6 +43,11 @@ async function as(name: string): Promise<Page> {
   if (old) return old;
   const p = await (await b.newContext({ viewport: { width: 1400, height: 1000 }, acceptDownloads: true })).newPage();
   p.on("pageerror", (e) => errors.push(`${name}: ${e.message}`));
+  await p.addInitScript(() => {
+    try {
+      localStorage.setItem("hr-form-mode", "all");
+    } catch {}
+  });
   await p.goto(`${BASE}/dev`);
   await p.locator("tr", { has: p.getByRole("cell", { name, exact: true }) }).getByRole("button", { name: "이 사람으로 들어가기" }).click();
   await p.waitForURL(/\/login/);

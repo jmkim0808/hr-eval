@@ -16,7 +16,9 @@ import { batchProgress } from "@/server/repo/outbox";
 import { BackupButton, BackupNotice } from "@/components/ExportButtons";
 import { bonusCount } from "@/server/repo/bonus";
 import { backupDue } from "@/server/repo/export";
-import { stageProgress } from "@/server/repo/progress";
+import { deptProgress, stageProgress } from "@/server/repo/progress";
+import { adminOverview } from "@/server/repo/overview";
+import { NineBox } from "@/components/NineBox";
 import { retentionUntil } from "@/server/repo/results";
 import { AdvanceButton } from "./AdvanceButton";
 import { RollbackButton } from "./RollbackButton";
@@ -44,6 +46,10 @@ export default async function ProgressPage() {
   const end = cycle ? { self_review: cycle.selfEnd, first_review: cycle.firstEnd, second_review: cycle.secondEnd }[cycle.status as string] : null;
   const overdue = !!end && today > end;
   const left = end ? daysLeft(end, today) : null;
+  const depts = cycle ? await deptProgress(a, cycle.id, cycle.status) : [];
+  const nine = cycle && ["first_review", "second_review", "final_review", "confirmed", "results_sent", "closed"].includes(cycle.status)
+    ? (await adminOverview(a, cycle.id)).filter((p) => p.first.competency !== null && p.first.achievement !== null).map((p) => ({ name: p.name, department: p.department, competency: p.first.competency!, achievement: p.first.achievement! }))
+    : [];
 
   return (
     <>
@@ -175,6 +181,41 @@ export default async function ProgressPage() {
                       </Link>
                     }
                   />
+                )}
+              </div>
+            )}
+            {(depts.length > 0 || nine.length > 0) && (
+              <div className="grid gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
+                {depts.length > 0 && (
+                  <Card className="gap-3 px-6" data-testid="dept-progress">
+                    <div>
+                      <h2 className="text-subsection-title font-bold">부서별 {stageCopy?.title ?? "진행"}</h2>
+                      <p className="text-caption text-muted-foreground">진행이 빠른 부서부터 · 막대에 마우스를 올리면 남은 사람 수</p>
+                    </div>
+                    <ul className="flex flex-col gap-1.5">
+                      {depts.map((d) => {
+                        const pct = Math.round((d.done / d.total) * 100);
+                        return (
+                          <li key={d.department} className="grid grid-cols-[6.5rem_minmax(0,1fr)_3.5rem] items-center gap-3 text-body" title={`${d.department} · ${d.done}/${d.total}명 · 남은 ${d.total - d.done}명`}>
+                            <span className="truncate">{d.department}</span>
+                            <span className="h-2.5 overflow-hidden rounded-full bg-muted">
+                              <span className="block h-full rounded-full bg-brand" style={{ width: `${pct}%` }} />
+                            </span>
+                            <span className="text-right font-semibold tabular-nums">{pct}%</span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </Card>
+                )}
+                {nine.length > 0 && (
+                  <Card className="gap-3 px-6">
+                    <div>
+                      <h2 className="text-subsection-title font-bold">역량 × 업적 9칸 표</h2>
+                      <p className="text-caption text-muted-foreground">1차 점수 기준 · 점 하나 = 한 사람({nine.length}명) · 점에 마우스를 올리면 이름 · 관리자·대표이사에게만 보입니다</p>
+                    </div>
+                    <NineBox people={nine} />
+                  </Card>
                 )}
               </div>
             )}

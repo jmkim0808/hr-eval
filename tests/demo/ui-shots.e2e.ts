@@ -44,7 +44,7 @@ async function shot(p: Page, name: string, url: string) {
 }
 const ALL = process.env.SHOT_ALL === "1";
 const lead = await (await b.newContext({ viewport: { width: 1440, height: 900 } })).newPage();
-await login(lead, "lead@powernet.test");
+await login(lead, "lead@powernet.test", "card");
 await shot(lead, "1-내할일", "/me");
 const [first] = await sql`select id from cycle_people where name = '김민준'`;
 await shot(lead, "2-평가하기", `/me/review/first/${first!.id}`);
@@ -79,13 +79,13 @@ if (ALL) {
   await sql`update review_cycles set status = 'results_sent', confirmed_at = now(), confirmed_by = '김파트장', version = version + 1`;
   await shot(adm, "16-결과발송", "/admin/results");
   const me = await (await b.newContext({ viewport: { width: 1440, height: 900 } })).newPage();
-  await login(me, "u0@powernet.test");
+  await login(me, "u0@powernet.test", "card");
   await shot(me, "17-내평가결과", "/me/result");
   await shot(me, "18-지난기록", "/me/history");
   const lo = await (await b.newContext({ viewport: { width: 1440, height: 900 } })).newPage();
   await shot(lo, "19-로그인", "/login");
   const phone = await (await b.newContext({ viewport: { width: 390, height: 844 } })).newPage();
-  await login(phone, "u1@powernet.test");
+  await login(phone, "u1@powernet.test", "card");
   await shot(phone, "20-휴대폰-내할일", "/me");
 }
 await b.close();

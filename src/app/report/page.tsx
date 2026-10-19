@@ -5,7 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Empty } from "@/components/ui/empty";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { GRADES, GROUP_LABEL, type Grade } from "@/domain/grading";
+import { GRADES, GROUP_LABEL, gradeCounts, type Grade } from "@/domain/grading";
+import { GradeDist } from "@/components/GradeDist";
 import { cn } from "@/lib/utils";
 import { requireReportViewer } from "@/server/authz/actor";
 import { getReport } from "@/server/repo/report";
@@ -49,6 +50,25 @@ export default async function ReportPage({ searchParams }: { searchParams: Promi
               </Link>
             ))}
           </nav>
+          <Card className="gap-3 px-6">
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <h2 className="text-subsection-title font-bold">등급 분포 · 기준 대비</h2>
+                <p className="text-caption text-muted-foreground">점선 = 상대평가 기준 인원 · 채운 막대 = 지금(대표이사 조정 포함) · 막대에 마우스를 올리면 인원</p>
+              </div>
+              <span className="flex gap-4 text-label text-text-secondary">
+                <span className="inline-flex items-center gap-1.5">
+                  <i className="inline-block size-2.5 rounded-[3px] border-[1.5px] border-dashed border-muted-foreground" />
+                  기준
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <i className="inline-block size-2.5 rounded-[3px] bg-brand" />
+                  지금
+                </span>
+              </span>
+            </div>
+            <GradeDist base={gradeCounts(list.filter((r) => r.grade).length)} now={Object.fromEntries(GRADES.map((g) => [g, count(g)])) as Record<Grade, number>} />
+          </Card>
           <Card className="pb-0">
             <CardHeader>
               <CardTitle>

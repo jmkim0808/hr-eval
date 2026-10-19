@@ -13,6 +13,9 @@ import type { FormType, Item } from "@/domain/forms";
 import { ACHIEVEMENT, AVG_TARGET, averageGuide, parseScore, raterTotal, REVIEW, type ReviewKind } from "@/domain/review";
 import { cn } from "@/lib/utils";
 import { saveReviewAction } from "../../actions";
+import { BonusBox } from "@/components/BonusBox";
+import { CardNav, FlowRail, Kbd, ModeSwitch, ScaleButtons, useCardKeys, useFlowMode, type FlowStep } from "@/components/flow/Flow";
+import type { BonusView } from "@/server/repo/bonus";
 
 const AUTOSAVE_MS = 1200;
 const COMMENT_MAX = 1000;
@@ -41,6 +44,9 @@ type Props = {
   overviewHref: string;
   /** 같은 묶음 사람들의 내 점수 (평균 80점 확인) */
   bundle: { id: string; name: string; total: number | null; ach: number | null; submitted: boolean }[];
+  /** 가점 (2026-10-15: 평가자에게도 보임) */
+  bonus?: BonusView | null;
+  bonusFinal?: boolean;
 };
 
 type Save = { kind: "idle" } | { kind: "saving" } | { kind: "saved"; at: string } | { kind: "conflict" } | { kind: "error"; message: string };
@@ -60,6 +66,8 @@ export function ReviewForm(p: Props) {
   const latest = useRef(raw);
   latest.current = raw;
   const [comment, setComment] = useState(p.initial.comment);
+  const [mode, setMode] = useFlowMode("card");
+  const [cur, setCur] = useState(0);
   const latestComment = useRef(comment);
   latestComment.current = comment;
 
@@ -167,6 +175,151 @@ export function ReviewForm(p: Props) {
     );
   };
 
+  // ── 한 장씩 보기 (2026-10-19 화면 개편) ──
+  const codes = [...p.items.map((i) => i.code), ACHIEVEMENT];
+  const vals = valid(raw);
+  const steps: FlowStep[] = [
+    ...p.items.map((it) => ({ key: it.code, group: it.group, label: it.name, done: vals[it.code] !== undefined, value: vals[it.code]?.toFixed(1), error: missing.has(it.code) })),
+    { key: ACHIEVEMENT, group: "업적", label: "업적 점수", done: vals[ACHIEVEMENT] !== undefined, value: vals[ACHIEVEMENT]?.toFixed(1), error: missing.has(ACHIEVEMENT) },
+    ...(p.showMine ? [{ key: "_comment", group: "의견", label: "평가의견 (선택)", done: comment.trim().length > 0, value: comment.trim() ? "작성함" : undefined }] : []),
+    { key: "_done", group: "마무리", label: p.editable ? "확인 · 제출" : "요약", done: false },
+  ];
+  const stepKeys = steps.map((x) => x.key);
+  const at = Math.min(cur, steps.length - 1);
+  const step = steps[at]!;
+  const item = p.items.find((it) => it.code === step.key);
+  const isScoreStep = !!item || step.key === ACHIEVEMENT;
+  const go = (i: number) => setCur(Math.max(0, Math.min(steps.length - 1, i)));
+  const setScore = (code: string, n: number) => change(code, String(Math.round(Math.min(10, Math.max(1, n)) * 10) / 10));
+  useCardKeys(mode === "card" && p.editable && p.showMine, isScoreStep ? (n) => setScore(step.key, n) : null, () => step.key !== "_done" && go(at + 1));
+  const total = raterTotal(p.person.formType, vals);
+  const filled = steps.filter((x) => x.key !== "_done" && x.key !== "_comment" && x.done).length;
+  const need = codes.length;
+  const sideCard = (
+    <aside className="flex min-w-0 flex-col gap-4 xl:sticky xl:top-20">
+      <div className="rounded-2xl border border-border/70 bg-card p-5 shadow-card">
+        <h4 className="mb-2 text-caption font-semibold text-muted-foreground">본인이 쓴 업적</h4>
+        <p className="max-h-80 overflow-y-auto text-body leading-relaxed whitespace-pre-wrap text-text-secondary">{p.self.achievement || "(빈칸)"}</p>
+      </div>
+      <BonusBox bonus={p.bonus ?? null} final={p.bonusFinal} />
+    </aside>
+  );
+  const cardView = (
+    <div className="grid items-start gap-5 lg:grid-cols-[16rem_minmax(0,1fr)] xl:grid-cols-[16rem_minmax(0,1fr)_19rem]">
+      <FlowRail steps={steps} current={at} onPick={go} caption={`${p.person.name} · ${p.label}`} />
+      <section aria-live="polite" className="flex min-h-[28rem] min-w-0 flex-col rounded-2xl border border-border/70 bg-card px-5 py-7 shadow-card sm:px-10 sm:py-9" data-testid="flow-card" data-step={step.key}>
+        <p className="mb-2.5 flex flex-wrap items-center gap-2 text-caption font-semibold text-brand">
+          {step.group} · {Math.min(at, steps.length - 2) + 1}/{steps.length - 1}
+          {item && p.self.scores[item.code] !== undefined && <span className="rounded-full bg-hl-orange-bg px-2.5 py-0.5 text-label text-hl-orange">주황 밑줄 = 본인평가 {p.self.scores[item.code]}점</span>}
+          {isScoreStep && p.firstScores?.[step.key] !== undefined && <span className="rounded-full bg-muted px-2.5 py-0.5 text-label text-text-secondary">1차 {p.firstScores[step.key]}점</span>}
+        </p>
+        {isScoreStep ? (
+          <>
+            <h2 className="text-[28px] leading-tight font-extrabold tracking-tight sm:text-[32px]">{item ? `${p.person.name} 님의 ${item.name}은 어땠나요?` : `${p.person.name} 님의 업적 점수`}</h2>
+            <p className="mt-2.5 max-w-[60ch] text-subsection-title text-text-secondary">{item ? item.desc : "본인이 쓴 업적을 읽고 매겨 주세요. 업적은 최종점수의 70%입니다."}</p>
+            {!item && (
+              <div className="mt-5 grid gap-3 xl:hidden">
+                <ReadText title={`${p.year}년 개인역할 및 업적`} text={p.self.achievement} />
+              </div>
+            )}
+            {step.error && <p className="mt-2 text-caption text-danger">점수를 넣어 주세요</p>}
+            {p.showMine ? (
+              <div className="mt-8 flex flex-col gap-4">
+                <ScaleButtons label={item?.name ?? "업적"} value={vals[step.key]} disabled={!p.editable} selfMark={item ? p.self.scores[item.code] : undefined} onPick={(n) => setScore(step.key, n)} />
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="text-caption text-muted-foreground">0.1점 단위</span>
+                  <span className="inline-flex items-center overflow-hidden rounded-xl border">
+                    <button type="button" aria-label="0.1점 내리기" disabled={!p.editable} className="h-10 w-10 bg-muted text-section-title font-bold disabled:opacity-50" onClick={() => setScore(step.key, (vals[step.key] ?? 8) - 0.1)}>
+                      −
+                    </button>
+                    <output className="min-w-16 text-center text-section-title font-extrabold tabular-nums" aria-live="polite">
+                      {vals[step.key] !== undefined ? vals[step.key]!.toFixed(1) : "—"}
+                    </output>
+                    <button type="button" aria-label="0.1점 올리기" disabled={!p.editable} className="h-10 w-10 bg-muted text-section-title font-bold disabled:opacity-50" onClick={() => setScore(step.key, (vals[step.key] ?? 8) + 0.1)}>
+                      +
+                    </button>
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <p className="mt-6 text-caption text-muted-foreground">{p.notice}</p>
+            )}
+          </>
+        ) : step.key === "_comment" ? (
+          <>
+            <h2 className="text-[28px] leading-tight font-extrabold tracking-tight sm:text-[32px]">{p.person.name} 님께 남길 평가의견</h2>
+            <p className="mt-2.5 mb-5 text-subsection-title text-text-secondary">해당 의견란은 피평가자에게 표시됩니다. · 선택 · {COMMENT_MAX.toLocaleString()}자까지</p>
+            {p.firstComment !== null && <ReadText title="1차 평가의견" text={p.firstComment} />}
+            {p.editable ? (
+              <Textarea
+                id="review-comment"
+                aria-label={`${REVIEW[p.kind].column} 평가의견`}
+                value={comment}
+                maxLength={COMMENT_MAX}
+                onChange={(e) => {
+                  dirty.current = true;
+                  setComment(e.target.value);
+                }}
+                className="mt-3 min-h-40 resize-y"
+              />
+            ) : (
+              <ReadText title={`${REVIEW[p.kind].column} 평가의견`} text={comment} />
+            )}
+          </>
+        ) : (
+          <>
+            <h2 className="text-[28px] leading-tight font-extrabold tracking-tight sm:text-[32px]">
+              {!p.editable ? `${p.person.name} 님 평가 요약` : filled === need ? `${p.person.name} 님 평가를 제출할까요?` : `아직 ${need - filled}칸이 비어 있어요`}
+            </h2>
+            <p className="mt-2.5 text-subsection-title text-text-secondary">
+              {!p.editable ? (p.notice ?? "") : filled === need ? `제출하면 ${p.nextHref ? "다음 사람으로" : "내 평가 현황으로"} 넘어갑니다. 기간 안에는 다시 고칠 수 있습니다.` : "왼쪽 흐름에서 회색 항목을 눌러 채워 주세요."}
+            </p>
+            <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
+              {[
+                ["이 사람 점수", total === null ? "—" : total.toFixed(1)],
+                ["역량 합계", p.items.every((it) => vals[it.code] !== undefined) ? p.items.reduce((a, it) => a + vals[it.code]!, 0).toFixed(1) : "—"],
+                ["업적", vals[ACHIEVEMENT] !== undefined ? vals[ACHIEVEMENT]!.toFixed(1) : "—"],
+              ].map(([l, v]) => (
+                <div key={l} className="rounded-2xl bg-muted px-4 py-3.5">
+                  <span className="text-label font-semibold text-muted-foreground">{l}</span>
+                  <b className="mt-0.5 block text-section-title tabular-nums">{v}</b>
+                </div>
+              ))}
+            </div>
+            <div className="mt-auto flex flex-wrap justify-between gap-3 pt-8">
+              <Button variant="outline" size="lg" onClick={() => setMode("all")}>
+                한눈에 다시 보기
+              </Button>
+              {p.editable && (
+                <Button size="lg" onClick={submit} disabled={submitting || save.kind === "conflict"}>
+                  {submitting ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Send aria-hidden="true" />}
+                  {p.nextHref ? "제출하고 다음 사람" : "제출"}
+                </Button>
+              )}
+            </div>
+          </>
+        )}
+        {step.key !== "_done" && (
+          <CardNav
+            prevDisabled={at === 0}
+            onPrev={() => go(at - 1)}
+            onNext={() => go(at + 1)}
+            hint={
+              isScoreStep ? (
+                <>
+                  <Kbd>1</Kbd>~<Kbd>0</Kbd> 점수 · <Kbd>Enter</Kbd> 다음
+                </>
+              ) : (
+                "쓰다가 멈추면 저절로 저장됩니다"
+              )
+            }
+          />
+        )}
+      </section>
+      <div className="lg:col-span-2 xl:col-span-1">{sideCard}</div>
+    </div>
+  );
+
   return (
     <div className="flex min-w-0 flex-col gap-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -176,7 +329,10 @@ export function ReviewForm(p: Props) {
             {p.person.department} · {p.person.position} · {p.person.formType === "leader" ? "팀장용 인사평가지" : "팀원용 인사평가지"}
           </p>
         </div>
-        <SaveLine save={save} editable={p.editable} />
+        <div className="flex flex-wrap items-center gap-3">
+          <SaveLine save={save} editable={p.editable} />
+          <ModeSwitch mode={mode} onChange={setMode} />
+        </div>
       </div>
 
       {p.showMine && <AveragePanel bundle={p.bundle} personId={p.person.id} current={raterTotal(p.person.formType, valid(raw))} currentAch={valid(raw)[ACHIEVEMENT] ?? null} block={avgBlock} />}
@@ -214,6 +370,8 @@ export function ReviewForm(p: Props) {
         </Alert>
       )}
 
+      {mode === "card" ? cardView : (
+      <>
       <Card className="gap-0 pb-0">
         <CardHeader className="pb-3">
           <CardTitle>역량 평가 (비중 30%)</CardTitle>
@@ -324,6 +482,9 @@ export function ReviewForm(p: Props) {
           </Button>
         </div>
       )}
+      <BonusBox bonus={p.bonus ?? null} final={p.bonusFinal} />
+      </>
+      )}
     </div>
   );
 }
@@ -374,7 +535,7 @@ function AveragePanel({ bundle, personId, current, currentAch, block }: { bundle
   const avg = g.kind === "na" ? null : g.avg;
   const tone = g.kind === "ok" ? "text-success" : g.kind === "off" ? "text-danger" : "text-foreground";
   return (
-    <Card id="average-panel" className="sticky top-2 z-10 gap-2 py-4 shadow-md" data-testid="average-panel">
+    <Card id="average-panel" className="sticky top-[4.5rem] z-10 gap-2 py-4 shadow-md" data-testid="average-panel">
       <CardHeader className="px-5">
         <CardTitle className="flex flex-wrap items-baseline gap-x-3 text-body">
           내가 준 점수 평균 <span className="text-caption font-normal text-muted-foreground">(평가 대상 {rows.length}명 · 기준 {AVG_TARGET}점, 허용 79.5~80.5)</span>
@@ -415,6 +576,7 @@ function AveragePanel({ bundle, personId, current, currentAch, block }: { bundle
             <p className="text-label text-muted-foreground">역량 항목으로 맞춰도 됩니다 (항목 0.1점 = 업적 0.1점의 1/23 정도 효과).</p>
           </div>
         )}
+        {avg !== null && <AvgTrack avg={avg} people={rows.filter((b) => b.total !== null).map((b) => ({ name: b.name, total: b.total!, me: b.id === personId }))} />}
         <ul className="flex flex-wrap gap-x-4 gap-y-1 text-label text-text-secondary" aria-label="사람별 내가 준 점수">
           {rows.map((b) => (
             <li key={b.id} className={cn("tabular-nums", b.id === personId && "font-semibold text-foreground")}>
@@ -424,5 +586,27 @@ function AveragePanel({ bundle, personId, current, currentAch, block }: { bundle
         </ul>
       </CardContent>
     </Card>
+  );
+}
+
+/** 평균 게이지 (2026-10-19): 70~90점 막대 위에 기준 띠(79.5~80.5), 사람별 점, 평균 표시 */
+function AvgTrack({ avg, people }: { avg: number; people: { name: string; total: number; me: boolean }[] }) {
+  const lo = 70;
+  const hi = 90;
+  const pos = (v: number) => `${((Math.min(hi, Math.max(lo, v)) - lo) / (hi - lo)) * 100}%`;
+  return (
+    <div className="relative mt-1 mb-4 h-9" aria-hidden="true" data-testid="avg-track">
+      <div className="absolute inset-x-0 top-3 h-1.5 rounded-full bg-muted" />
+      <div className="absolute top-2 h-3.5 rounded border border-hl-green bg-hl-green-bg" style={{ left: pos(79.5), width: `calc(${pos(80.5)} - ${pos(79.5)})` }} />
+      {people.map((q) => (
+        <span key={q.name} title={`${q.name} ${q.total.toFixed(1)}`} className={cn("absolute top-1.5 size-3.5 -translate-x-1/2 rounded-full border-2 border-card", q.me ? "bg-foreground" : "bg-brand")} style={{ left: pos(q.total) }} />
+      ))}
+      <span className="absolute top-0 h-7 w-1 -translate-x-1/2 rounded bg-foreground/70" style={{ left: pos(avg) }} />
+      {[70, 75, 80, 85, 90].map((t) => (
+        <span key={t} className="absolute top-5 -translate-x-1/2 text-[10px] text-muted-foreground tabular-nums" style={{ left: pos(t) }}>
+          {t}
+        </span>
+      ))}
+    </div>
   );
 }

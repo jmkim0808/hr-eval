@@ -63,6 +63,7 @@ await check("업적 글, 항목별 점수, 가점 내역은 보이지 않는다"
   return !html.includes("비밀 업적 글") && !/가점|1차|2차|역량|업적/.test(text) && !/>1\.25</.test(html) && !/bonus|competency|achievement/i.test(html);
 });
 await cp.screenshot({ path: "/tmp/hr-e2e/13-report.png", fullPage: true });
+await check("[2026-10-19] 대표이사 화면에 등급 분포 · 기준 대비 그림이 보인다", async () => (await cp.getByTestId("grade-dist").count()) === 1);
 
 // 관리자가 조정 적용 → 대표이사 화면은 새로고침 없이 10초 안에 바뀐다
 await ap.goto(`${BASE}/admin/final?group=5`);
