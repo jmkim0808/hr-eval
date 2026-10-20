@@ -1,10 +1,12 @@
 // PC 시험 모드 도우미 (Windows·Mac 공통). 가짜 명단으로만 쓴다.
 //   node scripts/demo.mjs setup  — 처음 한 번: 설정 파일·시험용 DB·설치·빌드
 //   node scripts/demo.mjs start  — 켜기 (브라우저에서 시험용 포털이 열린다)
+//   node scripts/demo.mjs share  — 사내망 팀 시험: 같은 사내망의 다른 PC에서 내 PC 주소로 접속
 //   node scripts/demo.mjs reset  — 시험 데이터를 모두 지우고 처음 상태로 (서버를 끈 뒤)
 import { spawnSync, spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { networkInterfaces } from "node:os";
 import { createInterface } from "node:readline";
 
 const PORT = 3000;
@@ -100,16 +102,38 @@ async function setup() {
   console.log("\n✔ 준비 끝. 이제 [시험-켜기]를 실행하세요.");
 }
 
-async function start() {
+/** 사내망 주소(192.168.x.x / 10.x.x.x / 172.16~31.x.x) 우선, 없으면 첫 번째 외부 주소 */
+function lanIp() {
+  const all = Object.values(networkInterfaces()).flat().filter((n) => n && n.family === "IPv4" && !n.internal).map((n) => n.address);
+  if (process.env.HR_SHARE_IP) return process.env.HR_SHARE_IP; // 주소가 여러 개라 잘못 잡힐 때 직접 지정
+  return all.find((a) => /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(a)) ?? all[0] ?? null;
+}
+
+async function start(share = false) {
   if (!existsSync(".next/standalone/server.js")) die("먼저 [시험-설치]를 실행해 주세요.");
+  const env = readEnv();
+  let home = HOME;
+  if (share) {
+    if (env.HR_DEMO !== "on" || (env.MAIL_MODE ?? "log") !== "log") die("시험 모드 설정(.env.local)에서만 팀 공유를 켤 수 있습니다.");
+    const ip = lanIp();
+    if (!ip) die("사내망 주소를 찾지 못했습니다. 유선·사내 와이파이에 연결돼 있는지 확인해 주세요.");
+    home = `http://${ip}:${PORT}/hr-eval`;
+    Object.assign(env, { HR_LISTEN_LAN: "on", APP_URL: home }); // 메일함 링크도 팀원이 열 수 있는 주소로
+    if (win) {
+      // 방화벽: 관리자 권한으로 실행했을 때만 규칙이 들어간다. 아니면 처음 켤 때 Windows가 물어본다 → [허용]
+      const fw = spawnSync("netsh", ["advfirewall", "firewall", "add", "rule", "name=hr-eval-test", "dir=in", "action=allow", "protocol=TCP", `localport=${PORT}`, "profile=private,domain"], { stdio: "ignore" });
+      if (fw.status !== 0) console.log("\n(참고) 방화벽 규칙은 넣지 못했습니다. Windows 보안 창이 뜨면 [허용]을 누르세요. 팀원이 접속하지 못하면 이 파일을 [관리자 권한으로 실행]하세요.");
+    }
+  }
   say(`켜는 중… 끄려면 이 창을 닫거나 Ctrl+C`);
-  const child = spawn(process.execPath, ["scripts/start.mjs", "--port", String(PORT)], { stdio: "inherit", env: { ...process.env, ...readEnv() } });
+  const child = spawn(process.execPath, ["scripts/start.mjs", "--port", String(PORT)], { stdio: "inherit", env: { ...process.env, ...env } });
   for (let i = 0; i < 60; i++) {
     await new Promise((r) => setTimeout(r, 1000));
     const ok = await fetch(`${HOME}/health`).then((r) => r.ok).catch(() => false);
     if (ok) {
-      console.log(`\n✔ 켜졌습니다: ${HOME}/dev`);
-      const open = win ? ["cmd", ["/c", "start", "", `${HOME}/dev`]] : process.platform === "darwin" ? ["open", [`${HOME}/dev`]] : ["xdg-open", [`${HOME}/dev`]];
+      console.log(`\n✔ 켜졌습니다: ${home}/dev`);
+      if (share) console.log(`\n  팀원에게 보낼 주소:  ${home}/dev\n  (같은 사내망에서만 열립니다. 시험이 끝나면 이 창을 닫으세요. 가짜 명단만 쓰세요.)`);
+      const open = win ? ["cmd", ["/c", "start", "", `${home}/dev`]] : process.platform === "darwin" ? ["open", [`${home}/dev`]] : ["xdg-open", [`${home}/dev`]];
       const o = spawn(open[0], open[1], { stdio: "ignore", detached: true });
       o.on("error", () => console.log("브라우저를 열지 못했습니다. 위 주소를 브라우저에 직접 넣어 주세요."));
       o.unref();
@@ -136,6 +160,7 @@ async function reset() {
 const cmd = process.argv[2];
 if (cmd === "setup") await setup();
 else if (cmd === "start") await start();
+else if (cmd === "share") await start(true);
 else if (cmd === "reset") await reset();
-else die("사용법: node scripts/demo.mjs setup | start | reset");
+else die("사용법: node scripts/demo.mjs setup | start | share | reset");
 if (cmd !== "start") process.exit(0);

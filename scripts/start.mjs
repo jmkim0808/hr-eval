@@ -19,7 +19,9 @@ if (!port || !/^\d+$/.test(port)) {
   process.exit(1);
 }
 process.env.PORT = port;
-process.env.HOSTNAME = "127.0.0.1";
+// 사내망 팀 시험(시험-팀공유)만 다른 PC 접속을 연다. 시험 모드(HR_DEMO=on, 메일 안 보냄)일 때만 — 운영에서는 항상 127.0.0.1
+const teamShare = process.env.HR_LISTEN_LAN === "on" && process.env.HR_DEMO === "on" && (process.env.MAIL_MODE ?? "log") === "log";
+process.env.HOSTNAME = teamShare ? "0.0.0.0" : "127.0.0.1";
 const server = resolve(".next/standalone/server.js");
 if (!existsSync(server)) {
   console.error("먼저 npm run build 를 실행해 주세요.");
