@@ -13,7 +13,7 @@ export default async function HistoryPage() {
   const years = await listHistory(a);
   return (
     <main className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-4 py-6 sm:px-8 sm:py-8">
-      <PageHeader title="지난 평가 기록" description="결과가 나온 해의 평가지(업적 글 포함)와 평가결과 · 대외비이므로 다른 사람에게 보여 주지 마세요" />
+      <PageHeader back={{ href: "/me", label: "내 할 일" }} title="지난 평가 기록" description="결과가 나온 해의 평가지(업적 글 포함)와 평가결과 · 대외비이므로 다른 사람에게 보여 주지 마세요" />
       {years.length === 0 ? (
         <Card>
           <Empty icon={<History aria-hidden="true" />} title="아직 볼 수 있는 지난 기록이 없습니다">

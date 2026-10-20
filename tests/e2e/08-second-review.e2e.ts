@@ -62,11 +62,11 @@ await ep.screenshot({ path: "/tmp/hr-e2e/08-second.png", fullPage: true });
 async function fillSubmit(col: string, v: string) {
   for (const i of await inputs(col).all()) await i.fill(v);
   await ep.getByRole("button", { name: "제출" }).click();
-  await ep.getByText("제출함").waitFor();
+  await ep.getByTestId("submitted-toast").waitFor();
 }
-await fillSubmit("2차", "7");
+await fillSubmit("2차", "9"); // 2026-10-20: 2명도 평균 80 규칙 → 90·70
 await ep.goto(`${BASE}/me/review/second/${park}`);
-await fillSubmit("2차", "6");
+await fillSubmit("2차", "7");
 
 await ep.goto(`${BASE}/me/review/leader/${ld}`);
 await check("팀장 평가 묶음에 담당 팀장들이 보이고, 팀장용 항목(리더쉽·소통·계획 포함)에 점수를 넣을 수 있다", async () => {

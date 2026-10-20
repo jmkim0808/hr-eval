@@ -27,11 +27,11 @@ export function RosterUpload({ locked }: { locked: boolean }) {
       const ws = wb.addWorksheet("직원 명단");
       ws.addRow([...ROSTER_HEADERS]);
       ws.getRow(1).font = { bold: true };
-      ws.columns = ROSTER_HEADERS.map((h) => ({ width: h === "이메일" || h === "담당 임원" ? 28 : h.includes("평가자") ? 18 : 14 }));
-      ws.addRow(["E0001", "(예시) 정하늘", "haneul@powernet.co.kr", "", "상무", "2010-03-02", "아니오", "", "", ""].map((v) => safeCell(v)));
-      ws.addRow(["E0002", "(예시) 최성호", "sungho@powernet.co.kr", "영업1팀", "부장", "2015-07-01", "예", "haneul@powernet.co.kr", "", ""].map((v) => safeCell(v)));
-      ws.addRow(["E0003", "(예시) 김민수", "minsu@powernet.co.kr", "영업1팀", "대리", "2021-03-02", "아니오", "haneul@powernet.co.kr", "", ""].map((v) => safeCell(v)));
-      ws.addRow(["E0004", "(예시) 박지원", "jiwon@powernet.co.kr", "영업2팀", "과장", "2019-05-02", "아니오", "", "E0002", "E0001"].map((v) => safeCell(v)));
+      ws.columns = ROSTER_HEADERS.map((h) => ({ width: h === "이메일" || h === "담당 임원" ? 28 : h.includes("평가자") ? 18 : h === "호봉" || h === "승진연한" ? 10 : 14 }));
+      ws.addRow(["E0001", "(예시) 정하늘", "haneul@powernet.co.kr", "", "상무", "2010-03-02", "아니오", "", "", "", "", "", "1972-04-11"].map((v) => safeCell(v)));
+      ws.addRow(["E0002", "(예시) 최성호", "sungho@powernet.co.kr", "영업1팀", "부장", "2015-07-01", "예", "", "", "E0001", "2", "5", "1980-09-03"].map((v) => safeCell(v)));
+      ws.addRow(["E0003", "(예시) 김민수", "minsu@powernet.co.kr", "영업1팀", "대리", "2021-03-02", "아니오", "haneul@powernet.co.kr", "", "", "3", "4", "1994-01-20"].map((v) => safeCell(v)));
+      ws.addRow(["E0004", "(예시) 박지원", "jiwon@powernet.co.kr", "영업2팀", "과장", "2019-05-02", "아니오", "", "E0002", "E0001", "1", "4", ""].map((v) => safeCell(v)));
       const help = wb.addWorksheet("작성 안내");
       [
         ["제목 줄(1행)은 바꾸지 마세요. 예시 줄은 지우고 작성하세요."],
@@ -40,7 +40,9 @@ export function RosterUpload({ locked }: { locked: boolean }) {
         ["팀장 여부: 예 / 아니오"],
         ["담당 임원: 그 사람의 2차 평가자(팀장은 평가자)인 임원의 이메일"],
         ["1차·2차 평가자 사번(선택): 비우면 자동 지정(1차 = 같은 부서 팀장, 2차 = 담당 임원). 부서와 팀장이 맞지 않으면 평가자의 사번을 직접 적으세요. 적은 칸은 담당 임원·부서 팀장이 없어도 됩니다."],
-        ["팀장은 1차 평가자 사번(임원)만 적을 수 있고, 2차 평가자 칸은 비워 둡니다."],
+        ["팀장 평가는 임원 1명이 합니다. 담당 임원 이메일로 자동 지정하거나, 임원 사번을 2차 평가자 칸(또는 1차 칸)에 한 번만 적으세요."],
+        ["호봉·승진연한(선택): 숫자만. 예) 대리 3호봉, 승진연한 4년 → 호봉 3, 승진연한 4. 평가자 화면에 '3/4호봉'으로 보입니다."],
+        ["생년월일(선택): 1990-05-17 형식. 관리자 화면에만 보이고 암호화해 저장합니다. 평가자에게는 보이지 않습니다."],
         ["입사일: 2021-03-02 형식. 그해 7월 1일 이후 입사자는 평가에서 자동으로 빠집니다."],
       ].forEach((r) => help.addRow(r));
       help.getColumn(1).width = 110;
@@ -56,19 +58,20 @@ export function RosterUpload({ locked }: { locked: boolean }) {
       const ws = (await loadWorkbook(file)).worksheets[0];
       if (!ws) return setState({ kind: "error", message: "시트를 찾을 수 없습니다." });
       const head = ROSTER_HEADERS.map((_, i) => cellText(ws.getRow(1).getCell(i + 1).value));
-      // 앞 8칸은 그대로, 평가자 지정 2칸은 있으면 이름이 맞아야 한다 (예전 8칸 템플릿도 받음)
+      // 앞 8칸은 그대로, 뒤 선택 칸은 있는 만큼 순서·이름이 맞아야 한다 (예전 8칸·10칸 템플릿도 받음)
       const extra = head.slice(ROSTER_REQUIRED_HEADERS);
+      const last = extra.reduce((a, h, i) => (h ? i : a), -1);
       const headOk =
         head.slice(0, ROSTER_REQUIRED_HEADERS).join("|") === ROSTER_HEADERS.slice(0, ROSTER_REQUIRED_HEADERS).join("|") &&
-        (extra.every((h) => !h) || extra.join("|") === ROSTER_HEADERS.slice(ROSTER_REQUIRED_HEADERS).join("|"));
+        extra.slice(0, last + 1).join("|") === ROSTER_HEADERS.slice(ROSTER_REQUIRED_HEADERS, ROSTER_REQUIRED_HEADERS + last + 1).join("|");
       if (!headOk) return setState({ kind: "error", message: "제목 줄이 템플릿과 다릅니다. 템플릿을 내려받아 그대로 작성해 주세요." });
       rows = [];
       ws.eachRow((row, n) => {
         if (n === 1) return;
         const c = (i: number) => cellText(row.getCell(i).value);
-        const values = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(c);
+        const values = ROSTER_HEADERS.map((_, i) => c(i + 1));
         if (values.every((v) => !v) || values[1]!.startsWith("(예시)")) return;
-        rows.push({ rowNo: n, employeeNo: values[0]!, name: values[1]!, email: values[2]!, department: values[3]!, position: values[4]!, hireDate: values[5]!, isTeamLeader: values[6]!, executiveEmail: values[7]!, firstReviewerNo: values[8]!, secondReviewerNo: values[9]! });
+        rows.push({ rowNo: n, employeeNo: values[0]!, name: values[1]!, email: values[2]!, department: values[3]!, position: values[4]!, hireDate: values[5]!, isTeamLeader: values[6]!, executiveEmail: values[7]!, firstReviewerNo: values[8]!, secondReviewerNo: values[9]!, payStep: values[10]!, promoYears: values[11]!, birthDate: values[12]! });
       });
     } catch {
       return setState({ kind: "error", message: "엑셀 파일을 읽을 수 없습니다." });

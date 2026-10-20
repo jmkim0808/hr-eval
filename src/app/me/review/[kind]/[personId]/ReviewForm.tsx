@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, CircleAlert, CircleCheck, EyeOff, Info, Loader2, RefreshCw, Send } from "lucide-react";
+import { ArrowRight, Undo2, CircleAlert, CircleCheck, EyeOff, Info, Loader2, RefreshCw, Send } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
@@ -10,9 +10,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Empty } from "@/components/ui/empty";
 import { Input, Textarea } from "@/components/ui/input";
 import type { FormType, Item } from "@/domain/forms";
-import { ACHIEVEMENT, AVG_TARGET, averageGuide, parseScore, raterTotal, REVIEW, type ReviewKind } from "@/domain/review";
+import { ACHIEVEMENT, AVG_RANGE, AVG_TARGET, AVG_TOLERANCE, averageGuide, parseScore, raterTotal, REVIEW, type ReviewKind } from "@/domain/review";
 import { cn } from "@/lib/utils";
-import { saveReviewAction } from "../../actions";
+import { cancelReviewAction, saveReviewAction } from "../../actions";
 import { BonusBox } from "@/components/BonusBox";
 import { CardNav, FlowRail, Kbd, ModeSwitch, ScaleButtons, useCardKeys, useFlowMode, type FlowStep } from "@/components/flow/Flow";
 import type { BonusView } from "@/server/repo/bonus";
@@ -20,12 +20,13 @@ import type { BonusView } from "@/server/repo/bonus";
 const AUTOSAVE_MS = 1200;
 const COMMENT_MAX = 1000;
 const RANGE_MSG = "1~10 사이, 소수 첫째 자리까지 넣을 수 있습니다";
+const whenFull = (iso: string) => new Intl.DateTimeFormat("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Seoul" }).format(new Date(iso)) + " 제출";
 const hhmm = (iso: string) => new Intl.DateTimeFormat("ko-KR", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Seoul" }).format(new Date(iso));
 
 type Props = {
   kind: ReviewKind;
   label: string;
-  person: { id: string; name: string; department: string; position: string; formType: FormType };
+  person: { id: string; name: string; department: string; position: string; formType: FormType; pay?: string | null };
   items: Item[];
   year: number;
   visible: boolean;
@@ -58,6 +59,20 @@ export function ReviewForm(p: Props) {
   const [missing, setMissing] = useState<Set<string>>(new Set());
   const [avgBlock, setAvgBlock] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState<string | null>(p.initial.submittedAt);
+  // 2026-10-20: 제출하면 잠긴다. 기간 안이면 [제출 취소]로 다시 연다
+  const canEdit = p.editable && !submitted;
+  const [cancelling, startCancel] = useTransition();
+  const [cancelErr, setCancelErr] = useState<string | null>(null);
+  const cancelSubmit = () =>
+    startCancel(async () => {
+      const r = await cancelReviewAction({ kind: p.kind, personId: p.person.id });
+      if (!r.ok) return setCancelErr(r.message);
+      version.current = r.value.version;
+      setCancelErr(null);
+      setSubmitted(null);
+      setJustSent(false);
+      router.refresh();
+    });
   const [submitting, startSubmit] = useTransition();
   const [justSent, setJustSent] = useState(false);
   const version = useRef(p.initial.version);
@@ -121,9 +136,9 @@ export function ReviewForm(p: Props) {
         setAvgBlock(null);
         setSubmitted(r.value.savedAt);
         setSave({ kind: "saved", at: r.value.savedAt });
-        // 제출하면 알림을 잠깐 보이고 다음 사람(없으면 내 평가 현황)으로 넘어간다 (2026-10-15 피드백)
+        // 2026-10-20: 저절로 넘어가지 않고, 알림 안의 단추로 다음 사람(없으면 내 평가 현황)으로 간다
         setJustSent(true);
-        setTimeout(() => router.push(p.nextHref ?? `${p.overviewHref}?done=1`), 1200);
+        router.refresh();
       } else if (r.code === "average") {
         setAvgBlock(r.message);
         document.getElementById("average-panel")?.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -153,7 +168,7 @@ export function ReviewForm(p: Props) {
     const parsed = parseScore(v);
     const err = parsed === "invalid" ? RANGE_MSG : missing.has(code) && !parsed ? "점수를 넣어 주세요" : null;
     if (!p.showMine) return null;
-    if (!p.editable) return <span className="text-center font-semibold tabular-nums">{p.initial.scores[code] ?? "—"}</span>;
+    if (!canEdit) return <span className="text-center font-semibold tabular-nums">{p.initial.scores[code] ?? "—"}</span>;
     return (
       <div className="flex flex-col items-center gap-0.5">
         <Input
@@ -182,7 +197,7 @@ export function ReviewForm(p: Props) {
     ...p.items.map((it) => ({ key: it.code, group: it.group, label: it.name, done: vals[it.code] !== undefined, value: vals[it.code]?.toFixed(1), error: missing.has(it.code) })),
     { key: ACHIEVEMENT, group: "업적", label: "업적 점수", done: vals[ACHIEVEMENT] !== undefined, value: vals[ACHIEVEMENT]?.toFixed(1), error: missing.has(ACHIEVEMENT) },
     ...(p.showMine ? [{ key: "_comment", group: "의견", label: "평가의견 (선택)", done: comment.trim().length > 0, value: comment.trim() ? "작성함" : undefined }] : []),
-    { key: "_done", group: "마무리", label: p.editable ? "마지막 확인" : "요약", done: false },
+    { key: "_done", group: "마무리", label: canEdit ? "마지막 확인" : "요약", done: false },
   ];
   const stepKeys = steps.map((x) => x.key);
   const at = Math.min(cur, steps.length - 1);
@@ -191,7 +206,7 @@ export function ReviewForm(p: Props) {
   const isScoreStep = !!item || step.key === ACHIEVEMENT;
   const go = (i: number) => setCur(Math.max(0, Math.min(steps.length - 1, i)));
   const setScore = (code: string, n: number) => change(code, String(Math.round(Math.min(10, Math.max(1, n)) * 10) / 10));
-  useCardKeys(mode === "card" && p.editable && p.showMine, isScoreStep ? (n) => setScore(step.key, n) : null, () => step.key !== "_done" && go(at + 1));
+  useCardKeys(mode === "card" && canEdit && p.showMine, isScoreStep ? (n) => setScore(step.key, n) : null, () => step.key !== "_done" && go(at + 1));
   const total = raterTotal(p.person.formType, vals);
   const filled = steps.filter((x) => x.key !== "_done" && x.key !== "_comment" && x.done).length;
   const need = codes.length;
@@ -225,17 +240,17 @@ export function ReviewForm(p: Props) {
             {step.error && <p className="mt-2 text-caption text-danger">점수를 넣어 주세요</p>}
             {p.showMine ? (
               <div className="mt-8 flex flex-col gap-4">
-                <ScaleButtons label={item?.name ?? "업적"} value={vals[step.key]} disabled={!p.editable} selfMark={item ? p.self.scores[item.code] : undefined} onPick={(n) => setScore(step.key, n)} />
+                <ScaleButtons label={item?.name ?? "업적"} value={vals[step.key]} disabled={!canEdit} selfMark={item ? p.self.scores[item.code] : undefined} onPick={(n) => setScore(step.key, n)} />
                 <div className="flex flex-wrap items-center gap-3">
                   <span className="text-caption text-muted-foreground">0.1점 단위</span>
                   <span className="inline-flex items-center overflow-hidden rounded-xl border">
-                    <button type="button" aria-label="0.1점 내리기" disabled={!p.editable} className="h-10 w-10 bg-muted text-section-title font-bold disabled:opacity-50" onClick={() => setScore(step.key, (vals[step.key] ?? 8) - 0.1)}>
+                    <button type="button" aria-label="0.1점 내리기" disabled={!canEdit} className="h-10 w-10 bg-muted text-section-title font-bold disabled:opacity-50" onClick={() => setScore(step.key, (vals[step.key] ?? 8) - 0.1)}>
                       −
                     </button>
                     <output className="min-w-16 text-center text-section-title font-extrabold tabular-nums" aria-live="polite">
                       {vals[step.key] !== undefined ? vals[step.key]!.toFixed(1) : "—"}
                     </output>
-                    <button type="button" aria-label="0.1점 올리기" disabled={!p.editable} className="h-10 w-10 bg-muted text-section-title font-bold disabled:opacity-50" onClick={() => setScore(step.key, (vals[step.key] ?? 8) + 0.1)}>
+                    <button type="button" aria-label="0.1점 올리기" disabled={!canEdit} className="h-10 w-10 bg-muted text-section-title font-bold disabled:opacity-50" onClick={() => setScore(step.key, (vals[step.key] ?? 8) + 0.1)}>
                       +
                     </button>
                   </span>
@@ -250,7 +265,7 @@ export function ReviewForm(p: Props) {
             <h2 className="text-[28px] leading-tight font-extrabold tracking-tight sm:text-[32px]">{p.person.name} 님께 남길 평가의견</h2>
             <p className="mt-2.5 mb-5 text-subsection-title text-text-secondary">해당 의견란은 피평가자에게 표시됩니다. · 선택 · {COMMENT_MAX.toLocaleString()}자까지</p>
             {p.firstComment !== null && <ReadText title="1차 평가의견" text={p.firstComment} />}
-            {p.editable ? (
+            {canEdit ? (
               <Textarea
                 id="review-comment"
                 aria-label={`${REVIEW[p.kind].column} 평가의견`}
@@ -269,10 +284,10 @@ export function ReviewForm(p: Props) {
         ) : (
           <>
             <h2 className="text-[28px] leading-tight font-extrabold tracking-tight sm:text-[32px]">
-              {!p.editable ? `${p.person.name} 님 평가 요약` : filled === need ? `${p.person.name} 님 평가를 제출할까요?` : `아직 ${need - filled}칸이 비어 있어요`}
+              {!canEdit ? `${p.person.name} 님 평가 요약` : filled === need ? `${p.person.name} 님 평가를 제출할까요?` : `아직 ${need - filled}칸이 비어 있어요`}
             </h2>
             <p className="mt-2.5 text-subsection-title text-text-secondary">
-              {!p.editable ? (p.notice ?? "") : filled === need ? `제출하면 ${p.nextHref ? "다음 사람으로" : "내 평가 현황으로"} 넘어갑니다. 기간 안에는 다시 고칠 수 있습니다.` : "왼쪽 흐름에서 회색 항목을 눌러 채워 주세요."}
+              {!canEdit ? (p.notice ?? "") : filled === need ? `제출하면 ${p.nextHref ? "다음 사람으로" : "내 평가 현황으로"} 넘어갑니다. 기간 안에는 다시 고칠 수 있습니다.` : "왼쪽 흐름에서 회색 항목을 눌러 채워 주세요."}
             </p>
             <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
               {[
@@ -290,7 +305,7 @@ export function ReviewForm(p: Props) {
               <Button variant="outline" size="lg" onClick={() => setMode("all")}>
                 한눈에 다시 보기
               </Button>
-              {p.editable && (
+              {canEdit && (
                 <Button size="lg" onClick={submit} disabled={submitting || save.kind === "conflict"}>
                   {submitting ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Send aria-hidden="true" />}
                   {p.nextHref ? "제출하고 다음 사람" : "제출"}
@@ -326,22 +341,45 @@ export function ReviewForm(p: Props) {
         <div>
           <h2 className="text-section-title font-bold">{p.person.name}</h2>
           <p className="text-caption text-muted-foreground">
-            {p.person.department} · {p.person.position} · {p.person.formType === "leader" ? "팀장용 인사평가지" : "팀원용 인사평가지"}
+            {p.person.department} · {p.person.position}
+            {p.person.pay && <b className="font-semibold text-foreground" data-testid="pay-label"> · {p.person.pay}</b>} · {p.person.formType === "leader" ? "팀장용 인사평가지" : "팀원용 인사평가지"}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <SaveLine save={save} editable={p.editable} />
+          <SaveLine save={save} editable={canEdit} />
           <ModeSwitch mode={mode} onChange={setMode} />
         </div>
       </div>
 
       {p.showMine && <AveragePanel bundle={p.bundle} personId={p.person.id} current={raterTotal(p.person.formType, valid(raw))} currentAch={valid(raw)[ACHIEVEMENT] ?? null} block={avgBlock} />}
 
-      {justSent && (
-        <Alert variant="success" data-testid="submitted-toast">
+      {submitted && (
+        <Alert variant={justSent ? "success" : "default"} data-testid={justSent ? "submitted-toast" : "submitted-banner"}>
           <CircleCheck aria-hidden="true" />
-          <AlertTitle>{p.person.name} 님 {p.label}를 제출했습니다</AlertTitle>
-          <AlertDescription>{p.nextHref ? "다음 사람으로 넘어갑니다…" : "모두 제출했습니다. 내 평가 현황으로 넘어갑니다…"}</AlertDescription>
+          <AlertTitle>
+            {justSent ? `${p.person.name} 님 ${p.label}를 제출했습니다` : `제출한 평가입니다`} · <span className="tabular-nums" data-testid="submitted-at">{whenFull(submitted)}</span>
+          </AlertTitle>
+          <AlertDescription>
+            <p>{p.editable ? "제출하면 잠깁니다. 고치려면 [제출 취소]를 누른 뒤 고쳐서 다시 제출하세요 (기간 안에서만)." : "기간이 끝나 고칠 수 없습니다."}</p>
+            <div className="flex flex-wrap gap-2">
+              {p.nextHref && (
+                <Link href={p.nextHref} className={buttonVariants({ size: "sm" })} data-testid="go-next">
+                  다음 사람 평가하기
+                  <ArrowRight aria-hidden="true" />
+                </Link>
+              )}
+              <Link href={`${p.overviewHref}${justSent && !p.nextHref ? "?done=1" : ""}`} className={buttonVariants({ variant: "outline", size: "sm" })}>
+                내 평가 현황
+              </Link>
+              {p.editable && (
+                <Button variant="outline" size="sm" onClick={cancelSubmit} disabled={cancelling} data-testid="cancel-submit">
+                  <Undo2 aria-hidden="true" />
+                  제출 취소
+                </Button>
+              )}
+            </div>
+            {cancelErr && <p className="mt-1 text-danger">{cancelErr}</p>}
+          </AlertDescription>
         </Alert>
       )}
 
@@ -404,27 +442,30 @@ export function ReviewForm(p: Props) {
       </Card>
 
       <Card>
-        <CardHeader>
-          <CardTitle>업적 평가 (비중 70%)</CardTitle>
-          <CardDescription>직원이 쓴 글을 읽고 1~10점(소수 첫째 자리까지)을 매깁니다</CardDescription>
+        <CardHeader className="flex flex-wrap items-start justify-between gap-4">
+          <div className="flex flex-col gap-1">
+            <CardTitle>업적 평가 (비중 70%)</CardTitle>
+            <CardDescription>직원이 쓴 글을 읽고 1~10점(소수 첫째 자리까지)을 매깁니다 · 최종점수의 70%</CardDescription>
+          </div>
+          {/* 2026-10-20: 배점이 큰 업적 점수는 오른쪽 위, 굵게 */}
+          <div className="flex flex-wrap items-center gap-4 rounded-xl border-2 border-foreground/80 bg-muted/40 px-4 py-2.5" data-testid="ach-score-box">
+            {showFirst && (
+              <span className="text-body text-text-secondary">
+                1차 업적 <b className="tabular-nums text-foreground">{p.firstScores![ACHIEVEMENT] ?? "—"}</b>
+              </span>
+            )}
+            {p.showMine && (
+              <label className="flex items-center gap-3 text-subsection-title font-extrabold">
+                {REVIEW[p.kind].column} 업적 점수
+                {scoreCell(ACHIEVEMENT, "업적")}
+              </label>
+            )}
+          </div>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           <div className="grid gap-4">
             <ReadText title={`${p.year}년 개인역할 및 업적`} text={p.self.achievement} />
             <ReadText title={`${p.year + 1}년 개선 및 발전`} text={p.self.improvement} />
-          </div>
-          <div className="flex flex-wrap items-center gap-6">
-            {showFirst && (
-              <span className="text-body text-text-secondary">
-                1차 업적 점수 <b className="tabular-nums text-foreground">{p.firstScores![ACHIEVEMENT] ?? "—"}</b>
-              </span>
-            )}
-            {p.showMine && (
-              <label className="flex items-center gap-3 font-medium">
-                {REVIEW[p.kind].column} 업적 점수
-                {scoreCell(ACHIEVEMENT, "업적")}
-              </label>
-            )}
           </div>
         </CardContent>
       </Card>
@@ -438,7 +479,7 @@ export function ReviewForm(p: Props) {
           <CardContent className="flex flex-col gap-3">
             {p.firstComment !== null && <ReadText title="1차 평가의견" text={p.firstComment} />}
             {p.showMine &&
-              (p.editable ? (
+              (canEdit ? (
                 <div className="flex flex-col gap-1">
                   <Textarea
                     id="review-comment"
@@ -462,7 +503,7 @@ export function ReviewForm(p: Props) {
         </Card>
       )}
 
-      {p.editable && (
+      {canEdit && (
         <div className="flex flex-wrap items-center justify-end gap-3">
           {submitted && (
             <span className="flex items-center gap-1.5 text-caption text-success">
@@ -538,14 +579,14 @@ function AveragePanel({ bundle, personId, current, currentAch, block }: { bundle
     <Card id="average-panel" className="sticky top-[4.5rem] z-10 gap-2 py-4 shadow-md" data-testid="average-panel">
       <CardHeader className="px-5">
         <CardTitle className="flex flex-wrap items-baseline gap-x-3 text-body">
-          내가 준 점수 평균 <span className="text-caption font-normal text-muted-foreground">(평가 대상 {rows.length}명 · 기준 {AVG_TARGET}점, 허용 79.5~80.5)</span>
+          내가 준 점수 평균 <span className="text-caption font-normal text-muted-foreground">(평가 대상 {rows.length}명 · 기준 {AVG_TARGET}점, 허용 {AVG_RANGE})</span>
           <span className={cn("text-section-title tabular-nums", tone)} data-testid="my-average">
             {avg === null ? "—" : `${avg.toFixed(2)}점`}
           </span>
         </CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-2 px-5">
-        {g.kind === "na" && <p className="text-caption text-muted-foreground">맡은 사람이 2명 이하라 평균 80점 규칙을 적용하지 않습니다.</p>}
+        {g.kind === "na" && <p className="text-caption text-muted-foreground">맡은 사람이 1명이라 평균 80점 규칙을 적용하지 않습니다.</p>}
         {g.kind === "pending" && (
           <p className="text-caption text-text-secondary" data-testid="average-advice">
             {g.n}명 중 {g.filled}명 입력.{" "}
@@ -576,7 +617,7 @@ function AveragePanel({ bundle, personId, current, currentAch, block }: { bundle
             <p className="text-label text-muted-foreground">역량 항목으로 맞춰도 됩니다 (항목 0.1점 = 업적 0.1점의 1/23 정도 효과).</p>
           </div>
         )}
-        {avg !== null && <AvgTrack avg={avg} people={rows.filter((b) => b.total !== null).map((b) => ({ name: b.name, total: b.total!, me: b.id === personId }))} />}
+        {g.kind !== "na" && <AvgTrack avg={avg} people={rows.filter((b) => b.total !== null).map((b) => ({ name: b.name, total: b.total!, me: b.id === personId }))} />}
         <ul className="flex flex-wrap gap-x-4 gap-y-1 text-label text-text-secondary" aria-label="사람별 내가 준 점수">
           {rows.map((b) => (
             <li key={b.id} className={cn("tabular-nums", b.id === personId && "font-semibold text-foreground")}>
@@ -589,24 +630,42 @@ function AveragePanel({ bundle, personId, current, currentAch, block }: { bundle
   );
 }
 
-/** 평균 게이지 (2026-10-19): 70~90점 막대 위에 기준 띠(79.5~80.5), 사람별 점, 평균 표시 */
-function AvgTrack({ avg, people }: { avg: number; people: { name: string; total: number; me: boolean }[] }) {
+/**
+ * 평균 게이지 (2026-10-20 보완): 70~90점 막대 위에 기준 띠(80 ± 허용오차)와 "기준 80" 이름표,
+ * 지금 평균은 말풍선("지금 평균 81.3 · 기준보다 +1.3")으로 위치를 짚는다. 사람별 점은 이름을 마우스로.
+ */
+function AvgTrack({ avg, people }: { avg: number | null; people: { name: string; total: number; me: boolean }[] }) {
   const lo = 70;
   const hi = 90;
-  const pos = (v: number) => `${((Math.min(hi, Math.max(lo, v)) - lo) / (hi - lo)) * 100}%`;
+  const pct = (v: number) => ((Math.min(hi, Math.max(lo, v)) - lo) / (hi - lo)) * 100;
+  const pos = (v: number) => `${pct(v)}%`;
+  const ok = avg !== null && Math.abs(avg - AVG_TARGET) <= AVG_TOLERANCE + 1e-9;
+  const diff = avg === null ? 0 : avg - AVG_TARGET;
   return (
-    <div className="relative mt-1 mb-4 h-9" aria-hidden="true" data-testid="avg-track">
-      <div className="absolute inset-x-0 top-3 h-1.5 rounded-full bg-muted" />
-      <div className="absolute top-2 h-3.5 rounded border border-hl-green bg-hl-green-bg" style={{ left: pos(79.5), width: `calc(${pos(80.5)} - ${pos(79.5)})` }} />
+    <div className="relative mt-2 mb-1 h-[5.25rem]" data-testid="avg-track">
+      {avg !== null && (
+        <span
+          className={cn("absolute top-0 -translate-x-1/2 rounded-lg px-2 py-0.5 text-label font-bold whitespace-nowrap tabular-nums text-white", ok ? "bg-success" : "bg-foreground")}
+          style={{ left: `clamp(3.5rem, ${pct(avg)}%, calc(100% - 3.5rem))` }}
+          data-testid="avg-bubble"
+        >
+          지금 평균 {avg.toFixed(1)} · {ok ? "기준 안" : `기준보다 ${diff > 0 ? "+" : ""}${diff.toFixed(1)}`}
+        </span>
+      )}
+      <div className="absolute inset-x-0 top-9 h-2 rounded-full bg-muted" />
+      <div className="absolute top-[1.9rem] h-5 rounded border-2 border-hl-green bg-hl-green-bg" style={{ left: pos(AVG_TARGET - AVG_TOLERANCE), width: `calc(${pos(AVG_TARGET + AVG_TOLERANCE)} - ${pos(AVG_TARGET - AVG_TOLERANCE)})` }} />
       {people.map((q) => (
-        <span key={q.name} title={`${q.name} ${q.total.toFixed(1)}`} className={cn("absolute top-1.5 size-3.5 -translate-x-1/2 rounded-full border-2 border-card", q.me ? "bg-foreground" : "bg-brand")} style={{ left: pos(q.total) }} />
+        <span key={q.name} title={`${q.name} ${q.total.toFixed(1)}`} className={cn("absolute top-[2.05rem] size-3.5 -translate-x-1/2 rounded-full border-2 border-card", q.me ? "bg-foreground" : "bg-brand/70")} style={{ left: pos(q.total) }} />
       ))}
-      <span className="absolute top-0 h-7 w-1 -translate-x-1/2 rounded bg-foreground/70" style={{ left: pos(avg) }} />
-      {[70, 75, 80, 85, 90].map((t) => (
-        <span key={t} className="absolute top-5 -translate-x-1/2 text-[10px] text-muted-foreground tabular-nums" style={{ left: pos(t) }}>
+      {avg !== null && <span className="absolute top-6 h-9 w-1 -translate-x-1/2 rounded bg-foreground" style={{ left: pos(avg) }} />}
+      {[70, 75, 85, 90].map((t) => (
+        <span key={t} className="absolute top-[3.4rem] -translate-x-1/2 text-[11px] text-muted-foreground tabular-nums" style={{ left: pos(t) }}>
           {t}
         </span>
       ))}
+      <span className="absolute top-[3.4rem] -translate-x-1/2 text-[11px] font-bold text-hl-green tabular-nums" style={{ left: pos(AVG_TARGET) }}>
+        기준 {AVG_TARGET} ({AVG_RANGE})
+      </span>
     </div>
   );
 }

@@ -42,7 +42,7 @@ export default async function ReviewPage({ params }: { params: Promise<{ kind: s
 
   return (
     <main className="mx-auto flex w-full max-w-[1400px] flex-col gap-6 px-4 py-6 sm:px-8 sm:py-8">
-      <PageHeader
+      <PageHeader back={{ href: "/me", label: "내 할 일" }}
         title={`평가하기 · ${def.label}`}
         description={`${r.cycle.year}년 정기평가 · ${def.windowLabel} 기간 ${range} · ${group.people.length}명 중 ${done}명 완료`}
         actions={
@@ -51,7 +51,7 @@ export default async function ReviewPage({ params }: { params: Promise<{ kind: s
           </Link>
         }
       />
-      <nav aria-label="평가할 사람" className="-mx-1 flex gap-2.5 overflow-x-auto px-1 pb-1">
+      <nav aria-label="평가할 사람" className="-mx-1.5 flex gap-2.5 overflow-x-auto px-1.5 py-1.5">
         {group.people.map((q, n) => (
           <Link
             key={q.id}

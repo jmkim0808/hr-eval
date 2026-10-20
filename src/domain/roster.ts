@@ -1,8 +1,8 @@
 // 직원 명단 템플릿 규칙 (PRD 02). 브라우저와 서버가 같은 규칙으로 검사한다 (ADR-0008).
 import { z } from "zod";
 
-export const ROSTER_HEADERS = ["사번", "이름", "이메일", "부서", "직급", "입사일", "팀장 여부", "담당 임원", "1차 평가자 사번", "2차 평가자 사번"] as const;
-/** 앞 8칸은 필수 제목, 뒤 2칸(평가자 직접 지정, 2026-10-15)은 없어도 된다 (이전 템플릿 호환) */
+export const ROSTER_HEADERS = ["사번", "이름", "이메일", "부서", "직급", "입사일", "팀장 여부", "담당 임원", "1차 평가자 사번", "2차 평가자 사번", "호봉", "승진연한", "생년월일"] as const;
+/** 앞 8칸은 필수 제목. 뒤 칸(평가자 직접 지정 2026-10-15, 호봉·승진연한·생년월일 2026-10-20)은 없어도 된다 (이전 템플릿 호환) */
 export const ROSTER_REQUIRED_HEADERS = 8;
 export const ROSTER_MAX_ROWS = 1000;
 export const ROSTER_MAX_BYTES = 1024 * 1024;
@@ -32,6 +32,10 @@ export type RawRosterRow = {
   /** 비우면 자동 지정, 채우면 그 사번의 사람으로 (부서와 팀장이 맞지 않는 경우, 2026-10-15) */
   firstReviewerNo?: string;
   secondReviewerNo?: string;
+  /** 2026-10-20: 직급 호봉·승진연한(숫자), 생년월일(관리자만 보임, 암호화 저장) — 모두 선택 */
+  payStep?: string;
+  promoYears?: string;
+  birthDate?: string;
 };
 
 export const rawRowSchema = z.object({
@@ -46,6 +50,9 @@ export const rawRowSchema = z.object({
   executiveEmail: z.string().max(254),
   firstReviewerNo: z.string().max(30).optional(),
   secondReviewerNo: z.string().max(30).optional(),
+  payStep: z.string().max(10).optional(),
+  promoYears: z.string().max(10).optional(),
+  birthDate: z.string().max(20).optional(),
 });
 export const rawRowsSchema = z.array(rawRowSchema).max(ROSTER_MAX_ROWS);
 
@@ -66,6 +73,9 @@ export type RosterPerson = {
   formType: "member" | "leader" | null;
   firstReviewerEmail: string | null;
   secondReviewerEmail: string | null;
+  payStep: number | null;
+  promoYears: number | null;
+  birthDate: string | null;
 };
 
 export type RosterIssue = { rowNo: number; name: string; reason: string };
@@ -140,6 +150,17 @@ export function checkRoster(rows: RawRosterRow[], cycleYear: number): RosterChec
       if (!department) add(row, "부서가 비어 있습니다");
       if (!isTeamLeader && !(position in POSITION_GROUP)) add(row, `직급을 알 수 없습니다 (${position || "빈칸"})`);
     }
+    const num = (v: string | undefined, label: string) => {
+      const t = (v ?? "").trim().replace(/호봉|년$/g, "");
+      if (!t) return null;
+      if (!/^\d{1,2}$/.test(t)) return add(row, `${label}은 숫자로 적어 주세요 (예: 3)`), null;
+      return Number(t);
+    };
+    const payStep = num(r.payStep, "호봉");
+    const promoYears = num(r.promoYears, "승진연한");
+    const birthRaw = (r.birthDate ?? "").trim();
+    const birthDate = birthRaw ? normalizeDate(birthRaw) : null;
+    if (birthRaw && !birthDate) add(row, "생년월일 형식 오류 (예: 1990-05-17)");
     const excludedReason = !isExecutive && hireDate && hireDate > cutoff ? "7월 이후 입사" : null;
     const isTarget = !isExecutive && !excludedReason;
     people.push({
@@ -158,6 +179,9 @@ export function checkRoster(rows: RawRosterRow[], cycleYear: number): RosterChec
       formType: !isTarget ? null : isTeamLeader ? "leader" : "member",
       firstReviewerEmail: null,
       secondReviewerEmail: null,
+      payStep,
+      promoYears,
+      birthDate,
     });
     void r.executiveEmail;
   }
@@ -184,14 +208,16 @@ export function checkRoster(rows: RawRosterRow[], cycleYear: number): RosterChec
     const first = pick(p, rows[i]!.firstReviewerNo, "1차 평가자");
     const second = pick(p, rows[i]!.secondReviewerNo, "2차 평가자");
     // 담당 임원은 자동 지정에 쓸 때만 필요하다
-    const needExec = p.formType === "leader" ? first === undefined : second === undefined;
+    // 팀장 평가(임원 1명)는 1차·2차 칸 어느 쪽에 적어도 된다 — 보통 2차 칸 (2026-10-20)
+    const leaderPick = p.formType === "leader" ? (first !== undefined ? first : second) : undefined;
+    const needExec = p.formType === "leader" ? leaderPick === undefined : second === undefined;
     if (needExec) {
       if (!exec) add(p, "담당 임원이 비어 있습니다 (또는 평가자 사번을 직접 적어 주세요)");
       else if (!execP || !execP.isExecutive) add(p, "담당 임원 이메일이 명단의 임원과 맞지 않습니다");
     }
     if (p.formType === "leader") {
-      p.firstReviewerEmail = first !== undefined ? (first?.email ?? null) : execP?.isExecutive ? execP.email : null;
-      if (second !== undefined) add(p, "팀장은 2차 평가자가 없습니다 (2차 평가자 사번 칸을 비워 주세요)");
+      p.firstReviewerEmail = leaderPick !== undefined ? (leaderPick?.email ?? null) : execP?.isExecutive ? execP.email : null;
+      if (first !== undefined && second !== undefined) add(p, "팀장 평가는 임원 1명이 합니다 — 1차·2차 평가자 사번 중 한 칸만 적어 주세요 (보통 2차 칸)");
     } else {
       const leader = leaderOf.get(p.department);
       p.firstReviewerEmail = first !== undefined ? (first?.email ?? null) : leader && leader.email !== p.email ? leader.email : null;
@@ -206,4 +232,12 @@ export function checkRoster(rows: RawRosterRow[], cycleYear: number): RosterChec
   const applied = people.filter((p) => p.isTarget && !bad.has(p.rowNo)).length;
   issues.sort((a, b) => a.rowNo - b.rowNo);
   return { people, issues, counts: { applied, excluded, needsCheck } };
+}
+
+/** 호봉 표시 (2026-10-20): "3/4호봉 · 승진까지 1년" (승진연한 없으면 "3호봉") */
+export function payLabel(step: number | null | undefined, years: number | null | undefined): string | null {
+  if (step === null || step === undefined) return null;
+  if (years === null || years === undefined) return `${step}호봉`;
+  const left = years - step;
+  return `${step}/${years}호봉 · ${left > 0 ? `승진까지 ${left}년` : "승진연한 도달"}`;
 }

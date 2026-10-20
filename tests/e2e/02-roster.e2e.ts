@@ -44,7 +44,7 @@ await check("[템플릿 내려받기]로 받은 엑셀의 제목 줄이 사번·
   const wb = new ExcelJS.Workbook();
   await wb.xlsx.readFile(file!);
   const row = wb.worksheets[0]!.getRow(1).values as unknown[];
-  return row.slice(1).join("|") === [...H, "1차 평가자 사번", "2차 평가자 사번"].join("|"); // 평가자 직접 지정 칸 (2026-10-15, 선택)
+  return row.slice(1).join("|") === [...H, "1차 평가자 사번", "2차 평가자 사번", "호봉", "승진연한", "생년월일"].join("|"); // 평가자 직접 지정 칸 (2026-10-15), 호봉·승진연한·생년월일 (2026-10-20, 선택)
 });
 
 async function upload(path: string) {
@@ -69,7 +69,7 @@ await page.waitForSelector("text=반영 완료");
 await page.reload();
 const rowOf = (name: string) => page.locator("tbody tr").filter({ has: page.locator("td:first-child", { hasText: new RegExp(`^${name}$`) }) });
 await check("7월 1일 이후 입사자는 대상자 표에 들어가지 않는다", async () => (await rowOf("한신입").count()) === 0 && (await rowOf("윤사원").count()) === 1);
-await check("팀장 여부가 \"예\"인 사람은 팀장용, 1차 평가자가 담당 임원, 2차 평가자가 \"—\"이다", async () => {
+await check("팀장 여부가 \"예\"인 사람은 팀장용, 담당 임원이 팀장 평가자(2차 칸)로 보이고 1차 칸은 \"—\"이다", async () => {
   const r = rowOf("최팀장");
   const sel = await r.locator("select").first().evaluate((s: HTMLSelectElement) => s.options[s.selectedIndex]!.text);
   return (await r.getByText("팀장용").count()) === 1 && sel.startsWith("정임원") && (await r.locator("select").count()) === 1;

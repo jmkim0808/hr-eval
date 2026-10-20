@@ -81,11 +81,12 @@ export async function exportBackup(actor: Actor, cycleId: string): Promise<Resul
     },
     {
       name: "명단",
-      headers: ["이름", "이메일", "부서", "직급", "입사일", "팀장", "임원", "평가 대상", "제외 사유", "그룹", "평가지", "1차 평가자", "2차 평가자"],
+      headers: ["이름", "이메일", "부서", "직급", "입사일", "팀장", "임원", "평가 대상", "제외 사유", "그룹", "평가지", "1차 평가자", "2차 평가자", "호봉", "승진연한", "생년월일"],
       rows: ps.map((p) => [
         p.name, p.email, p.department, p.position, p.hireDate, p.isTeamLeader ? "예" : "아니오", p.isExecutive ? "예" : "아니오", p.isTarget ? "예" : "아니오", p.excludedReason,
         p.gradeGroup, p.formType === "leader" ? "팀장용" : p.formType === "member" ? "팀원용" : null,
         p.firstReviewerId ? (name.get(p.firstReviewerId) ?? null) : null, p.secondReviewerId ? (name.get(p.secondReviewerId) ?? null) : null,
+        p.payStep, p.promoYears, p.birthDate ? dec(p.birthDate) : null,
       ]),
     },
     {

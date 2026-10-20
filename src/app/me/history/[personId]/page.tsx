@@ -28,6 +28,7 @@ export default async function HistoryRecordPage({ params }: { params: Promise<{ 
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-6 sm:px-8 sm:py-8">
       <PageHeader
+        back={{ href: "/me/history", label: "지난 평가 기록" }}
         title={`${r.year}년 평가 기록 · ${r.person.name}`}
         description={`${r.person.department || "—"} · ${r.person.position} · ${roleLabel}로 보기 · 보기 전용 · 대외비`}
         actions={

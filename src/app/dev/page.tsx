@@ -104,7 +104,7 @@ export default async function DevPortalPage() {
                     {p.department || "—"} · {p.position}
                   </TableCell>
                   <TableCell>
-                    <Badge variant={role(p) === "직원" ? "secondary" : role(p) === "평가 비대상" || role(p) === "접근 차단" ? "outline" : "info"}>{role(p)}</Badge>
+                    <Badge variant={role(p) === "직원" ? "secondary" : role(p) === "평가 비대상" || role(p) === "접근 차단" ? "outline" : role(p) === "임원" ? "violet" : "teal"}>{role(p)}</Badge>
                   </TableCell>
                   <TableCell className="py-1.5 text-right">{p.employeeNo && <PickButton employeeNo={p.employeeNo} name={p.name} disabled={!canLogin} />}</TableCell>
                 </TableRow>

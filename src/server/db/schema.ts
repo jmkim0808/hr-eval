@@ -86,6 +86,10 @@ export const cyclePeople = pgTable(
     firstReviewerId: uuid("first_reviewer_id").references((): AnyPgColumn => cyclePeople.id, { onDelete: "set null" }),
     secondReviewerId: uuid("second_reviewer_id").references((): AnyPgColumn => cyclePeople.id, { onDelete: "set null" }),
     accessBlocked: boolean("access_blocked").notNull().default(false),
+    /** 2026-10-20: 직급 호봉·승진연한 (평가자에게 보임), 생년월일 (암호화, 관리자만) */
+    payStep: smallint("pay_step"),
+    promoYears: smallint("promo_years"),
+    birthDate: text("birth_date"),
     rowNo: integer("row_no").notNull().default(0),
     ...timestamps,
   },

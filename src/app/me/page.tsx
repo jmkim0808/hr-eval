@@ -41,7 +41,7 @@ export default async function MyTasksPage() {
       icon: <FilePen className="size-5" aria-hidden="true" />,
       badges: (
         <>
-          <SelfBadge status={t.self.status} editable={t.self.editable} end={fmtDay(c.selfEnd)} />
+          <SelfBadge status={t.self.status} editable={t.self.editable} end={fmtDay(c.selfEnd)} at={t.self.submittedAt} />
           {overdue && <Overdue />}
         </>
       ),
@@ -138,17 +138,19 @@ function Overdue() {
   );
 }
 
-function SelfBadge({ status, editable, end }: { status: "not_started" | "writing" | "submitted"; editable: boolean; end: string }) {
+const atText = (iso: string | null) => (iso ? new Intl.DateTimeFormat("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Seoul" }).format(new Date(iso)) : "");
+
+function SelfBadge({ status, editable, end, at }: { status: "not_started" | "writing" | "submitted"; editable: boolean; end: string; at: string | null }) {
   if (status === "submitted")
     return editable ? (
       <Badge variant="success">
         <CircleCheck aria-hidden="true" />
-        제출 완료 — {end}까지 고칠 수 있습니다
+        제출 완료 {atText(at)} — {end}까지 고칠 수 있습니다
       </Badge>
     ) : (
       <Badge variant="secondary">
         <Lock aria-hidden="true" />
-        제출 완료 (잠김)
+        제출 완료 {atText(at)} (잠김)
       </Badge>
     );
   if (!editable)

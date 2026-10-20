@@ -6,6 +6,7 @@ import type { RosterPerson } from "@/domain/roster";
 import { getDb } from "@/server/db/client";
 import { auditLogs, cyclePeople, reviewCycles } from "@/server/db/schema";
 import type { Actor } from "@/server/authz/actor";
+import { dec, enc } from "@/server/crypto/vault";
 import { assert, can } from "@/server/authz/policy";
 
 /** 명단을 바꿀 수 있는 단계 (안내 이메일 발송 전) */
@@ -48,6 +49,9 @@ export async function replaceRoster(actor: Actor, year: number, people: RosterPe
           gradeGroup: p.gradeGroup,
           formType: p.formType,
           rowNo: p.rowNo,
+          payStep: p.payStep,
+          promoYears: p.promoYears,
+          birthDate: p.birthDate ? enc(p.birthDate) : null,
         })),
       )
       .returning({ id: cyclePeople.id, email: cyclePeople.email });
@@ -77,14 +81,21 @@ export type TargetRow = {
   secondReviewerId: string | null;
   firstReviewerName: string | null;
   secondReviewerName: string | null;
+  payStep: number | null;
+  promoYears: number | null;
+  /** 관리자 화면용 (복호화) */
+  birthDate: string | null;
 };
 
 export async function listTargets(actor: Actor, cycleId: string): Promise<TargetRow[]> {
   assert(can.manageCycle(actor));
   const r1 = alias(cyclePeople, "r1");
   const r2 = alias(cyclePeople, "r2");
-  return getDb()
+  const rows = await getDb()
     .select({
+      payStep: cyclePeople.payStep,
+      promoYears: cyclePeople.promoYears,
+      birthRaw: cyclePeople.birthDate,
       id: cyclePeople.id,
       name: cyclePeople.name,
       department: cyclePeople.department,
@@ -102,6 +113,7 @@ export async function listTargets(actor: Actor, cycleId: string): Promise<Target
     .leftJoin(r2, eq(r2.id, cyclePeople.secondReviewerId))
     .where(and(eq(cyclePeople.cycleId, cycleId), eq(cyclePeople.isTarget, true)))
     .orderBy(asc(cyclePeople.gradeGroup), asc(cyclePeople.department), asc(cyclePeople.name));
+  return rows.map(({ birthRaw, ...r }) => ({ ...r, birthDate: birthRaw ? dec(birthRaw) : null }));
 }
 
 /** 평가자로 고를 수 있는 사람: 팀장과 임원 */

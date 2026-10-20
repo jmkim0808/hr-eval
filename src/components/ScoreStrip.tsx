@@ -1,5 +1,7 @@
+import { AVG_TARGET, AVG_TOLERANCE } from "@/domain/review";
+
 /**
- * 내가 준 점수 분포 (2026-10-19): 70~90점 축 위에 사람마다 점 하나, 초록 띠 = 평균 기준(79.5~80.5), 점선 = 지금 평균.
+ * 내가 준 점수 분포 (2026-10-19): 70~90점 축 위에 사람마다 점 하나, 초록 띠 = 평균 기준(80 ± 허용오차), 점선 = 지금 평균.
  * 점에 마우스를 올리면 이름·점수(title). 이름은 점 위아래로 번갈아 붙여 겹침을 줄인다.
  */
 export function ScoreStrip({ people }: { people: { name: string; total: number }[] }) {
@@ -15,7 +17,7 @@ export function ScoreStrip({ people }: { people: { name: string; total: number }
   const sorted = [...people].sort((a, b) => a.total - b.total);
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="block h-auto w-full overflow-visible" role="img" aria-label={`내가 준 점수 분포: ${sorted.map((p) => `${p.name} ${p.total.toFixed(1)}`).join(", ")}`} data-testid="score-strip">
-      <rect x={x(79.5)} y={24} width={x(80.5) - x(79.5)} height={74} rx={4} className="fill-hl-green-bg stroke-hl-green" />
+      <rect x={x(AVG_TARGET - AVG_TOLERANCE)} y={24} width={x(AVG_TARGET + AVG_TOLERANCE) - x(AVG_TARGET - AVG_TOLERANCE)} height={74} rx={4} className="fill-hl-green-bg stroke-hl-green" />
       {ticks.map((t) => (
         <g key={t}>
           <line x1={x(t)} x2={x(t)} y1={24} y2={98} className="stroke-border" />

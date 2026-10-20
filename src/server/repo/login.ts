@@ -51,7 +51,8 @@ export async function findEmailByEmployeeNo(db: Db, employeeNo: string): Promise
 
 export async function countCodeRequestsSince(db: Db, by: { email?: string; ip?: string }, since: Date) {
   const cond = by.email ? eq(authCodes.email, by.email) : eq(authCodes.requestIp, by.ip ?? "");
-  const [r] = await db.select({ n: sql<number>`count(*)::int` }).from(authCodes).where(and(cond, gt(authCodes.createdAt, since)));
+  // 인증에 성공한(consumed) 요청은 세지 않는다 — 정상 로그인을 여러 번 해도 막히지 않게 (2026-10-20)
+  const [r] = await db.select({ n: sql<number>`count(*)::int` }).from(authCodes).where(and(cond, gt(authCodes.createdAt, since), isNull(authCodes.consumedAt)));
   return r?.n ?? 0;
 }
 

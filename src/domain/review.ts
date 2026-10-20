@@ -50,12 +50,14 @@ export function missingScores(form: FormType, scores: Record<string, number>): s
 }
 
 // ── 평가자 평균 80점 (2026-10-02 추가 요구) ──
-// 평가자 한 명이 묶음(1차·2차·팀장 평가)에서 매긴 점수의 평균이 80 ± 0.5 여야 한다. 맡은 사람이 2명 이하면 적용하지 않는다.
+// 평가자 한 명이 묶음(1차·2차·팀장 평가)에서 매긴 점수의 평균이 80 ± 0.2 여야 한다 (2026-10-20: ±0.5 → ±0.2). 맡은 사람이 1명이면 적용하지 않는다 (2026-10-20: 2명 이하 → 1명).
 // 한 사람에 대한 평가자 점수 = 역량(정성) 10개 합 × 0.3 + 업적(정량) × 10 × 0.7 (100점 만점, 통보용 1차·2차 점수와 같은 식)
 
 export const AVG_TARGET = 80;
-export const AVG_TOLERANCE = 0.5;
-export const AVG_MIN_PEOPLE = 3;
+export const AVG_TOLERANCE = 0.2;
+export const AVG_MIN_PEOPLE = 2;
+/** 허용 범위 글 (예: 79.8~80.2) */
+export const AVG_RANGE = `${(AVG_TARGET - AVG_TOLERANCE).toFixed(1)}~${(AVG_TARGET + AVG_TOLERANCE).toFixed(1)}`;
 
 /** 평가자 한 명의 점수(100점 만점). 칸이 비어 있으면 null. 1/100점 정수로 계산 */
 export function raterTotal(form: FormType, s: Record<string, number>): number | null {
@@ -86,7 +88,7 @@ export function averageAdvice(avg: number, count: number): string {
   const dir = need < 0 ? "낮추면" : "높이면";
   const ach = Math.max(0.1, Math.round((Math.abs(need) / 7) * 10) / 10); // 0.1점 단위 (2026-10-15)
   const after = Math.round((avg + ((need < 0 ? -1 : 1) * ach * 7) / count) * 100) / 100;
-  return `지금 평균 ${avg.toFixed(2)}점입니다. 맡은 ${count}명의 업적 점수 합계를 ${ach.toFixed(1)}점 ${dir} 평균 ${after.toFixed(2)}점이 됩니다 (허용 79.5~80.5). 업적 점수 0.1점은 평균을 ${(0.7 / count).toFixed(2)}점, 역량 항목 0.1점은 ${(0.03 / count).toFixed(3)}점 바꿉니다.`;
+  return `지금 평균 ${avg.toFixed(2)}점입니다. 맡은 ${count}명의 업적 점수 합계를 ${ach.toFixed(1)}점 ${dir} 평균 ${after.toFixed(2)}점이 됩니다 (허용 ${AVG_RANGE}). 업적 점수 0.1점은 평균을 ${(0.7 / count).toFixed(2)}점, 역량 항목 0.1점은 ${(0.03 / count).toFixed(3)}점 바꿉니다.`;
 }
 
 // ── 평균 안내 (2026-10-15 피드백: "어느 항목을 몇 점 고치면 되는지" 사람별로 구체적으로) ──

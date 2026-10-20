@@ -58,16 +58,23 @@ await fillAll("8");
 await lp.getByRole("button", { name: "제출" }).click();
 await lp.getByTestId("submitted-toast").waitFor();
 const toastOk = (await lp.getByTestId("submitted-toast").innerText()).includes("제출했습니다");
+await lp.waitForTimeout(1500);
+const stayed = lp.url().endsWith(ids["김대리"]!);
+const lockedAfter = (await inputs().count()) === 0 && (await lp.getByTestId("submitted-at").innerText()).includes("제출");
+await lp.getByTestId("go-next").click();
 await lp.waitForURL((u) => !u.pathname.endsWith(ids["김대리"]!));
-await check("[제출]하면 \"제출했습니다\" 알림 뒤 아직 안 한 다음 팀원으로 저절로 넘어간다 (2026-10-15)", async () => {
+await check("[제출]하면 \"제출했습니다\"·제출 일시가 보이고 칸이 잠기며, 저절로 넘어가지 않고 [다음 사람 평가하기]를 눌러야 다음 팀원으로 간다 (2026-10-20)", async () => {
   const id = lp.url().split("/").pop();
-  return toastOk && (id === ids["박과장"] || id === ids["이주임"]);
+  return toastOk && stayed && lockedAfter && (id === ids["박과장"] || id === ids["이주임"]);
 });
 for (let k = 0; k < 2; k++) {
   await inputs().first().waitFor();
   const here = lp.url();
   await fillAll("8"); // 평균 80점 규칙(3명 이상)에 맞게 모두 80점
   await lp.getByRole("button", { name: "제출" }).click();
+  await lp.getByTestId("submitted-toast").waitFor();
+  if (k === 0) await lp.getByTestId("go-next").click();
+  else await lp.getByTestId("submitted-toast").getByRole("link", { name: "내 평가 현황" }).click();
   await lp.waitForURL((u) => u.href !== here, { timeout: 15000 });
 }
 await lp.waitForLoadState("networkidle");

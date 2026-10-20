@@ -70,16 +70,19 @@ describe("평가자 평균 80점", () => {
     expect(raterTotal("member", all(9, 8))).toBe(83);
     expect(raterTotal("member", { ...all(8, 8), trust: 0 })).toBeNull();
   });
-  it("80 ± 0.5 안이면 통과, 2명 이하는 적용하지 않음", () => {
-    expect(checkAverage(3, [80, 79.7, 80.6]).ok).toBe(true);
-    expect(checkAverage(3, [83, 80, 80]).ok).toBe(false);
-    expect(checkAverage(2, [95, 90]).applies).toBe(false);
+  it("80 ± 0.2 안이면 통과, 1명은 적용하지 않음 (2026-10-20)", () => {
+    expect(checkAverage(3, [80, 79.7, 80.6]).ok).toBe(true); // 80.10
+    expect(checkAverage(3, [80, 79.4, 80.6]).ok).toBe(true); // 80.00
+    expect(checkAverage(3, [80.9, 80, 80]).ok).toBe(false); // 80.30
+    expect(checkAverage(2, [95, 90]).applies).toBe(true);
+    expect(checkAverage(2, [95, 90]).ok).toBe(false);
+    expect(checkAverage(1, [95]).applies).toBe(false);
   });
   it("조정 안내: 따라 하면 허용 범위에 들어간다", () => {
     for (const totals of [[87, 83, 81], [70, 75, 72, 78], [90, 90, 90, 90, 90], [80.9, 80.9, 80.9]]) {
       const c = checkAverage(totals.length, totals);
       const m = c.advice!.match(/평균 ([\d.]+)점이 됩니다/);
-      expect(Math.abs(Number(m![1]) - 80)).toBeLessThanOrEqual(0.5);
+      expect(Math.abs(Number(m![1]) - 80)).toBeLessThanOrEqual(0.2);
     }
     expect(averageAdvice(83, 3)).toContain("낮추면");
     expect(averageAdvice(82, 3)).toContain("업적 점수 합계를 0.9점 낮추면 평균 79.90점");
@@ -100,8 +103,9 @@ describe("평균 안내 — 사람별 구체 제안 (2026-10-15)", () => {
     expect(g.options[1]!.changes.every((c) => Math.abs(c.to - c.from + 1.1) < 1e-9)).toBe(true);
     expect(Math.abs(g.options[1]!.after - 80)).toBeLessThanOrEqual(0.5);
   });
-  it("기준 안이면 ok, 2명 이하면 적용 안 함", () => {
+  it("기준 안이면 ok, 1명이면 적용 안 함 (2026-10-20)", () => {
     expect(averageGuide([row("a", 80, 8), row("b", 80.3, 8), row("c", 79.9, 8)], "a").kind).toBe("ok");
-    expect(averageGuide([row("a", 90, 9), row("b", 70, 7)], "a").kind).toBe("na");
+    expect(averageGuide([row("a", 90, 9), row("b", 75, 7)], "a").kind).toBe("off");
+    expect(averageGuide([row("a", 90, 9)], "a").kind).toBe("na");
   });
 });

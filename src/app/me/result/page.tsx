@@ -17,7 +17,7 @@ export default async function MyResultPage() {
   if (r.status !== "ok")
     return (
       <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-6 sm:px-8 sm:py-8">
-        <PageHeader title="내 평가결과" />
+        <PageHeader back={{ href: "/me", label: "내 할 일" }} title="내 평가결과" />
         <Card>
           <Empty icon={<Hourglass aria-hidden="true" />} title="아직 결과가 나오지 않았습니다">
             결과가 나오면 이메일로 알려 드립니다.
@@ -28,7 +28,7 @@ export default async function MyResultPage() {
   const x = r.result;
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-6 sm:px-8 sm:py-8">
-      <PageHeader title="내 평가결과" description={`${x.year}년 정기평가 · ${x.name} · 대외비이므로 다른 사람에게 보여 주지 마세요`} />
+      <PageHeader back={{ href: "/me", label: "내 할 일" }} title="내 평가결과" description={`${x.year}년 정기평가 · ${x.name} · 대외비이므로 다른 사람에게 보여 주지 마세요`} />
       <Card>
         <CardContent className="flex flex-wrap items-center gap-x-12 gap-y-4">
           <div className="flex flex-col">

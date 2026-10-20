@@ -15,6 +15,9 @@ const badgeVariants = cva(
         warning: "border-transparent bg-warning-bg text-warning",
         destructive: "border-transparent bg-danger-bg text-danger",
         info: "border-transparent bg-info-bg text-info",
+        /** 2026-10-20: 역할 구분용 (팀장 = 청록, 임원 = 보라) */
+        teal: "border-transparent bg-hl-teal-bg text-hl-teal",
+        violet: "border-transparent bg-hl-violet-bg text-hl-violet",
         "grade-up": "border-grade-up-border bg-grade-up-bg text-grade-up",
         "grade-down": "border-grade-down-border bg-grade-down-bg text-grade-down",
         "grade-rule": "border-grade-rule-border bg-grade-rule-bg text-grade-rule",

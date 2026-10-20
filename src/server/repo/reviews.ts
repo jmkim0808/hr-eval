@@ -2,6 +2,7 @@
 import { and, eq, inArray, or } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { FORMS, type FormType } from "@/domain/forms";
+import { payLabel } from "@/domain/roster";
 import { ACHIEVEMENT, canScore, canSeeForm, checkAverage, isScore, missingScores, raterTotal, REVIEW, reviewKindOf, scoreCodes, seesFirstScores, type ReviewKind } from "@/domain/review";
 import { fail, ok, type Result } from "@/lib/result";
 import { getDb } from "@/server/db/client";
@@ -90,7 +91,7 @@ export async function getReview(actor: Actor, kind: ReviewKind, personId: string
   const submittedAt = rater === "first" ? ev?.firstSubmittedAt : ev?.secondSubmittedAt;
   return {
     kind,
-    person: { id: p.id, name: p.name, department: p.department, position: p.position, formType: p.formType as FormType },
+    person: { id: p.id, name: p.name, department: p.department, position: p.position, formType: p.formType as FormType, pay: payLabel(p.payStep, p.promoYears) },
     cycle: { year: cycle.year, status: cycle.status, firstStart: cycle.firstStart, firstEnd: cycle.firstEnd, secondStart: cycle.secondStart, secondEnd: cycle.secondEnd },
     visible,
     editable: visible && canScore(kind, cycle.status),
@@ -145,6 +146,8 @@ export async function saveReview(actor: Actor, kind: ReviewKind, personId: strin
   if (comment !== undefined && comment.length > COMMENT_MAX) return fail("long", `평가의견은 ${COMMENT_MAX.toLocaleString()}자까지 쓸 수 있습니다.`);
   const r = await getReview(actor, kind, personId);
   if (!r.editable) return fail("locked", `${REVIEW[kind].windowLabel} 기간에 입력할 수 있습니다.`);
+  // 2026-10-20: 제출하면 잠긴다. 고치려면 [제출 취소] 뒤에
+  if (r.submittedAt) return fail("submitted", "제출한 평가입니다. 고치려면 먼저 [제출 취소]를 눌러 주세요.");
   const codes = new Set(scoreCodes(r.person.formType));
   const scores: Record<string, number> = {};
   for (const [k, v] of Object.entries(raw)) {
@@ -200,8 +203,12 @@ export type OverviewRow = {
   name: string;
   department: string;
   position: string;
+  /** 호봉 표시 (2026-10-20) */
+  pay: string | null;
   selfSubmitted: boolean;
   status: ReviewStatus;
+  /** 내 평가를 제출한 시각 (2026-10-20) */
+  submittedAt: string | null;
   /** 1차(팀장 평가 묶음에서는 임원) 점수 */
   first: OverviewScores;
   /** 2차 점수 — 2차 평가자(임원)에게만. 팀장(1차 평가자)에게는 언제나 null */
@@ -226,11 +233,13 @@ export async function reviewOverview(actor: Actor, kind: ReviewKind) {
   if (!group) notFound();
   const ids = group.people.map((p) => p.id);
   const db = getDb();
-  const evs = ids.length ? await db.select({ id: evaluations.id, personId: evaluations.personId, self: evaluations.selfSubmittedAt }).from(evaluations).where(inArray(evaluations.personId, ids)) : [];
+  const evs = ids.length ? await db.select({ id: evaluations.id, personId: evaluations.personId, self: evaluations.selfSubmittedAt, first: evaluations.firstSubmittedAt, second: evaluations.secondSubmittedAt }).from(evaluations).where(inArray(evaluations.personId, ids)) : [];
   const raters: ("first" | "second")[] = kind === "second" ? ["first", "second"] : ["first"];
   const scores = evs.length
     ? await db.select({ ev: evaluationScores.evaluationId, rater: evaluationScores.rater, item: evaluationScores.itemCode, score: evaluationScores.score }).from(evaluationScores).where(and(inArray(evaluationScores.evaluationId, evs.map((e) => e.id)), inArray(evaluationScores.rater, raters)))
     : [];
+  const pr = ids.length ? await db.select({ id: cyclePeople.id, step: cyclePeople.payStep, years: cyclePeople.promoYears }).from(cyclePeople).where(inArray(cyclePeople.id, ids)) : [];
+  const payOf = new Map(pr.map((r) => [r.id, payLabel(r.step, r.years)]));
   const forms = new Map((await db.select({ id: cyclePeople.id, form: cyclePeople.formType }).from(cyclePeople).where(inArray(cyclePeople.id, ids.length ? ids : ["00000000-0000-0000-0000-000000000000"]))).map((r) => [r.id, r.form as FormType]));
   const evOf = new Map(evs.map((e) => [e.personId, e]));
   const by = new Map<string, { first: Record<string, number>; second: Record<string, number> }>();
@@ -249,12 +258,32 @@ export async function reviewOverview(actor: Actor, kind: ReviewKind) {
       name: p.name,
       department: p.department,
       position: p.position,
+      pay: payOf.get(p.id) ?? null,
       selfSubmitted: !!ev?.self,
       status: p.status,
+      submittedAt: ((kind === "second" ? ev?.second : ev?.first) ?? null)?.toISOString() ?? null,
       first: scoresOf(form, sc.first),
       second: kind === "second" ? scoresOf(form, sc.second) : null,
       bonus: bonus.get(p.id) ?? null,
     };
   });
   return { group, rows };
+}
+
+/** 제출 취소 (2026-10-20): 기간 안에서만. 제출 표시를 지워 다시 고칠 수 있게 하고 작업 기록에 남긴다 */
+export async function cancelReview(actor: Actor, kind: ReviewKind, personId: string): Promise<Result<{ version: number }>> {
+  const r = await getReview(actor, kind, personId);
+  if (!r.editable) return fail("locked", `${REVIEW[kind].windowLabel} 기간이 끝나 제출을 취소할 수 없습니다.`);
+  if (!r.submittedAt) return fail("not_submitted", "제출하지 않은 평가입니다.");
+  const rater = REVIEW[kind].rater;
+  return getDb().transaction(async (tx) => {
+    const [ev] = await tx.select().from(evaluations).where(eq(evaluations.personId, personId)).limit(1).for("update");
+    if (!ev) return fail("not_found", "평가를 찾을 수 없습니다.");
+    await tx
+      .update(evaluations)
+      .set({ version: ev.version + 1, updatedAt: new Date(), ...(rater === "first" ? { firstSubmittedAt: null } : { secondSubmittedAt: null }) })
+      .where(eq(evaluations.id, ev.id));
+    await tx.insert(auditLogs).values({ actorEmail: actor.email, action: `review.${kind}.unsubmit`, personId, detail: {} });
+    return ok({ version: ev.version + 1 });
+  });
 }

@@ -6,7 +6,7 @@ import { updateReviewerAction } from "./actions";
 
 export type Candidate = { id: string; label: string; executive: boolean };
 
-export function ReviewerSelect({ personId, slot, value, candidates, executivesOnly, disabled }: { personId: string; slot: "first" | "second"; value: string | null; candidates: Candidate[]; executivesOnly: boolean; disabled?: boolean }) {
+export function ReviewerSelect({ personId, slot, value, candidates, executivesOnly, disabled, label }: { personId: string; slot: "first" | "second"; value: string | null; candidates: Candidate[]; executivesOnly: boolean; disabled?: boolean; label?: string }) {
   const [v, setV] = useState(value ?? "");
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
@@ -14,7 +14,7 @@ export function ReviewerSelect({ personId, slot, value, candidates, executivesOn
   return (
     <div className="space-y-1">
       <NativeSelect
-        aria-label={slot === "first" ? "1차 평가자" : "2차 평가자"}
+        aria-label={label ?? (slot === "first" ? "1차 평가자" : "2차 평가자")}
         value={v}
         disabled={disabled || pending}
         aria-invalid={!v || !!error || undefined}

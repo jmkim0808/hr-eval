@@ -33,7 +33,7 @@ for (const id of ids.slice(0, 2)) {
   await page.goto(`${BASE}/me/review/first/${id}`);
   await fill("9", "8");
   await page.getByRole("button", { name: "제출" }).click();
-  await page.waitForURL((u) => !u.pathname.endsWith(id), { timeout: 15000 }); // 제출하면 다음 사람으로 넘어간다
+  await page.getByTestId("submitted-toast").waitFor({ timeout: 15000 }); // 2026-10-20: 저절로 넘어가지 않는다
 }
 await page.goto(`${BASE}/me/review/first/${ids[2]}`);
 await fill("8", "8"); // 80점 → 평균 82
@@ -48,7 +48,7 @@ await check("점수를 넣는 동안 '내가 준 점수 평균'과 사람별 조
 );
 await page.getByRole("button", { name: "제출" }).click();
 await page.waitForTimeout(1500);
-await check("묶음의 마지막 사람을 제출할 때 평균이 80 ± 0.5를 벗어나면 제출이 막히고 몇 점을 어떻게 고칠지 보인다", async () => {
+await check("묶음의 마지막 사람을 제출할 때 평균이 80 ± 0.2를 벗어나면 제출이 막히고 몇 점을 어떻게 고칠지 보인다", async () => {
   const t = await page.getByTestId("average-block").innerText();
   const [r] = await sql`select first_submitted_at from evaluations where person_id = ${ids[2]!}`;
   return t.includes("평균이 80점에 맞지 않아 제출할 수 없습니다") && (await page.getByTestId("average-advice").innerText()).includes("업적 8.0 → 7.1") && !r?.first_submitted_at;
@@ -58,13 +58,20 @@ await inputs().last().fill("7.1"); // 안내대로 업적 8.0 → 7.1 → 73.7�
 await page.waitForTimeout(300);
 const avgAfter = await page.getByTestId("my-average").innerText();
 await page.getByRole("button", { name: "제출" }).click();
+await page.getByTestId("submitted-toast").waitFor({ timeout: 15000 }).catch(() => null);
+await page.getByTestId("submitted-toast").getByRole("link", { name: "내 평가 현황" }).click().catch(() => null);
 await page.waitForURL(/\/me\/review\/first\?done=1/, { timeout: 15000 }).catch(() => null);
 await check("안내대로 고치면(소수점 가능) 제출되고, 마지막이면 내 평가 현황으로 넘어간다", async () => {
   const [r] = await sql`select first_submitted_at from evaluations where person_id = ${ids[2]!}`;
   return !!r?.first_submitted_at && avgAfter === "79.90점" && page.url().includes("done=1");
 });
-await check("모두 제출한 뒤 다시 고쳐 평균을 벗어나면 다시 제출할 수 없다", async () => {
+await check("제출한 사람은 [제출 취소] 뒤에만 고칠 수 있고, 고쳐서 평균을 벗어나면 다시 제출할 수 없다 (2026-10-20)", async () => {
   await page.goto(`${BASE}/me/review/first/${ids[0]}`);
+  const lockedFirst = (await inputs().count()) === 0;
+  await page.getByTestId("cancel-submit").click();
+  await inputs().last().waitFor();
+  const [u] = await sql`select first_submitted_at from evaluations where person_id = ${ids[0]!}`;
+  if (!lockedFirst || u?.first_submitted_at) return false;
   await inputs().last().fill("10"); // 83 → 97
   await page.getByRole("button", { name: "제출" }).click();
   await page.waitForTimeout(1500);
@@ -75,7 +82,7 @@ const p2 = await (await b.newContext({ viewport: { width: 1300, height: 1100 } }
 await login(p2, "lead2@powernet.test");
 const [q1] = await sql`select id from cycle_people where email = 'q1@powernet.test'`;
 await p2.goto(`${BASE}/me/review/first/${q1!.id}`);
-await check("맡은 사람이 2명 이하면 평균 규칙을 적용하지 않는다", async () => (await p2.getByText("맡은 사람이 2명 이하라 평균 80점 규칙을 적용하지 않습니다").count()) === 1);
+await check("맡은 사람이 2명이어도 평균 규칙이 적용된다 (2026-10-20: 1명만 예외)", async () => (await p2.getByText(/규칙을 적용하지 않습니다/).count()) === 0 && (await p2.getByTestId("average-panel").innerText()).includes("2명"));
 
 await b.close();
 await sql.end();

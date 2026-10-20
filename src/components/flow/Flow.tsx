@@ -32,21 +32,31 @@ export function useFlowMode(initial: FlowMode = "card"): [FlowMode, (m: FlowMode
 }
 
 export function ModeSwitch({ mode, onChange }: { mode: FlowMode; onChange: (m: FlowMode) => void }) {
-  const b = (m: FlowMode, label: string, Icon: typeof LayoutList) => (
+  // 2026-10-20: 눈에 잘 띄게 — 이름표 + 큰 단추, 고른 쪽은 검정으로 채움, 단추마다 무엇이 보이는지 한 줄
+  const b = (m: FlowMode, label: string, sub: string, Icon: typeof LayoutList) => (
     <button
       type="button"
       aria-pressed={mode === m}
       onClick={() => onChange(m)}
-      className={cn("inline-flex items-center gap-1.5 rounded-[9px] px-3 py-1.5 text-caption font-semibold transition-colors", mode === m ? "bg-card text-foreground shadow-card" : "text-muted-foreground hover:text-foreground")}
+      className={cn(
+        "flex items-center gap-2 rounded-[10px] px-3.5 py-2 text-left transition-colors",
+        mode === m ? "bg-foreground text-background shadow-card" : "text-text-secondary hover:bg-card hover:text-foreground",
+      )}
     >
-      <Icon className="size-4" aria-hidden="true" />
-      {label}
+      <Icon className="size-5 shrink-0" aria-hidden="true" />
+      <span className="flex flex-col leading-tight">
+        <span className="text-body font-bold">{label}</span>
+        <span className={cn("text-[11px]", mode === m ? "text-background/75" : "text-muted-foreground")}>{sub}</span>
+      </span>
     </button>
   );
   return (
-    <div role="group" aria-label="보기 방식" className="inline-flex rounded-xl bg-muted p-[3px]" data-testid="mode-switch">
-      {b("card", "한 장씩", RectangleHorizontal)}
-      {b("all", "한눈에 보기", LayoutList)}
+    <div className="flex items-center gap-2.5" data-testid="mode-switch">
+      <span className="hidden text-caption font-semibold text-muted-foreground sm:inline">보기 방식</span>
+      <div role="group" aria-label="보기 방식" className="inline-flex gap-1 rounded-xl border border-border bg-muted p-1">
+        {b("card", "한 장씩", "한 항목씩 크게", RectangleHorizontal)}
+        {b("all", "한눈에 보기", "모든 항목 한 화면", LayoutList)}
+      </div>
     </div>
   );
 }

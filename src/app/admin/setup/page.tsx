@@ -14,6 +14,7 @@ import { batchProgress } from "@/server/repo/outbox";
 import { listReviewerCandidates, listTargets } from "@/server/repo/roster";
 import { InviteCard } from "./InviteCard";
 import { PeriodsForm } from "./PeriodsForm";
+import { payLabel } from "@/domain/roster";
 import { ReviewerSelect, type Candidate } from "./ReviewerSelect";
 import { RosterUpload } from "./RosterUpload";
 
@@ -97,6 +98,8 @@ export default async function SetupPage() {
                   <TableHead>부서</TableHead>
                   <TableHead>직급</TableHead>
                   <TableHead>입사일</TableHead>
+                  <TableHead>호봉</TableHead>
+                  <TableHead>생년월일</TableHead>
                   <TableHead>그룹</TableHead>
                   <TableHead>평가지</TableHead>
                   <TableHead>1차 평가자</TableHead>
@@ -110,16 +113,23 @@ export default async function SetupPage() {
                     <TableCell>{t.department}</TableCell>
                     <TableCell>{t.position}</TableCell>
                     <TableCell className="tabular-nums">{t.hireDate}</TableCell>
+                    <TableCell className="tabular-nums whitespace-nowrap">{payLabel(t.payStep, t.promoYears) ?? "—"}</TableCell>
+                    <TableCell className="tabular-nums text-text-secondary">{t.birthDate ?? "—"}</TableCell>
                     <TableCell>{t.gradeGroup ? GROUP[t.gradeGroup] : "—"}</TableCell>
                     <TableCell>
                       <Badge variant={t.formType === "leader" ? "primary" : "secondary"}>{t.formType === "leader" ? "팀장용" : "팀원용"}</Badge>
                     </TableCell>
-                    <TableCell className="py-1.5">
-                      <ReviewerSelect personId={t.id} slot="first" value={t.firstReviewerId} candidates={candidates} executivesOnly={t.formType === "leader"} disabled={reviewerLocked} />
-                    </TableCell>
+                    {/* 팀장 평가는 임원 1명이 2차평가 기간에 한다 → 2차 칸에 보인다 (2026-10-20). 저장은 그대로 first 칸 */}
                     <TableCell className="py-1.5">
                       {t.formType === "leader" ? (
                         <span className="text-muted-foreground">—</span>
+                      ) : (
+                        <ReviewerSelect personId={t.id} slot="first" value={t.firstReviewerId} candidates={candidates} executivesOnly={false} disabled={reviewerLocked} />
+                      )}
+                    </TableCell>
+                    <TableCell className="py-1.5">
+                      {t.formType === "leader" ? (
+                        <ReviewerSelect personId={t.id} slot="first" value={t.firstReviewerId} candidates={candidates} executivesOnly disabled={reviewerLocked} label="2차 평가자 (팀장 평가 임원)" />
                       ) : (
                         <ReviewerSelect personId={t.id} slot="second" value={t.secondReviewerId} candidates={candidates} executivesOnly disabled={reviewerLocked} />
                       )}

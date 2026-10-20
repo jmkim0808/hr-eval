@@ -58,14 +58,14 @@ describe("평가자 직접 지정 (2026-10-15)", () => {
     expect([p.firstReviewerEmail, p.secondReviewerEmail]).toEqual(["lead2@x.test", "exec@x.test"]);
     expect(r.issues.filter((i) => i.name === p.name)).toEqual([]);
   });
-  it("명단에 없는 사번·본인·1차=2차·팀장의 2차 지정은 확인 필요", () => {
+  it("명단에 없는 사번·본인·1차=2차·팀장의 1차·2차 동시 지정은 확인 필요", () => {
     const r = checkRoster(
       [
         { ...exec(), employeeNo: "X1" },
         row({ employeeNo: "A1", email: "a@x.test", firstReviewerNo: "NOPE" }),
         row({ employeeNo: "A2", email: "b@x.test", firstReviewerNo: "A2" }),
         row({ employeeNo: "A3", email: "c@x.test", firstReviewerNo: "X1", secondReviewerNo: "X1" }),
-        row({ employeeNo: "A4", email: "d@x.test", position: "부장", isTeamLeader: "예", secondReviewerNo: "X1" }),
+        row({ employeeNo: "A4", email: "d@x.test", position: "부장", isTeamLeader: "예", firstReviewerNo: "X1", secondReviewerNo: "X1" }),
       ],
       2026,
     );
@@ -73,6 +73,23 @@ describe("평가자 직접 지정 (2026-10-15)", () => {
     expect(reasons).toContain("사번 NOPE이(가) 명단에 없습니다");
     expect(reasons).toContain("본인으로 지정할 수 없습니다");
     expect(reasons).toContain("1차 평가자와 2차 평가자가 같은 사람입니다");
-    expect(reasons).toContain("팀장은 2차 평가자가 없습니다");
+    expect(reasons).toContain("1차·2차 평가자 사번 중 한 칸만");
+  });
+  it("팀장 평가 임원은 2차 칸에 적어도 된다, 호봉·승진연한·생년월일을 읽는다 (2026-10-20)", () => {
+    const r = checkRoster(
+      [
+        { ...exec(), employeeNo: "X1" },
+        row({ employeeNo: "A4", email: "d@x.test", position: "부장", isTeamLeader: "예", executiveEmail: "", secondReviewerNo: "X1", payStep: "2", promoYears: "5", birthDate: "1980-09-03" }),
+        row({ employeeNo: "A5", email: "e@x.test", payStep: "삼", birthDate: "1990-13-40" }),
+      ],
+      2026,
+    );
+    const lead = r.people.find((p) => p.employeeNo === "A4")!;
+    expect(r.issues.filter((i) => i.rowNo === lead.rowNo)).toEqual([]);
+    expect(lead.firstReviewerEmail).toBe(r.people.find((p) => p.employeeNo === "X1")!.email);
+    expect([lead.payStep, lead.promoYears, lead.birthDate]).toEqual([2, 5, "1980-09-03"]);
+    const reasons = r.issues.map((i) => i.reason).join("|");
+    expect(reasons).toContain("호봉은 숫자로");
+    expect(reasons).toContain("생년월일 형식 오류");
   });
 });

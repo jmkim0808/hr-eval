@@ -16,6 +16,7 @@ import { saveSelfAction, submitSelfAction } from "../../actions";
 
 const AUTOSAVE_MS = 1200;
 const SCORES = Array.from({ length: 10 }, (_, i) => String(i + 1));
+const whenText = (iso: string) => new Intl.DateTimeFormat("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Seoul" }).format(new Date(iso));
 const hhmm = (iso: string) => new Intl.DateTimeFormat("ko-KR", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Seoul" }).format(new Date(iso));
 
 type Save = { kind: "idle" } | { kind: "saving" } | { kind: "saved"; at: string } | { kind: "conflict" } | { kind: "error"; message: string };
@@ -136,10 +137,11 @@ export function SelfForm({ personId, formType, year, editable, initial, lockedNo
     <div className="flex flex-wrap items-center justify-between gap-3">
       <SaveStatus save={save} editable={editable} />
       <div className="flex flex-wrap items-center gap-3">
-        {initial.submittedAt && editable && (
+        {initial.submittedAt && (
           <span className="flex items-center gap-1.5 text-caption text-success">
             <CircleCheck className="size-3.5" aria-hidden="true" />
-            제출함 · 기간 안에서는 고쳐서 다시 제출할 수 있습니다
+            <span data-testid="self-submitted-at" className="font-semibold">{whenText(initial.submittedAt)} 제출함</span>
+            {editable && " · 기간 안에서는 고쳐서 다시 제출할 수 있습니다"}
           </span>
         )}
         {flow && <ModeSwitch mode={mode} onChange={setMode} />}

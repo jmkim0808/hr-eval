@@ -1,7 +1,8 @@
-import { CalendarClock, CircleCheck, Clock, FilePen, Medal, Target, Users } from "lucide-react";
+import { CalendarClock, CircleCheck, ClipboardPen, Clock, FilePen, Medal, Target, Users } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/PageHeader";
+import { buttonVariants } from "@/components/ui/button";
 import { ScoreStrip } from "@/components/ScoreStrip";
 import { StatCard } from "@/components/StatCard";
 import { daysLeft, seoulToday } from "@/lib/time";
@@ -10,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { fmtDay, fmtRange } from "@/domain/periods";
-import { REVIEW, type ReviewKind } from "@/domain/review";
+import { AVG_MIN_PEOPLE, AVG_RANGE, AVG_TARGET, AVG_TOLERANCE, REVIEW, type ReviewKind } from "@/domain/review";
 import { requireParticipant } from "@/server/authz/actor";
 import { reviewOverview, type OverviewScores } from "@/server/repo/reviews";
 
@@ -45,16 +46,28 @@ export default async function ReviewOverviewPage({ params, searchParams }: { par
 
   return (
     <main className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-6 sm:px-8 sm:py-8">
-      <PageHeader title={`내 평가 현황 · ${def.label}`} description={`${def.windowLabel} 기간 ${fmtRange(group.range[0], group.range[1])} · ${rows.length}명 중 ${done}명 제출`} />
+      <PageHeader
+        back={{ href: "/me", label: "내 할 일" }}
+        title={`내 평가 현황 · ${def.label}`}
+        description={`${def.windowLabel} 기간 ${fmtRange(group.range[0], group.range[1])} · ${rows.length}명 중 ${done}명 제출`}
+        actions={
+          rows.length > 0 ? (
+            <Link href={`/me/review/${kind}/${(rows.find((r) => r.status !== "done") ?? rows[0]!).id}`} className={buttonVariants()} data-testid="back-to-review">
+              <ClipboardPen aria-hidden="true" />
+              {done < rows.length ? "이어서 평가하기" : "평가 화면으로"}
+            </Link>
+          ) : undefined
+        }
+      />
       {sp.done === "1" && done === rows.length && (
         <Alert variant="success" data-testid="all-done">
           <CircleCheck aria-hidden="true" />
-          <AlertDescription>맡은 {rows.length}명을 모두 제출했습니다. 기간 안에는 이름을 눌러 고쳐서 다시 제출할 수 있습니다.</AlertDescription>
+          <AlertDescription>맡은 {rows.length}명을 모두 제출했습니다. 고치려면 이름을 눌러 [제출 취소] 뒤 고쳐서 다시 제출하세요 (기간 안에서만).</AlertDescription>
         </Alert>
       )}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard label="제출" icon={<Users aria-hidden="true" />} hue="blue" value={<>{done} <span className="text-section-title font-semibold text-muted-foreground">/ {rows.length}</span></>} foot={`작성 중 ${rows.filter((r) => r.status === "writing").length} · 시작 전 ${rows.filter((r) => r.status === "todo").length}`} />
-        <StatCard label="내 평균" icon={<Target aria-hidden="true" />} hue="violet" value={myAvg === null ? "—" : myAvg.toFixed(1)} foot={rows.length <= 2 ? "2명 이하는 평균 규칙 없음" : myAvg === null ? "기준 80 ± 0.5" : `기준 80 ± 0.5 · ${myAvg >= 79.5 && myAvg <= 80.5 ? "기준 안" : `지금 ${(myAvg - 80 > 0 ? "+" : "") + (myAvg - 80).toFixed(1)}`}`} />
+        <StatCard label="내 평균" icon={<Target aria-hidden="true" />} hue="violet" value={myAvg === null ? "—" : myAvg.toFixed(1)} foot={rows.length < AVG_MIN_PEOPLE ? "1명은 평균 규칙 없음" : myAvg === null ? `기준 ${AVG_RANGE}` : `기준 ${AVG_RANGE} · ${Math.abs(myAvg - AVG_TARGET) <= AVG_TOLERANCE + 1e-9 ? "기준 안" : `지금 ${(myAvg - 80 > 0 ? "+" : "") + (myAvg - 80).toFixed(1)}`}`} />
         <StatCard label="마감" icon={<CalendarClock aria-hidden="true" />} hue="orange" value={left === null ? "—" : left >= 0 ? `D-${left}` : `${-left}일 지남`} foot={group.range[1] ? `${fmtDay(group.range[1])}까지` : undefined} />
         <StatCard label="가점 들어옴" icon={<Medal aria-hidden="true" />} hue="green" value={<>{bonusIn} <span className="text-section-title font-semibold text-muted-foreground">/ {rows.length}</span></>} foot="잠정치 · 바로 반영" />
       </div>
@@ -62,7 +75,7 @@ export default async function ReviewOverviewPage({ params, searchParams }: { par
         <Card className="gap-2 px-6">
           <div>
             <h2 className="text-subsection-title font-bold">내가 준 점수 분포</h2>
-            <p className="text-caption text-muted-foreground">점 하나가 한 사람 · 초록 띠가 평균 기준(79.5~80.5) · 점에 마우스를 올리면 점수</p>
+            <p className="text-caption text-muted-foreground">점 하나가 한 사람 · 초록 띠가 평균 기준({AVG_RANGE}) · 점에 마우스를 올리면 점수</p>
           </div>
           <ScoreStrip people={mine} />
         </Card>
@@ -86,6 +99,7 @@ export default async function ReviewOverviewPage({ params, searchParams }: { par
                 가점
               </TableHead>
               <TableHead rowSpan={2}>상태</TableHead>
+              <TableHead rowSpan={2}>제출 일시</TableHead>
             </TableRow>
             <TableRow>
               {(showSecond ? [0, 1] : [0]).map((i) => (
@@ -103,6 +117,7 @@ export default async function ReviewOverviewPage({ params, searchParams }: { par
                 </TableCell>
                 <TableCell>
                   {r.department || "—"} · {r.position}
+                  {r.pay && <span className="block text-label text-muted-foreground">{r.pay}</span>}
                 </TableCell>
                 <TableCell>{r.selfSubmitted ? <Badge variant="success">제출</Badge> : <Badge variant="secondary">미제출</Badge>}</TableCell>
                 {cells(r.first, kind !== "second")}
@@ -112,6 +127,9 @@ export default async function ReviewOverviewPage({ params, searchParams }: { par
                 </TableCell>
                 <TableCell>
                   <Status status={r.status} />
+                </TableCell>
+                <TableCell className="text-caption tabular-nums text-text-secondary" data-submitted-at>
+                  {r.submittedAt ? new Intl.DateTimeFormat("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Seoul" }).format(new Date(r.submittedAt)) : "—"}
                 </TableCell>
               </TableRow>
             ))}

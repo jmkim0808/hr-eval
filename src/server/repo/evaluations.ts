@@ -135,10 +135,10 @@ export async function getMyTasks(actor: Actor & { personId: string }) {
     .limit(1);
   if (!row) notFound();
   const { person, cycle } = row;
-  let self: { personId: string; status: SelfStatus; editable: boolean } | null = null;
+  let self: { personId: string; status: SelfStatus; editable: boolean; submittedAt: string | null } | null = null;
   if (person.isTarget && person.formType) {
     const f = await getSelfForm(actor, person.id);
-    self = { personId: person.id, status: f.status, editable: f.editable };
+    self = { personId: person.id, status: f.status, editable: f.editable, submittedAt: f.submittedAt?.toISOString() ?? null };
   }
   const { year, status, selfStart, selfEnd, firstStart, firstEnd, secondStart, secondEnd } = cycle;
   return { cycle: { year, status, selfStart, selfEnd, firstStart, firstEnd, secondStart, secondEnd }, self };
