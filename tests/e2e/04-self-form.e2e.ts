@@ -74,7 +74,7 @@ await check("창을 닫았다 다시 열어도 쓰던 내용이 그대로 있다
 
 await p2.getByRole("button", { name: "제출" }).click();
 await p2.waitForURL(`${BASE}/me`);
-await check(`제출하면 내 할 일에 "제출 완료 — ${end}까지 고칠 수 있습니다"가 보인다`, async () => (await p2.getByText(`제출 완료 — ${end}까지 고칠 수 있습니다`).count()) === 1);
+await check(`제출하면 내 할 일에 "제출 완료 (제출 일시) — ${end}까지 고칠 수 있습니다"가 보인다 (2026-10-20 제출 일시 추가)`, async () => (await p2.getByText(new RegExp(`^제출 완료 \\d+/\\d+ \\d{2}:\\d{2} — ${end}까지 고칠 수 있습니다$`)).count()) === 1);
 
 await p2.goto(formUrl);
 await p2.locator('[role="group"][aria-labelledby^="label-"], [data-testid="flow-card"]').first().waitFor().catch(() => null);

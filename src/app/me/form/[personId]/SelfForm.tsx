@@ -1,5 +1,6 @@
 "use client";
 
+import { fmtWhen } from "@/lib/time";
 import { CircleAlert, CircleCheck, Info, Loader2, Lock, RefreshCw, Send } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
@@ -16,7 +17,7 @@ import { saveSelfAction, submitSelfAction } from "../../actions";
 
 const AUTOSAVE_MS = 1200;
 const SCORES = Array.from({ length: 10 }, (_, i) => String(i + 1));
-const whenText = (iso: string) => new Intl.DateTimeFormat("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Seoul" }).format(new Date(iso));
+const whenText = (iso: string) => fmtWhen(iso);
 const hhmm = (iso: string) => new Intl.DateTimeFormat("ko-KR", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Seoul" }).format(new Date(iso));
 
 type Save = { kind: "idle" } | { kind: "saving" } | { kind: "saved"; at: string } | { kind: "conflict" } | { kind: "error"; message: string };

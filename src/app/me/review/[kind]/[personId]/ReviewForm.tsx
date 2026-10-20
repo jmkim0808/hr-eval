@@ -1,5 +1,6 @@
 "use client";
 
+import { fmtWhen } from "@/lib/time";
 import { ArrowRight, Undo2, CircleAlert, CircleCheck, EyeOff, Info, Loader2, RefreshCw, Send } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -20,7 +21,7 @@ import type { BonusView } from "@/server/repo/bonus";
 const AUTOSAVE_MS = 1200;
 const COMMENT_MAX = 1000;
 const RANGE_MSG = "1~10 사이, 소수 첫째 자리까지 넣을 수 있습니다";
-const whenFull = (iso: string) => new Intl.DateTimeFormat("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Seoul" }).format(new Date(iso)) + " 제출";
+const whenFull = (iso: string) => `${fmtWhen(iso)} 제출`;
 const hhmm = (iso: string) => new Intl.DateTimeFormat("ko-KR", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Seoul" }).format(new Date(iso));
 
 type Props = {

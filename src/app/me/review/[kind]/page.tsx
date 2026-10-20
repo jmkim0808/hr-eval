@@ -1,11 +1,11 @@
 import { CalendarClock, CircleCheck, ClipboardPen, Clock, FilePen, Medal, Target, Users } from "lucide-react";
+import { daysLeft, fmtWhen, seoulToday } from "@/lib/time";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/PageHeader";
 import { buttonVariants } from "@/components/ui/button";
 import { ScoreStrip } from "@/components/ScoreStrip";
 import { StatCard } from "@/components/StatCard";
-import { daysLeft, seoulToday } from "@/lib/time";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -129,7 +129,7 @@ export default async function ReviewOverviewPage({ params, searchParams }: { par
                   <Status status={r.status} />
                 </TableCell>
                 <TableCell className="text-caption tabular-nums text-text-secondary" data-submitted-at>
-                  {r.submittedAt ? new Intl.DateTimeFormat("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Seoul" }).format(new Date(r.submittedAt)) : "—"}
+                  {r.submittedAt ? fmtWhen(r.submittedAt) : "—"}
                 </TableCell>
               </TableRow>
             ))}

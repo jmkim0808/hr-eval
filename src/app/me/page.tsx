@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { fmtWhen } from "@/lib/time";
 import { Award, ChevronRight, History, Medal, CircleCheck, ClipboardCheck, Clock, Eye, FilePen, Inbox, Lock, TriangleAlert } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { Tile, type Hue } from "@/components/Tile";
@@ -138,7 +139,7 @@ function Overdue() {
   );
 }
 
-const atText = (iso: string | null) => (iso ? new Intl.DateTimeFormat("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Seoul" }).format(new Date(iso)) : "");
+const atText = (iso: string | null) => (iso ? fmtWhen(iso) : "");
 
 function SelfBadge({ status, editable, end, at }: { status: "not_started" | "writing" | "submitted"; editable: boolean; end: string; at: string | null }) {
   if (status === "submitted")

@@ -17,3 +17,11 @@ export function seoulTime(d: Date): string {
 export function daysLeft(end: string, today = seoulToday()): number {
   return Math.round((Date.parse(end) - Date.parse(today)) / 86_400_000);
 }
+
+/** "10/20 14:32" (서울 시각) — 제출 일시 표시용 (2026-10-20) */
+export function fmtWhen(iso: string | Date): string {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Seoul", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(new Date(iso)).map((p) => [p.type, p.value]),
+  );
+  return `${parts.month}/${parts.day} ${parts.hour}:${parts.minute}`;
+}
