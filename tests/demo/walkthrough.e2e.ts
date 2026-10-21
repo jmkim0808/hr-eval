@@ -34,6 +34,8 @@ async function check(text: string, fn: () => Promise<boolean>) {
   console.log(`${ok ? "✔" : "✘"} ${text}`);
 }
 const errors: string[] = [];
+// 인터넷 시험 서버(입구 비밀번호)에 돌릴 때: E2E_GATE=비밀번호
+const gate = process.env.E2E_GATE ? { httpCredentials: { username: "test", password: process.env.E2E_GATE } } : {};
 const b: Browser = await chromium.launch({ executablePath: process.env.CHROME_PATH ?? "/opt/pw-browsers/chromium-1194/chrome-linux/chrome" });
 const pages = new Map<string, Page>();
 
@@ -41,7 +43,7 @@ const pages = new Map<string, Page>();
 async function as(name: string): Promise<Page> {
   const old = pages.get(name);
   if (old) return old;
-  const p = await (await b.newContext({ viewport: { width: 1400, height: 1000 }, acceptDownloads: true })).newPage();
+  const p = await (await b.newContext({ viewport: { width: 1400, height: 1000 }, acceptDownloads: true, ...gate })).newPage();
   p.on("pageerror", (e) => errors.push(`${name}: ${e.message}`));
   await p.addInitScript(() => {
     try {
@@ -110,7 +112,7 @@ await admin.getByRole("button", { name: "안내 이메일 발송" }).click();
 await admin.getByRole("button", { name: /명에게 발송/ }).click();
 await admin.waitForSelector("text=/발송 완료/", { timeout: 30000 });
 await check("안내 메일을 보내면 시험용 포털 메일함에 안내 메일이 보인다", async () => {
-  const p = await (await b.newContext()).newPage();
+  const p = await (await b.newContext(gate)).newPage();
   await p.goto(`${BASE}/dev`);
   const t = await p.locator("main").innerText();
   await p.context().close();

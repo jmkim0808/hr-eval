@@ -1,0 +1,43 @@
+# 인터넷 시험 서버 (Render, 가짜 명단 전용 · 2026-10-21). 실제 운영은 사내 포털(ax-app.yaml)이다 — 여기에 실제 직원 정보를 넣지 않는다.
+# Render 화면 [New → Blueprint]에서 이 저장소를 고르면 서버·DB가 만들어지고, 비밀 값은 Render가 직접 만든다.
+services:
+  - type: web
+    name: hr-eval-test
+    runtime: node
+    region: singapore
+    plan: free # 15분 안 쓰면 잠들고 다음 접속 때 1분쯤 걸려 깬다. 안 잠들게 하려면 Render 화면에서 Starter($7/월)로
+    branch: claude/fervent-bardeen-te2f5r
+    buildCommand: npm ci && npm run build
+    startCommand: npx tsx scripts/migrate.ts && npx tsx scripts/seed-demo.ts && node scripts/start.mjs
+    healthCheckPath: /hr-eval/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: hr-eval-test-db
+          property: connectionString
+      - key: BASE_PATH
+        value: /hr-eval
+      - key: MAIL_MODE
+        value: log # 메일을 실제로 보내지 않는다 (시험용 포털 메일함에만)
+      - key: HR_DEMO
+        value: "on"
+      - key: HR_LISTEN_LAN
+        value: "on"
+      - key: AUTH_SECRET
+        generateValue: true
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: CRON_SECRET
+        generateValue: true
+      - key: HR_DEV_PASSPHRASE
+        generateValue: true # 서버가 잠들었다 깨도 보안 열쇠가 저절로 열린다 (시험 모드 전용)
+      - key: HR_DEMO_GATE
+        sync: false # 팀원과 나눌 입구 비밀번호 — 만들 때 Render 화면에서 직접 정한다
+databases:
+  - name: hr-eval-test-db
+    plan: free # 무료 DB는 30일 뒤 지워진다 (시험 기간용)
+    region: singapore
+    postgresMajorVersion: "16"

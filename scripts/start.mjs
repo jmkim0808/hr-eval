@@ -19,7 +19,9 @@ if (!port || !/^\d+$/.test(port)) {
   process.exit(1);
 }
 process.env.PORT = port;
-// 사내망 팀 시험(시험-팀공유)만 다른 PC 접속을 연다. 시험 모드(HR_DEMO=on, 메일 안 보냄)일 때만 — 운영에서는 항상 127.0.0.1
+// Render는 서비스 주소를 RENDER_EXTERNAL_URL로 알려 준다 → 메일 링크 주소로 쓴다
+if (!process.env.APP_URL && process.env.RENDER_EXTERNAL_URL) process.env.APP_URL = `${process.env.RENDER_EXTERNAL_URL.replace(/\/$/, "")}${process.env.BASE_PATH ?? "/hr-eval"}`;
+// 사내망 팀 시험(시험-팀공유)·인터넷 시험 서버(render.yaml)만 다른 PC 접속을 연다. 시험 모드(HR_DEMO=on, 메일 안 보냄)일 때만 — 운영에서는 항상 127.0.0.1
 const teamShare = process.env.HR_LISTEN_LAN === "on" && process.env.HR_DEMO === "on" && (process.env.MAIL_MODE ?? "log") === "log";
 process.env.HOSTNAME = teamShare ? "0.0.0.0" : "127.0.0.1";
 const server = resolve(".next/standalone/server.js");
