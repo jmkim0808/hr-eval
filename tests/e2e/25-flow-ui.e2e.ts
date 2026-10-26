@@ -85,8 +85,12 @@ await lead.getByTestId("card-next").click();
 await lead.fill("#review-comment", "카드로 쓴 1차 의견");
 await lead.getByTestId("card-next").click();
 await lead.getByRole("button", { name: "제출", exact: true }).click();
+await lead.getByTestId("card-go-next").waitFor({ timeout: 15000 });
+await check("[평가자] 한 장씩 제출 뒤 카드 안에 '제출했습니다'·[제출 취소]·넘어가기 단추가 보이고, 저절로 넘어가지 않는다 (2026-10-26)", async () =>
+  (await lead.getByTestId("flow-card").innerText()).includes("제출했습니다") && (await lead.getByTestId("card-cancel-submit").count()) === 1 && lead.url().endsWith(kim));
+await lead.getByTestId("card-go-next").click();
 await lead.waitForURL(/\/me\/review\/first(\?|$)/, { timeout: 15000 }).catch(() => null);
-await check("[평가자] 한 장씩으로 제출하면 점수(업적 8.1)·의견이 저장되고 내 평가 현황으로 간다", async () => {
+await check("[평가자] 한 장씩으로 제출하면 점수(업적 8.1)·의견이 저장되고 [내 평가 현황]으로 간다", async () => {
   const [ev] = await sql`select id, first_submitted_at, first_comment from evaluations where person_id = ${kim}`;
   const [a] = await sql`select score from evaluation_scores where evaluation_id = ${ev!.id} and rater = 'first' and item_code = 'achievement'`;
   return !!ev?.first_submitted_at && D(a!.score as string) === "8.1" && D(ev.first_comment as string) === "카드로 쓴 1차 의견";

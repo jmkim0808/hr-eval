@@ -285,10 +285,10 @@ export function ReviewForm(p: Props) {
         ) : (
           <>
             <h2 className="text-[28px] leading-tight font-extrabold tracking-tight sm:text-[32px]">
-              {!canEdit ? `${p.person.name} 님 평가 요약` : filled === need ? `${p.person.name} 님 평가를 제출할까요?` : `아직 ${need - filled}칸이 비어 있어요`}
+              {submitted && p.editable ? `${p.person.name} 님 평가를 제출했습니다` : !canEdit ? `${p.person.name} 님 평가 요약` : filled === need ? `${p.person.name} 님 평가를 제출할까요?` : `아직 ${need - filled}칸이 비어 있어요`}
             </h2>
             <p className="mt-2.5 text-subsection-title text-text-secondary">
-              {!canEdit ? (p.notice ?? "") : filled === need ? `제출하면 ${p.nextHref ? "다음 사람으로" : "내 평가 현황으로"} 넘어갑니다. 기간 안에는 다시 고칠 수 있습니다.` : "왼쪽 흐름에서 회색 항목을 눌러 채워 주세요."}
+              {submitted && p.editable ? `${whenFull(submitted)} · 다음 사람은 아래 [다음 사람 평가하기]를 눌러 넘어갑니다. 고치려면 [제출 취소]` : !canEdit ? (p.notice ?? "") : filled === need ? "제출하면 잠깁니다. 다음 사람으로는 제출 뒤 [다음 사람 평가하기]를 눌러 넘어갑니다. 기간 안에는 [제출 취소] 후 다시 고칠 수 있습니다." : "왼쪽 흐름에서 회색 항목을 눌러 채워 주세요."}
             </p>
             <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
               {[
@@ -309,8 +309,23 @@ export function ReviewForm(p: Props) {
               {canEdit && (
                 <Button size="lg" onClick={submit} disabled={submitting || save.kind === "conflict"}>
                   {submitting ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Send aria-hidden="true" />}
-                  {p.nextHref ? "제출하고 다음 사람" : "제출"}
+                  제출
                 </Button>
+              )}
+              {/* 2026-10-26: 제출 뒤 넘어가는 단추를 카드 안(보고 있는 자리)에도 둔다 — 위쪽 알림은 평균 상자에 가려 안 보일 수 있음 */}
+              {submitted && (
+                <div className="flex flex-wrap gap-2">
+                  {p.editable && (
+                    <Button variant="outline" size="lg" onClick={cancelSubmit} disabled={cancelling} data-testid="card-cancel-submit">
+                      <Undo2 aria-hidden="true" />
+                      제출 취소
+                    </Button>
+                  )}
+                  <Link href={p.nextHref ?? `${p.overviewHref}${justSent ? "?done=1" : ""}`} className={buttonVariants({ size: "lg" })} data-testid="card-go-next">
+                    {p.nextHref ? "다음 사람 평가하기" : "내 평가 현황"}
+                    <ArrowRight aria-hidden="true" />
+                  </Link>
+                </div>
               )}
             </div>
           </>
