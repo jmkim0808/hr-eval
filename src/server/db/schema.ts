@@ -278,6 +278,12 @@ export const keySlots = pgTable("key_slots", {
   salt: text("salt").notNull(),
   iterations: integer("iterations").notNull(),
   wrapped: text("wrapped").notNull(),
+  /** passphrase = 관리자 비밀 문구, recovery = 복구 코드 (2026-10-26, 인쇄해 금고 보관) */
+  kind: text("kind", { enum: ["passphrase", "recovery"] }).notNull().default("passphrase"),
+  /** 복구 코드: 관리자가 다시 입력해 확인한 시각 (확인 전에는 평가 시작 불가) */
+  confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
+  /** 복구 코드: 이 코드로 연 시각 — 한 번 쓰면 새로 만들어야 한다 */
+  usedAt: timestamp("used_at", { withTimezone: true }),
   createdBy: text("created_by").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });

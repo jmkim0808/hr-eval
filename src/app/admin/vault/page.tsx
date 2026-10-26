@@ -5,8 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { requireAdmin } from "@/server/authz/actor";
-import { listSlots, vaultState } from "@/server/repo/vault";
-import { AddSlotForm, LockButton, RemoveSlotButton, SetupForm, UnlockForm } from "./VaultForms";
+import { listSlots, recoveryStatus, vaultState } from "@/server/repo/vault";
+import { AddSlotForm, LockButton, RecoveryCard, RemoveSlotButton, SetupForm, UnlockForm } from "./VaultForms";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +17,8 @@ export default async function VaultPage() {
   const a = await requireAdmin({ allowLocked: true });
   const state = await vaultState();
   const slots = state === "open" ? await listSlots(a) : [];
+  const rec = await recoveryStatus();
+  const passSlots = slots.filter((x) => x.kind === "passphrase").length;
   return (
     <>
       <main className="flex flex-col gap-6 px-4 py-6 sm:px-8 sm:py-8">
@@ -32,7 +34,7 @@ export default async function VaultPage() {
               <Alert variant="warning">
                 <ShieldAlert aria-hidden="true" />
                 <AlertTitle>잃어버리면 복구할 수 없습니다</AlertTitle>
-                <AlertDescription>만든 뒤 바로 다른 관리자(또는 봉인 보관용 예비) 열쇠 칸을 하나 더 추가해 두세요.</AlertDescription>
+                <AlertDescription>그래서 만든 뒤 바로 <b>복구 코드</b>를 만들어 인쇄·금고 보관하게 됩니다. 복구 코드를 확인하기 전에는 평가를 시작할 수 없습니다.</AlertDescription>
               </Alert>
               <SetupForm />
             </CardContent>
@@ -43,7 +45,7 @@ export default async function VaultPage() {
           <Card data-vault="locked">
             <CardHeader>
               <CardTitle>잠겨 있습니다</CardTitle>
-              <CardDescription>서버가 다시 켜져 잠겼습니다. 열기 전까지 직원들은 평가 화면을 쓸 수 없습니다.</CardDescription>
+              <CardDescription>서버가 다시 켜져 잠겼습니다. 열기 전까지 직원들은 평가 화면을 쓸 수 없습니다. 비밀 문구를 잊었으면 금고에 보관한 <b>복구 코드</b>를 넣으세요.</CardDescription>
             </CardHeader>
             <CardContent>
               <UnlockForm />
@@ -61,6 +63,15 @@ export default async function VaultPage() {
                 <LockButton />
               </AlertDescription>
             </Alert>
+            <Card data-recovery={rec.ready ? "ready" : "missing"} className={rec.ready ? undefined : "border-danger"}>
+              <CardHeader>
+                <CardTitle>복구 코드 {!rec.ready && <Badge variant="destructive">필수</Badge>}</CardTitle>
+                <CardDescription>비밀 문구를 잊거나 담당자가 바뀌어도 열 수 있는 두 번째 길입니다. 인쇄해 봉인한 뒤 금고에 보관합니다.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <RecoveryCard ready={rec.ready} confirmedAt={rec.confirmedAt} usedAt={rec.usedAt} me={a.name} />
+              </CardContent>
+            </Card>
             <Card>
               <CardHeader>
                 <CardTitle>열쇠 칸 추가</CardTitle>
@@ -73,7 +84,7 @@ export default async function VaultPage() {
             <Card className="pb-0">
               <CardHeader>
                 <CardTitle>열쇠 칸 {slots.length}개</CardTitle>
-                {slots.length < 2 && <CardDescription>하나뿐입니다. 비밀 문구를 잃어버리면 복구할 수 없으니 하나 더 추가해 두세요.</CardDescription>}
+                {!rec.ready && <CardDescription>복구 코드가 없습니다. 비밀 문구를 잃어버리면 복구할 수 없으니 위에서 복구 코드를 만들어 주세요.</CardDescription>}
               </CardHeader>
               <Table>
                 <TableHeader>
@@ -87,11 +98,11 @@ export default async function VaultPage() {
                   {slots.map((s) => (
                     <TableRow key={s.id} data-slot-label={s.label}>
                       <TableCell className="font-medium">
-                        {s.label} {s.createdBy === a.email && <Badge variant="primary">내가 만듦</Badge>}
+                        {s.label} {s.kind === "recovery" ? <Badge variant="teal">복구 코드{s.usedAt ? " · 사용함" : ""}</Badge> : s.createdBy === a.email && <Badge variant="primary">내가 만듦</Badge>}
                       </TableCell>
                       <TableCell className="tabular-nums">{day(s.createdAt)}</TableCell>
                       <TableCell className="py-1.5 text-right">
-                        <RemoveSlotButton id={s.id} last={slots.length <= 1} />
+                        {s.kind === "passphrase" && <RemoveSlotButton id={s.id} last={passSlots <= 1} />}
                       </TableCell>
                     </TableRow>
                   ))}

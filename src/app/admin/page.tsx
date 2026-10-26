@@ -20,6 +20,8 @@ import { deptProgress, stageProgress } from "@/server/repo/progress";
 import { adminOverview } from "@/server/repo/overview";
 import { NineBox } from "@/components/NineBox";
 import { retentionUntil } from "@/server/repo/results";
+import { recoveryRequired, recoveryStatus } from "@/server/repo/vault";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AdvanceButton } from "./AdvanceButton";
 import { RollbackButton } from "./RollbackButton";
 import { PendingTable } from "./PendingTable";
@@ -41,6 +43,7 @@ export default async function ProgressPage() {
   const stage = cycle ? await stageProgress(a, cycle.id, cycle.status) : null;
   const stageCopy = cycle ? STAGE_COPY[cycle.status] : undefined;
   const due = cycle ? await backupDue(a, cycle.id) : false;
+  const noRecovery = recoveryRequired() && !(await recoveryStatus()).ready;
   const bonus = cycle && cycle.status !== "setup" ? { n: await bonusCount(a, cycle.id), total: (await stageProgress(a, cycle.id, "self_review"))?.total ?? 0 } : null;
   const today = seoulToday();
   const end = cycle ? { self_review: cycle.selfEnd, first_review: cycle.firstEnd, second_review: cycle.secondEnd }[cycle.status as string] : null;
@@ -81,6 +84,14 @@ export default async function ProgressPage() {
             ) : undefined
           }
         />
+        {noRecovery && (
+          <Alert variant="destructive" data-testid="recovery-missing">
+            <AlertTitle>보안 열쇠 복구 코드가 없습니다</AlertTitle>
+            <AlertDescription>
+              비밀 문구를 잊으면 평가 내용을 복구할 수 없습니다. <Link href="/admin/vault" className="font-semibold underline">[보안 열쇠]</Link>에서 복구 코드를 만들어 금고에 보관해 주세요.
+            </AlertDescription>
+          </Alert>
+        )}
         {!cycle ? (
           <Card>
             <Empty

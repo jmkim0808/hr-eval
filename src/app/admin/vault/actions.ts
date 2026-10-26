@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { fail, type Result } from "@/lib/result";
 import { requireAdmin } from "@/server/authz/actor";
-import { addSlot, lockVault, removeSlot, setupVault, unlockVault } from "@/server/repo/vault";
+import { addSlot, confirmRecoveryCode, createRecoveryCode, lockVault, removeSlot, setupVault, unlockVault } from "@/server/repo/vault";
 
 // 비밀 문구는 받은 즉시 열쇠 계산에만 쓰고 저장·기록하지 않는다 (ADR-0021)
 export type VaultFormState = { ok?: boolean; message?: string; at?: number };
@@ -48,5 +48,18 @@ export async function removeSlotAction(id: unknown): Promise<Result> {
   if (!v.success) return fail("invalid", "잘못된 요청입니다.");
   const r = await removeSlot(a, v.data);
   revalidatePath("/admin/vault");
+  return r;
+}
+
+// 복구 코드 (2026-10-26): 만든 코드는 이 응답으로 한 번만 보낸다. 서버에는 코드로 잠근 열쇠만 남는다
+export async function createRecoveryAction(): Promise<Result<{ code: string }>> {
+  const a = await requireAdmin({ allowLocked: true });
+  return createRecoveryCode(a);
+}
+
+export async function confirmRecoveryAction(input: unknown): Promise<Result> {
+  const a = await requireAdmin({ allowLocked: true });
+  const r = await confirmRecoveryCode(a, typeof input === "string" ? input.slice(0, 80) : "");
+  if (r.ok) revalidatePath("/admin", "layout");
   return r;
 }

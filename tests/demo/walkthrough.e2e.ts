@@ -108,6 +108,18 @@ for (const [k, d] of Object.entries({ selfStart: plus(0), selfEnd: plus(3), firs
 await admin.click('button:has-text("기간 저장")');
 await admin.waitForSelector("text=기간을 저장했습니다");
 await admin.reload();
+// 2026-10-26: 복구 코드를 만들고 확인하기 전에는 안내 발송이 막힌다 (자동 열기 없는 PC·운영 설정)
+await check("[2026-10-26] 보안 열쇠 복구 코드가 없으면 [안내 이메일 발송]이 막히고 이유가 보인다", async () =>
+  (await admin.getByText("보안 열쇠 복구 코드를 먼저 만들고 확인해 주세요").count()) === 1 && (await admin.getByRole("button", { name: "안내 이메일 발송" }).isDisabled()),
+);
+await admin.goto(`${BASE}/admin/vault`);
+await admin.getByTestId("recovery-create").click();
+const recovery = (await admin.getByTestId("recovery-code").innerText()).trim();
+await admin.fill("#recovery-confirm", recovery);
+await admin.getByTestId("recovery-confirm-btn").click();
+await admin.locator('[data-recovery="ready"]').waitFor({ timeout: 15000 });
+await admin.goto(`${BASE}/admin/setup`);
+await admin.waitForLoadState("networkidle");
 await admin.getByRole("button", { name: "안내 이메일 발송" }).click();
 await admin.getByRole("button", { name: /명에게 발송/ }).click();
 await admin.waitForSelector("text=/발송 완료/", { timeout: 30000 });

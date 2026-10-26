@@ -1,6 +1,7 @@
 // 보안 열쇠 (ADR-0021). 처음 설정·열기·잠그기·관리자 열쇠 칸 추가/삭제.
 // 비밀 문구는 어디에도 저장하지 않고, 작업 기록에도 남기지 않는다.
-import { and, asc, count, desc, eq, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, isNotNull, isNull, sql } from "drizzle-orm";
+import { newRecoveryCode, normalizeRecoveryCode } from "@/domain/recovery";
 import { fail, ok, type Result } from "@/lib/result";
 import { env } from "@/platform/env";
 import { getDb } from "@/server/db/client";
@@ -41,16 +42,29 @@ const g = globalThis as unknown as { __hrVaultFail?: { n: number; until: number 
 const FAIL_MAX = 5;
 const FAIL_WAIT_MS = 15 * 60_000;
 
-async function tryUnlock(passphrase: string): Promise<boolean> {
-  const slots = await getDb().select().from(keySlots).orderBy(asc(keySlots.createdAt));
+/** 맞으면 연 열쇠 칸 종류. 비밀 문구 칸을 먼저, 복구 코드 형식이면 확인된 복구 코드 칸도 본다 */
+async function tryUnlock(passphrase: string): Promise<"passphrase" | "recovery" | null> {
+  const db = getDb();
+  const slots = await db.select().from(keySlots).where(eq(keySlots.kind, "passphrase")).orderBy(asc(keySlots.createdAt));
   for (const s of slots) {
     const dek = unwrapKey(s, passphrase);
     if (dek) {
       openWith(dek);
-      return true;
+      return "passphrase";
     }
   }
-  return false;
+  const code = normalizeRecoveryCode(passphrase);
+  if (!code) return null;
+  const rec = await db.select().from(keySlots).where(and(eq(keySlots.kind, "recovery"), isNotNull(keySlots.confirmedAt)));
+  for (const s of rec) {
+    const dek = unwrapKey(s, code);
+    if (dek) {
+      openWith(dek);
+      await db.update(keySlots).set({ usedAt: new Date() }).where(eq(keySlots.id, s.id));
+      return "recovery";
+    }
+  }
+  return null;
 }
 
 export async function unlockVault(actor: Actor, passphrase: string): Promise<Result> {
@@ -59,9 +73,10 @@ export async function unlockVault(actor: Actor, passphrase: string): Promise<Res
   const f = (g.__hrVaultFail ??= { n: 0, until: 0 });
   if (f.until > Date.now()) return fail("wait", "여러 번 틀려 15분 동안 열 수 없습니다. 잠시 뒤 다시 해 주세요.");
   const db = getDb();
-  if (await tryUnlock(passphrase)) {
+  const how = await tryUnlock(passphrase);
+  if (how) {
     f.n = 0;
-    await db.insert(auditLogs).values({ actorEmail: actor.email, action: "vault.unlock", detail: {} });
+    await db.insert(auditLogs).values({ actorEmail: actor.email, action: how === "recovery" ? "vault.unlock_recovery" : "vault.unlock", detail: {} });
     return ok();
   }
   f.n += 1;
@@ -70,7 +85,7 @@ export async function unlockVault(actor: Actor, passphrase: string): Promise<Res
     f.until = Date.now() + FAIL_WAIT_MS;
   }
   await db.insert(auditLogs).values({ actorEmail: actor.email, action: "vault.unlock_fail", detail: {} });
-  return fail("wrong", "비밀 문구가 맞지 않습니다.");
+  return fail("wrong", "비밀 문구(또는 복구 코드)가 맞지 않습니다.");
 }
 
 export async function lockVault(actor: Actor): Promise<Result> {
@@ -82,7 +97,11 @@ export async function lockVault(actor: Actor): Promise<Result> {
 
 export async function listSlots(actor: Actor) {
   assert(can.manageCycle(actor));
-  return getDb().select({ id: keySlots.id, label: keySlots.label, createdBy: keySlots.createdBy, createdAt: keySlots.createdAt }).from(keySlots).orderBy(asc(keySlots.createdAt));
+  return getDb()
+    .select({ id: keySlots.id, label: keySlots.label, kind: keySlots.kind, confirmedAt: keySlots.confirmedAt, usedAt: keySlots.usedAt, createdBy: keySlots.createdBy, createdAt: keySlots.createdAt })
+    .from(keySlots)
+    .where(sql`not (${keySlots.kind} = 'recovery' and ${keySlots.confirmedAt} is null)`)
+    .orderBy(asc(keySlots.createdAt));
 }
 
 /** 다른 관리자(또는 예비용) 열쇠 칸 추가. 열려 있을 때만 — 지금 열쇠를 새 비밀 문구로 한 번 더 잠근다 */
@@ -105,13 +124,58 @@ export async function removeSlot(actor: Actor, id: string): Promise<Result> {
   const db = getDb();
   return db.transaction(async (tx) => {
     await tx.execute(sql`lock table key_slots in exclusive mode`);
-    const [r] = await tx.select({ n: count() }).from(keySlots);
-    if ((r?.n ?? 0) <= 1) return fail("last", "마지막 열쇠 칸은 지울 수 없습니다.");
+    const [target] = await tx.select({ kind: keySlots.kind }).from(keySlots).where(eq(keySlots.id, id)).limit(1);
+    if (!target) return fail("not_found", "이미 지워진 열쇠 칸입니다.");
+    if (target.kind === "recovery") return fail("recovery", "복구 코드는 지우지 않고 [복구 코드 다시 만들기]로 바꿉니다.");
+    const [r] = await tx.select({ n: count() }).from(keySlots).where(eq(keySlots.kind, "passphrase"));
+    if ((r?.n ?? 0) <= 1) return fail("last", "마지막 비밀 문구 열쇠 칸은 지울 수 없습니다.");
     const del = await tx.delete(keySlots).where(eq(keySlots.id, id)).returning({ id: keySlots.id });
     if (!del.length) return fail("not_found", "이미 지워진 열쇠 칸입니다.");
     await tx.insert(auditLogs).values({ actorEmail: actor.email, action: "vault.slot_remove", detail: {} });
     return ok();
   });
+}
+
+// ── 복구 코드 (2026-10-26): 비밀 문구를 잊거나 담당자가 바뀌어도 열 수 있게. 인쇄해 금고에 보관 ──
+
+export type RecoveryStatus = { ready: boolean; confirmedAt: string | null; usedAt: string | null };
+
+/** 확인된(다시 입력해 맞힌) 복구 코드가 있고, 아직 쓰지 않았으면 ready */
+export async function recoveryStatus(): Promise<RecoveryStatus> {
+  const [r] = await getDb().select().from(keySlots).where(and(eq(keySlots.kind, "recovery"), isNotNull(keySlots.confirmedAt))).orderBy(desc(keySlots.confirmedAt)).limit(1);
+  return { ready: !!r && !r.usedAt, confirmedAt: r?.confirmedAt?.toISOString() ?? null, usedAt: r?.usedAt?.toISOString() ?? null };
+}
+
+/** 개발·시험 서버(자동 열기)에서는 복구 코드 없이도 평가를 시작할 수 있다 */
+export const recoveryRequired = () => !(env.mailMode === "log" && !!process.env.HR_DEV_PASSPHRASE);
+
+/** 새 복구 코드를 만들어 한 번만 돌려준다. 확인 전까지는 쓸 수 없고, 확인하면 예전 복구 코드는 지워진다 */
+export async function createRecoveryCode(actor: Actor): Promise<Result<{ code: string }>> {
+  assert(can.manageCycle(actor));
+  if (!isOpen()) return fail("locked", "먼저 보안 열쇠를 열어 주세요.");
+  const code = newRecoveryCode();
+  const db = getDb();
+  await db.delete(keySlots).where(and(eq(keySlots.kind, "recovery"), isNull(keySlots.confirmedAt)));
+  await db.insert(keySlots).values({ label: "복구 코드", kind: "recovery", createdBy: actor.email, ...wrapCurrent(code) });
+  await db.insert(auditLogs).values({ actorEmail: actor.email, action: "vault.recovery_create", detail: {} });
+  return ok({ code });
+}
+
+/** 옮겨 적은 복구 코드를 다시 넣어 맞으면 확정 (적어 둔 것이 정확한지 확인) */
+export async function confirmRecoveryCode(actor: Actor, input: string): Promise<Result> {
+  assert(can.manageCycle(actor));
+  const code = normalizeRecoveryCode(input);
+  if (!code) return fail("format", "복구 코드는 5글자씩 6묶음(30글자)입니다. 다시 확인해 주세요.");
+  const db = getDb();
+  const [pending] = await db.select().from(keySlots).where(and(eq(keySlots.kind, "recovery"), isNull(keySlots.confirmedAt))).orderBy(desc(keySlots.createdAt)).limit(1);
+  if (!pending) return fail("none", "확인할 복구 코드가 없습니다. [복구 코드 만들기]부터 해 주세요.");
+  if (!unwrapKey(pending, code)) return fail("wrong", "적어 둔 복구 코드와 다릅니다. 인쇄본을 다시 확인해 주세요.");
+  await db.transaction(async (tx) => {
+    await tx.delete(keySlots).where(and(eq(keySlots.kind, "recovery"), isNotNull(keySlots.confirmedAt)));
+    await tx.update(keySlots).set({ confirmedAt: new Date() }).where(eq(keySlots.id, pending.id));
+    await tx.insert(auditLogs).values({ actorEmail: actor.email, action: "vault.recovery_confirm", detail: {} });
+  });
+  return ok();
 }
 
 /**

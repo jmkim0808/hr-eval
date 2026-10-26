@@ -48,6 +48,7 @@ export default async function SetupPage() {
     !ready || ready.targets === 0 ? "직원 명단을 먼저 올려 주세요" : null,
     ready && !ready.periodsSet ? "기간을 먼저 정해 주세요" : null,
     ready && ready.missingReviewer > 0 ? `평가자가 비어 있는 사람이 ${ready.missingReviewer}명 있습니다` : null,
+    ready && !ready.recoveryReady ? "보안 열쇠 복구 코드를 먼저 만들고 확인해 주세요 ([보안 열쇠] 화면)" : null,
     cycle && cycle.status !== "setup" ? "평가가 이미 시작되어 안내 이메일을 보낼 수 없습니다" : null,
   ].filter((b): b is string => !!b);
   const preview = inviteMail("employee@powernet.co.kr", {

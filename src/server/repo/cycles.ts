@@ -7,6 +7,7 @@ import { recomputeFinal } from "@/server/repo/final";
 import { appUsers, auditLogs, cyclePeople, emailOutbox, reviewCycles } from "@/server/db/schema";
 import type { Actor } from "@/server/authz/actor";
 import { assert, can } from "@/server/authz/policy";
+import { recoveryRequired, recoveryStatus } from "@/server/repo/vault";
 
 /** 가장 최근 정기평가 (없으면 null) */
 export async function getCurrentCycle(actor: Actor) {
@@ -89,7 +90,7 @@ export async function savePeriods(actor: Actor, year: number, p: Periods): Promi
   return ok();
 }
 
-export type InviteReadiness = { targets: number; missingReviewer: number; periodsSet: boolean };
+export type InviteReadiness = { targets: number; missingReviewer: number; periodsSet: boolean; recoveryReady: boolean };
 
 export async function inviteReadiness(actor: Actor, cycleId: string): Promise<InviteReadiness> {
   assert(can.manageCycle(actor));
@@ -103,7 +104,9 @@ export async function inviteReadiness(actor: Actor, cycleId: string): Promise<In
     .where(and(eq(cyclePeople.cycleId, cycleId), eq(cyclePeople.isTarget, true)));
   const [c] = await db.select().from(reviewCycles).where(eq(reviewCycles.id, cycleId)).limit(1);
   const periodsSet = !!c && [c.selfStart, c.selfEnd, c.firstStart, c.firstEnd, c.secondStart, c.secondEnd, c.bonusCutoff].every(Boolean);
-  return { targets: r?.targets ?? 0, missingReviewer: r?.missing ?? 0, periodsSet };
+  // 보안 열쇠 복구 코드를 만들고 확인해야 평가를 시작할 수 있다 (2026-10-26, 담당자 1명이라 잃으면 복구 불가)
+  const recoveryReady = !recoveryRequired() || (await recoveryStatus()).ready;
+  return { targets: r?.targets ?? 0, missingReviewer: r?.missing ?? 0, periodsSet, recoveryReady };
 }
 
 /** 안내 이메일을 보낼 메일 목록에 쌓고 단계를 "개인작성"으로 연다. 한 번만 된다. */
@@ -113,6 +116,7 @@ export async function startInvites(actor: Actor, cycleId: string, version: numbe
   if (ready.targets === 0) return fail("no_roster", "직원 명단을 먼저 올려 주세요.");
   if (!ready.periodsSet) return fail("no_periods", "기간을 먼저 정해 주세요.");
   if (ready.missingReviewer > 0) return fail("missing_reviewer", `평가자가 비어 있는 사람이 ${ready.missingReviewer}명 있습니다.`);
+  if (!ready.recoveryReady) return fail("no_recovery", "보안 열쇠 복구 코드를 먼저 만들고 확인해 주세요 ([보안 열쇠] 화면).");
   const db = getDb();
   return db.transaction(async (tx) => {
     const [c] = await tx.select().from(reviewCycles).where(eq(reviewCycles.id, cycleId)).limit(1).for("update");

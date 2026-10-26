@@ -5,7 +5,7 @@ import { BASE, LOG, browser, check, login, sql, summary } from "./helpers";
 const ADMIN = "part@powernet.test";
 const PASS = process.env.HR_DEV_PASSPHRASE!;
 const SPARE = "예비용-비밀문구-2026!";
-await sql`delete from key_slots where label <> '개발용'`;
+await sql`delete from key_slots where label <> '개발용'`; // 복구 코드도 지운다 (27번 시험에서 따로 본다)
 const [emp] = await sql`select p.email from cycle_people p join review_cycles c on c.id = p.cycle_id where p.is_target order by c.year desc, p.name limit 1`;
 if (!emp) throw new Error("평가 명단이 없습니다 — 02~17 시험을 먼저 돌려 주세요");
 
@@ -17,8 +17,8 @@ await admin.goto(`${BASE}/admin/vault`);
 await check("보안 열쇠 화면에 \"열려 있습니다\"와 열쇠 칸 목록이 보인다", async () =>
   (await admin.locator('[data-vault="open"]').count()) === 1 && (await admin.locator('tr[data-slot-label="개발용"]').count()) === 1,
 );
-await check("열쇠 칸이 하나뿐이면 \"하나 더 추가해 두세요\" 안내가 보이고 지울 수 없다", async () =>
-  (await admin.getByText("하나 더 추가해 두세요").count()) === 1 && (await admin.getByRole("button", { name: "지우기" }).isDisabled()),
+await check("복구 코드가 없으면 \"복구 코드를 만들어 주세요\" 안내가 보이고, 비밀 문구 열쇠 칸이 하나뿐이면 지울 수 없다 (2026-10-26)", async () =>
+  (await admin.getByText("위에서 복구 코드를 만들어 주세요").count()) === 1 && (await admin.getByRole("button", { name: "지우기" }).isDisabled()),
 );
 
 // 열쇠 칸 추가
@@ -62,10 +62,10 @@ await check("잠긴 동안 대표이사도 안내 화면으로 간다", async ()
 await admin.goto(`${BASE}/admin/vault`);
 await admin.fill("#v-unlock", "틀린-비밀문구-입니다");
 await admin.getByRole("button", { name: "열기" }).click();
-await admin.waitForSelector("text=비밀 문구가 맞지 않습니다", { timeout: 15000 }).catch(() => null);
+await admin.waitForSelector("text=비밀 문구(또는 복구 코드)가 맞지 않습니다", { timeout: 15000 }).catch(() => null);
 await check("비밀 문구가 틀리면 \"비밀 문구가 맞지 않습니다\"가 보이고 작업 기록에 남는다", async () => {
   const [r] = await sql`select count(*)::int n from audit_logs where action = 'vault.unlock_fail' and created_at > now() - interval '2 minutes'`;
-  return (await admin.getByText("비밀 문구가 맞지 않습니다").count()) === 1 && r!.n >= 1;
+  return (await admin.getByText("비밀 문구(또는 복구 코드)가 맞지 않습니다").count()) === 1 && r!.n >= 1;
 });
 await admin.fill("#v-unlock", SPARE);
 await admin.getByRole("button", { name: "열기" }).click();
