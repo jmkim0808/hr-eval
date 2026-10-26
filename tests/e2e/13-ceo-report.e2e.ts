@@ -35,8 +35,9 @@ const cp = await (await b.newContext({ viewport: { width: 1300, height: 1000 } }
 await login(cp, "ceo@powernet.test");
 await cp.goto(`${BASE}/`);
 await cp.waitForURL(`${BASE}/report`);
-await check("대표이사가 인증하면 바로 등급 결과가 열리고 메뉴가 없다", async () =>
-  (await cp.getByRole("heading", { name: "등급 결과" }).count()) === 1 && (await cp.getByRole("navigation", { name: "관리자 메뉴" }).count()) === 0 && (await cp.getByText("진행 현황").count()) === 0,
+await check("대표이사가 인증하면 바로 등급 결과가 열리고, 관리자 메뉴 없이 대표이사 메뉴(등급 결과·진행 현황)만 있다 (2026-10-26 진행 현황 추가)", async () =>
+  (await cp.getByRole("heading", { name: "등급 결과" }).count()) === 1 && (await cp.getByRole("navigation", { name: "관리자 메뉴" }).count()) === 0 &&
+  (await cp.getByRole("navigation", { name: "대표이사 메뉴" }).getByRole("link").allInnerTexts()).join("|") === "등급 결과|진행 현황",
 );
 await check("최종평가 전에는 \"아직 보고할 결과가 없습니다\"가 보인다", async () => (await cp.getByText("아직 보고할 결과가 없습니다").count()) === 1);
 

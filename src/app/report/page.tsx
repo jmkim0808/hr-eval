@@ -29,7 +29,7 @@ export default async function ReportPage({ searchParams }: { searchParams: Promi
       {!rows ? (
         <Card>
           <Empty icon={<FileBarChart aria-hidden="true" />} title="아직 보고할 결과가 없습니다">
-            2차평가가 끝나고 최종평가가 시작되면 여기에 그룹별 등급이 나옵니다.
+            2차평가가 끝나고 최종평가가 시작되면 여기에 그룹별 등급이 나옵니다. 그 전에는 위 [진행 현황]에서 누가 어디까지 했는지 볼 수 있습니다.
           </Empty>
         </Card>
       ) : (

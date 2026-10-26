@@ -1,5 +1,6 @@
 import { AppHeader } from "@/components/AppHeader";
 import { requireReportViewer } from "@/server/authz/actor";
+import { ReportTabs } from "./ReportTabs";
 
 export const dynamic = "force-dynamic";
 
@@ -8,6 +9,7 @@ export default async function ReportLayout({ children }: { children: React.React
   return (
     <>
       <AppHeader viewer={a.name} employeeNo={a.employeeNo} />
+      <ReportTabs />
       {children}
     </>
   );

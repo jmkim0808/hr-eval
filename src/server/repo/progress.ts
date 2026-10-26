@@ -1,5 +1,5 @@
-// 진행 현황 (PRD 05). 관리자만.
-import { and, eq, inArray, max, sql } from "drizzle-orm";
+// 진행 현황 (PRD 05). 관리자 + 대표이사(보기 전용 요약, 2026-10-26).
+import { and, desc, eq, inArray, max, sql } from "drizzle-orm";
 import { fmtDay } from "@/domain/periods";
 import { fail, ok, type Result } from "@/lib/result";
 import { getDb } from "@/server/db/client";
@@ -24,7 +24,7 @@ export type StageProgress = { total: number; submitted: number; pending: Pending
 
 /** 개인작성 단계: 평가지 주인이 제출했는지. (1차·2차는 07·08번에서 더한다) */
 export async function selfStageProgress(actor: Actor, cycleId: string): Promise<StageProgress> {
-  assert(can.manageCycle(actor));
+  assert(can.viewProgress(actor));
   const db = getDb();
   const people = await db
     .select({
@@ -75,7 +75,7 @@ export async function selfStageProgress(actor: Actor, cycleId: string): Promise<
  * 1차 = 팀원 평가지의 1차 평가자, 2차 = 팀원 평가지의 2차 평가자 + 팀장 평가지의 평가자(임원)
  */
 export async function reviewStageProgress(actor: Actor, cycleId: string, stage: "first_review" | "second_review"): Promise<StageProgress> {
-  assert(can.manageCycle(actor));
+  assert(can.viewProgress(actor));
   const db = getDb();
   const targets = await db
     .select({ p: cyclePeople, ev: evaluations })
@@ -181,7 +181,7 @@ export async function queueReminders(actor: Actor, cycleId: string, personIds: s
 
 /** 부서별 진행률 (2026-10-19 화면 개편): 지금 단계에서 제출이 끝난 대상자 비율. 팀장 평가(임원)는 2차 단계에 센다 */
 export async function deptProgress(actor: Actor, cycleId: string, status: string): Promise<{ department: string; total: number; done: number }[]> {
-  assert(can.manageCycle(actor));
+  assert(can.viewProgress(actor));
   if (!["self_review", "first_review", "second_review"].includes(status)) return [];
   const rows = await getDb()
     .select({ department: cyclePeople.department, formType: cyclePeople.formType, self: evaluations.selfSubmittedAt, first: evaluations.firstSubmittedAt, second: evaluations.secondSubmittedAt })
@@ -198,4 +198,30 @@ export async function deptProgress(actor: Actor, cycleId: string, status: string
     by.set(d, e);
   }
   return [...by].map(([department, v]) => ({ department, ...v })).sort((a, b) => b.done / b.total - a.done / a.total || a.department.localeCompare(b.department, "ko"));
+}
+
+// ── 대표이사 진행 현황 (2026-10-26): 단계·제출률·부서별·미제출자 이름만. 평가지 링크·점수·독촉 기록은 주지 않는다 ──
+
+export type ExecProgress = {
+  cycle: { year: number; status: string; selfStart: string | null; selfEnd: string | null; firstStart: string | null; firstEnd: string | null; secondStart: string | null; secondEnd: string | null } | null;
+  stage: { total: number; submitted: number; pending: { name: string; department: string; role: string; status: "not_started" | "writing" }[] } | null;
+  depts: { department: string; total: number; done: number }[];
+};
+
+export async function execProgress(actor: Actor): Promise<ExecProgress> {
+  assert(can.viewProgress(actor));
+  const db = getDb();
+  const [c] = await db
+    .select({ id: reviewCycles.id, year: reviewCycles.year, status: reviewCycles.status, selfStart: reviewCycles.selfStart, selfEnd: reviewCycles.selfEnd, firstStart: reviewCycles.firstStart, firstEnd: reviewCycles.firstEnd, secondStart: reviewCycles.secondStart, secondEnd: reviewCycles.secondEnd })
+    .from(reviewCycles)
+    .orderBy(desc(reviewCycles.year))
+    .limit(1);
+  if (!c) return { cycle: null, stage: null, depts: [] };
+  const st = await stageProgress(actor, c.id, c.status);
+  const { id, ...cycle } = c;
+  return {
+    cycle,
+    stage: st && { total: st.total, submitted: st.submitted, pending: st.pending.map((p) => ({ name: p.name, department: p.department, role: p.role, status: p.status })) },
+    depts: await deptProgress(actor, id, c.status),
+  };
 }

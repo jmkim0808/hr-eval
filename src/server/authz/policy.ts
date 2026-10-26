@@ -12,6 +12,8 @@ export const can = {
   manageCycle: (a: Actor) => a.roles.admin,
   /** 등급 결과(보기 전용): 대표이사. 관리자도 같은 화면을 확인할 수 있다 */
   viewReport: (a: Actor) => a.roles.ceo || a.roles.admin,
+  /** 진행 현황(제출률·부서별·미제출자 이름) 보기 전용: 대표이사도 (2026-10-26, 점수·내용·독촉은 관리자만) */
+  viewProgress: (a: Actor) => a.roles.ceo || a.roles.admin,
   /** 대표이사 조정(S~D 자유, 2026-10-15): 대표이사 직접, 또는 관리자가 대표 지시로 대신 */
   ceoAdjust: (a: Actor) => a.roles.ceo || a.roles.admin,
   /** 내 평가결과: 본인만, 결과 알림 발송 뒤 */
