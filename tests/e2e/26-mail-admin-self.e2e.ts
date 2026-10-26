@@ -8,7 +8,7 @@ await sql`delete from review_cycles`;
 await sql`delete from auth_codes`;
 await sql`delete from mail_settings`;
 const ADMIN = "part@powernet.test";
-const [{ t0 }] = await sql`select now() as t0`; // 작업 기록은 지우지 않으므로 이 시험이 남긴 것만 센다
+const t0 = (await sql`select now() as t0`)[0]!.t0 as Date; // 작업 기록은 지우지 않으므로 이 시험이 남긴 것만 센다
 const adminNo = await employeeNoOf(ADMIN);
 const year = Number(new Intl.DateTimeFormat("en", { timeZone: "Asia/Seoul", year: "numeric" }).format(new Date()));
 const [cyc] = await sql`insert into review_cycles (year, status, self_start, self_end, first_start, first_end, second_start, second_end, bonus_cutoff)
