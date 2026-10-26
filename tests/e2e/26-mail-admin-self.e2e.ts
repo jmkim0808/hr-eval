@@ -8,6 +8,7 @@ await sql`delete from review_cycles`;
 await sql`delete from auth_codes`;
 await sql`delete from mail_settings`;
 const ADMIN = "part@powernet.test";
+const [{ t0 }] = await sql`select now() as t0`; // 작업 기록은 지우지 않으므로 이 시험이 남긴 것만 센다
 const adminNo = await employeeNoOf(ADMIN);
 const year = Number(new Intl.DateTimeFormat("en", { timeZone: "Asia/Seoul", year: "numeric" }).format(new Date()));
 const [cyc] = await sql`insert into review_cycles (year, status, self_start, self_end, first_start, first_end, second_start, second_end, bonus_cutoff)
@@ -88,7 +89,7 @@ await page.getByTestId("mail-save").click();
 await page.waitForFunction(() => document.querySelector('[data-testid="mail-status"]')?.textContent?.includes("저장했습니다"));
 await check("[메일] 비밀번호를 비워 두고 저장하면 저장된 비밀번호를 그대로 쓰고, 작업 기록에 서버 주소만 남는다", async () => {
   const [r] = await sql`select from_name, password from mail_settings`;
-  const logs = await sql`select detail from audit_logs where action = 'mail.settings.save' order by created_at desc`;
+  const logs = await sql`select detail from audit_logs where action = 'mail.settings.save' and created_at >= ${t0} order by created_at desc`;
   return r?.from_name === "인사팀" && String(r.password).startsWith("s1:") && logs.length === 2 && !JSON.stringify(logs).includes("Secret") && logs[0]!.detail.host === "smtp.powernet.test";
 });
 await page.getByTestId("mail-clear").click();
