@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
-import { Archive, ClipboardList, KeyRound, LayoutDashboard, Medal, Send, Settings2, Trophy, UserCog, Users } from "lucide-react";
+import { Archive, ClipboardList, KeyRound, LayoutDashboard, Mail, Medal, Send, Settings2, Trophy, UserCog, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // 관리자 메뉴 (2026-10-15 SaaS 스타일): 넓은 화면은 왼쪽 세로 메뉴, 좁은 화면은 위쪽 가로 메뉴. 지금 화면은 주소로 찾는다.
@@ -25,6 +25,7 @@ const groups: { label: string; items: Item[] }[] = [
       { href: "/admin/setup", label: "평가 시작 설정", icon: Settings2 },
       { href: "/admin/cycles", label: "평가 관리", icon: Archive },
       { href: "/admin/settings", label: "관리자 설정", icon: UserCog },
+      { href: "/admin/mail", label: "메일 발송", icon: Mail },
       { href: "/admin/vault", label: "보안 열쇠", icon: KeyRound },
     ],
   },

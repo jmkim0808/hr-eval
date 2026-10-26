@@ -23,7 +23,7 @@ env:
   - BASE_PATH         # /hr-eval
   - MAIL_MODE         # smtp (운영) / log (개발: 메일을 보내지 않고 기록만)
   - MAIL_FROM         # "파워넷 인사평가 <hr-eval@회사도메인>"
-  - SMTP_HOST         # ★ 다우오피스 SMTP
+  - SMTP_HOST         # ★ 다우오피스 SMTP (서버 기본값 — 관리자 화면 [메일 발송] 설정이 먼저, 실패하면 이 값으로. ADR-0022)
   - SMTP_PORT         # 465
   - SMTP_USER         # ★
   - SMTP_PASS         # ★

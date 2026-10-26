@@ -1,5 +1,5 @@
 // 엑셀 내려받기용 데이터 (PRD 15, ADR-0008). 서버는 권한 검사 후 데이터만 주고, 엑셀은 브라우저가 만든다. 내려받으면 작업 기록에 남긴다.
-import { and, desc, eq, inArray, max } from "drizzle-orm";
+import { and, desc, eq, inArray, max, or, sql } from "drizzle-orm";
 import { BONUS_ITEMS } from "@/domain/bonus";
 import { FORMS } from "@/domain/forms";
 import { GROUP_LABEL } from "@/domain/grading";
@@ -71,6 +71,17 @@ export async function exportBackup(actor: Actor, cycleId: string): Promise<Resul
   const adj = (await db.select().from(gradeAdjustments).where(eq(gradeAdjustments.cycleId, cycleId)).orderBy(gradeAdjustments.createdAt))
     .map((a) => ({ ...a, personId: dec(a.subject ?? ""), fromGrade: dec(a.fromGrade), toGrade: dec(a.toGrade), kind: dec(a.kind) }))
     .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime() || (a.kind === "manual" ? -1 : 1) - (b.kind === "manual" ? -1 : 1));
+  // 관리자 본인 기록 수정 (2026-10-26) — 담당 관리자가 피평가자이기도 해서 따로 모아 보인다
+  const selfLogs = await db
+    .select()
+    .from(auditLogs)
+    .where(and(sql`${auditLogs.detail}->>'selfRecord' = 'true'`, ids.length ? or(eq(auditLogs.cycleId, cycleId), inArray(auditLogs.personId, ids)) : eq(auditLogs.cycleId, cycleId)))
+    .orderBy(auditLogs.createdAt);
+  const SELF_ACTION: Record<string, string> = {
+    "bonus.set": "가점 입력", "bonus.upload": "가점 올리기", "bonus.request_done": "가점 정정 요청 처리", "score.proxy": "빈 점수 대신 입력",
+    "score.proxy_save": "평가 대신 입력(저장)", "score.proxy_submit": "평가 대신 입력(제출)", "grade.adjust": "등급 조정", "grade.revert": "등급 조정 되돌리기",
+    "grade.ceo_adjust": "대표이사 조정 입력", "grade.ceo_revert": "대표이사 조정 지우기", "roster.reviewer": "평가자 바꾸기",
+  };
   const RATER: Record<string, string> = { self: "본인평가", first: "1차", second: "2차" };
   const bonusLabel = Object.fromEntries(BONUS_ITEMS.map((i) => [i.code, i.label]));
   const sheets: Sheet[] = [
@@ -112,6 +123,11 @@ export async function exportBackup(actor: Actor, cycleId: string): Promise<Resul
       name: "등급조정 이력",
       headers: ["언제", "누가", "대상", "무엇을", "종류", "되돌린 시각"],
       rows: adj.map((a) => [ts(a.createdAt), a.createdBy, name.get(a.personId) ?? "", `${a.fromGrade} → ${a.toGrade}`, a.kind === "manual" ? "조정" : "밀려남", ts(a.revertedAt)]),
+    },
+    {
+      name: "관리자 본인 기록 수정",
+      headers: ["언제", "누가", "무엇을", "대신 넣음"],
+      rows: selfLogs.map((l) => [ts(l.createdAt), l.actorEmail, SELF_ACTION[l.action] ?? l.action, l.detail.proxy ? "대표이사 대신" : ""]),
     },
   ];
   await db.insert(auditLogs).values({ actorEmail: actor.email, action: "export.backup", cycleId, detail: { sheets: sheets.length } });

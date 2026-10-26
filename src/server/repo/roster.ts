@@ -8,6 +8,7 @@ import { auditLogs, cyclePeople, reviewCycles } from "@/server/db/schema";
 import type { Actor } from "@/server/authz/actor";
 import { dec, enc } from "@/server/crypto/vault";
 import { assert, can } from "@/server/authz/policy";
+import { selfMark } from "@/server/repo/self-record";
 
 /** 명단을 바꿀 수 있는 단계 (안내 이메일 발송 전) */
 const ROSTER_EDITABLE = ["setup"] as const;
@@ -147,6 +148,6 @@ export async function updateReviewer(actor: Actor, personId: string, slot: "firs
     .update(cyclePeople)
     .set(slot === "first" ? { firstReviewerId: reviewerId, updatedAt: new Date() } : { secondReviewerId: reviewerId, updatedAt: new Date() })
     .where(eq(cyclePeople.id, personId));
-  await db.insert(auditLogs).values({ actorEmail: actor.email, action: "roster.reviewer", cycleId: p.cycleId, personId, detail: { slot } });
+  await db.insert(auditLogs).values({ actorEmail: actor.email, action: "roster.reviewer", cycleId: p.cycleId, personId, detail: { slot, ...(await selfMark(db, actor, [personId])) } });
   return ok();
 }

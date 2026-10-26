@@ -308,3 +308,17 @@ export const bonusRequests = pgTable("bonus_requests", {
   handledAt: timestamp("handled_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+/** 메일 발송 설정 (관리자 화면, 2026-10-26). 한 줄만 쓴다. 비밀번호는 서버 비밀값(AUTH_SECRET)으로 암호화 —
+ *  보안 열쇠(평가 내용)와 따로 둔다: 열쇠가 잠겨 있어도 로그인 인증번호 메일은 나가야 하므로 */
+export const mailSettings = pgTable("mail_settings", {
+  id: text("id").primaryKey().default("main"),
+  host: text("host").notNull(),
+  port: smallint("port").notNull(),
+  username: text("username").notNull(),
+  password: text("password").notNull(),
+  fromName: text("from_name").notNull(),
+  fromAddress: text("from_address").notNull(),
+  updatedBy: text("updated_by").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});

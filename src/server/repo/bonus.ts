@@ -8,6 +8,7 @@ import { appUsers, auditLogs, bonusHistory, bonusPoints, bonusRequests, cyclePeo
 import type { Actor } from "@/server/authz/actor";
 import { assert, can } from "@/server/authz/policy";
 import { dec, decNum, enc, encNum } from "@/server/crypto/vault";
+import { selfMark } from "@/server/repo/self-record";
 
 const LOCKED = ["confirmed", "results_sent", "closed"];
 /** 확정 전까지. 한 번 확정했으면 확정을 취소해도 다시 열리지 않는다 */
@@ -65,7 +66,7 @@ export async function applyBonus(actor: Actor, cycleId: string, rows: { personId
       rows.flatMap((r) => BONUS_ITEMS.map((i) => ({ personId: r.personId, item: i.code, points: enc((r.values[i.code as BonusCode] ?? 0).toFixed(2)), updatedBy: actor.email }))),
     );
     if (c.status === "final_review") await recomputeFinal(tx, cycleId);
-    await tx.insert(auditLogs).values({ actorEmail: actor.email, action: rows.length === 1 ? "bonus.set" : "bonus.upload", cycleId, personId: rows.length === 1 ? rows[0]!.personId : null, detail: { count: rows.length } });
+    await tx.insert(auditLogs).values({ actorEmail: actor.email, action: rows.length === 1 ? "bonus.set" : "bonus.upload", cycleId, personId: rows.length === 1 ? rows[0]!.personId : null, detail: { count: rows.length, ...(await selfMark(tx, actor, changes.map((x) => x.personId))) } });
   });
   return ok({ count: rows.length });
 }
@@ -160,7 +161,7 @@ export async function handleBonusRequest(actor: Actor, id: string, reply: string
     .where(and(eq(bonusRequests.id, id), eq(bonusRequests.status, "open")))
     .returning({ personId: bonusRequests.personId });
   if (!done.length) return fail("not_found", "이미 처리된 요청입니다.");
-  await getDb().insert(auditLogs).values({ actorEmail: actor.email, action: "bonus.request_done", personId: done[0]!.personId, detail: {} });
+  await getDb().insert(auditLogs).values({ actorEmail: actor.email, action: "bonus.request_done", personId: done[0]!.personId, detail: { ...(await selfMark(getDb(), actor, [done[0]!.personId])) } });
   return ok();
 }
 

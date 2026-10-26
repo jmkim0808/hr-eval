@@ -11,6 +11,7 @@ import type { Actor } from "@/server/authz/actor";
 import { assert, can } from "@/server/authz/policy";
 import { dec, enc, encNum } from "@/server/crypto/vault";
 import { COMMENT_MAX } from "@/server/repo/reviews";
+import { selfMark } from "@/server/repo/self-record";
 
 export type ProxyRater = "first" | "second";
 
@@ -49,7 +50,7 @@ export async function proxyScores(actor: Actor, personId: string, rater: ProxyRa
       ...(comment === undefined ? {} : rater === "first" ? { firstComment: comment.trim() ? enc(comment) : null } : { secondComment: comment.trim() ? enc(comment) : null }),
     };
     await tx.update(evaluations).set({ version: ev!.version + 1, updatedAt: now, ...stamp }).where(eq(evaluations.id, ev!.id));
-    await tx.insert(auditLogs).values({ actorEmail: actor.email, action: submit ? "score.proxy_submit" : "score.proxy_save", cycleId: row.c.id, personId, detail: { rater, count: entries.length } });
+    await tx.insert(auditLogs).values({ actorEmail: actor.email, action: submit ? "score.proxy_submit" : "score.proxy_save", cycleId: row.c.id, personId, detail: { rater, count: entries.length, ...(await selfMark(tx, actor, [personId])) } });
     return ok({ count: entries.length });
   });
 }

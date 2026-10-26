@@ -28,9 +28,11 @@ export const env = {
     if (v === undefined) return null; // 실제용: 제한 없음
     return v.split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
   },
-  get smtp() {
+  /** 서버 기본 메일 설정 (전산이 넣은 환경 값). 없으면 null — 관리자 화면 설정만 쓴다 (2026-10-26) */
+  get smtp(): { host: string; port: number; user: string; pass: string } | null {
+    if (!process.env.SMTP_HOST) return null;
     return {
-      host: required("SMTP_HOST"),
+      host: process.env.SMTP_HOST,
       port: Number(process.env.SMTP_PORT ?? "465"),
       user: required("SMTP_USER"),
       pass: required("SMTP_PASS"),

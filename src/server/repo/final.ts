@@ -11,6 +11,7 @@ import type { Actor } from "@/server/authz/actor";
 import { assert, can } from "@/server/authz/policy";
 import { decNum, encNum } from "@/server/crypto/vault";
 import { decFinal, encFinal, type FinalPlain } from "@/server/repo/final-codec";
+import { selfMark } from "@/server/repo/self-record";
 
 type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
 const n2 = (x: number | null) => (x === null ? null : x.toFixed(2));
@@ -189,7 +190,7 @@ export async function fillBlankScores(actor: Actor, personId: string, input: { f
     if (!ev) [ev] = await tx.insert(evaluations).values({ personId, version: 1 }).returning();
     await tx.insert(evaluationScores).values(rows.map((r) => ({ evaluationId: ev!.id, ...r, score: encNum(r.score)!, enteredBy: actor.email })));
     await tx.update(evaluations).set({ version: ev!.version + 1, updatedAt: new Date() }).where(eq(evaluations.id, ev!.id));
-    await tx.insert(auditLogs).values({ actorEmail: actor.email, action: "score.proxy", cycleId: c.id, personId, detail: { count: rows.length } });
+    await tx.insert(auditLogs).values({ actorEmail: actor.email, action: "score.proxy", cycleId: c.id, personId, detail: { count: rows.length, ...(await selfMark(tx, actor, [personId])) } });
     await recomputeFinal(tx, c.id);
   });
   return ok({ filled: rows.length });

@@ -8,6 +8,7 @@ import type { Actor } from "@/server/authz/actor";
 import { assert, can } from "@/server/authz/policy";
 import { dec, enc } from "@/server/crypto/vault";
 import { decFinal, encFinal } from "@/server/repo/final-codec";
+import { selfMark } from "@/server/repo/self-record";
 
 type AdjRow = typeof gradeAdjustments.$inferSelect;
 /** 조정 한 줄을 풀어 읽는다. 누가·어디서·어디로·직접/밀려남 모두 암호문으로 저장돼 있다 (ADR-0021) */
@@ -142,7 +143,7 @@ export async function applyAdjust(actor: Actor, personId: string, to: Grade, ver
     await tx.insert(gradeAdjustments).values({ cycleId: c.cycleId, ...encAdj({ personId, fromGrade: m.from, toGrade: m.to, kind: "manual" }), batchId, createdBy: actor.email, createdAt: new Date() }); // 밀려남 줄과 같은 시각(밀리초)으로
     await replayAdjustments(tx, c.cycleId);
     await tx.update(reviewCycles).set({ version: cy.version + 1, updatedAt: new Date() }).where(eq(reviewCycles.id, cy.id));
-    await tx.insert(auditLogs).values({ actorEmail: actor.email, action: "grade.adjust", cycleId: c.cycleId, detail: { moved: plan.moves.length - 1 } }); // 누구를·어느 등급으로는 남기지 않는다 (ADR-0021)
+    await tx.insert(auditLogs).values({ actorEmail: actor.email, action: "grade.adjust", cycleId: c.cycleId, detail: { moved: plan.moves.length - 1, ...(await selfMark(tx, actor, plan.moves.map((x) => x.id))) } }); // 누구를·어느 등급으로는 남기지 않는다 (ADR-0021)
     return ok(await named(tx, plan.moves));
   });
 }
@@ -160,7 +161,7 @@ export async function revertAdjust(actor: Actor, personId: string, version: numb
     await tx.update(gradeAdjustments).set({ revertedAt: new Date() }).where(eq(gradeAdjustments.batchId, last.batchId));
     await replayAdjustments(tx, c.cycleId);
     await tx.update(reviewCycles).set({ version: cy.version + 1, updatedAt: new Date() }).where(eq(reviewCycles.id, cy.id));
-    await tx.insert(auditLogs).values({ actorEmail: actor.email, action: "grade.revert", cycleId: c.cycleId, detail: {} });
+    await tx.insert(auditLogs).values({ actorEmail: actor.email, action: "grade.revert", cycleId: c.cycleId, detail: { ...(await selfMark(tx, actor, [personId])) } });
     return ok();
   });
 }
@@ -185,7 +186,7 @@ export async function setCeoGrade(actor: Actor, personId: string, to: Grade | nu
     if (to) await tx.insert(gradeAdjustments).values({ cycleId: c.cycleId, ...encAdj({ personId, fromGrade: p.grade, toGrade: to, kind: "ceo" }), batchId: crypto.randomUUID(), createdBy: actor.email });
     await replayAdjustments(tx, c.cycleId);
     await tx.update(reviewCycles).set({ version: cy.version + 1, updatedAt: new Date() }).where(eq(reviewCycles.id, cy.id));
-    await tx.insert(auditLogs).values({ actorEmail: actor.email, action: to ? "grade.ceo_adjust" : "grade.ceo_revert", cycleId: c.cycleId, detail: { proxy: !actor.roles.ceo } });
+    await tx.insert(auditLogs).values({ actorEmail: actor.email, action: to ? "grade.ceo_adjust" : "grade.ceo_revert", cycleId: c.cycleId, detail: { proxy: !actor.roles.ceo, ...(await selfMark(tx, actor, [personId])) } });
     return ok();
   });
 }

@@ -169,6 +169,13 @@
       "when": 1792454718960,
       "tag": "0023_roster_pay_birth",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1793017832822,
+      "tag": "0024_mail_settings",
+      "breakpoints": true
     }
   ]
 }
