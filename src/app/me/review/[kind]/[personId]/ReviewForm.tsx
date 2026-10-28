@@ -17,6 +17,7 @@ import { cancelReviewAction, saveReviewAction } from "../../actions";
 import { BonusBox } from "@/components/BonusBox";
 import { CardNav, FlowRail, Kbd, ModeSwitch, ScaleButtons, useCardKeys, useFlowMode, type FlowStep } from "@/components/flow/Flow";
 import type { BonusView } from "@/server/repo/bonus";
+import { josa } from "@/lib/josa";
 
 const AUTOSAVE_MS = 1200;
 const COMMENT_MAX = 1000;
@@ -231,7 +232,7 @@ export function ReviewForm(p: Props) {
         </p>
         {isScoreStep ? (
           <>
-            <h2 className="text-[28px] leading-tight font-extrabold tracking-tight sm:text-[32px]">{item ? `${p.person.name} 님의 ${item.name}은 어땠나요?` : `${p.person.name} 님의 업적 점수`}</h2>
+            <h2 className="text-[28px] leading-tight font-extrabold tracking-tight sm:text-[32px]">{item ? `${p.person.name} 님의 ${josa(item.name, "은/는")} 어땠나요?` : `${p.person.name} 님의 업적 점수`}</h2>
             <p className="mt-2.5 max-w-[60ch] text-subsection-title text-text-secondary">{item ? item.desc : "본인이 쓴 업적을 읽고 매겨 주세요. 업적은 최종점수의 70%입니다."}</p>
             {!item && (
               <div className="mt-5 grid gap-3 xl:hidden">

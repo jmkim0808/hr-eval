@@ -1,5 +1,6 @@
 // 가점 (PRD 09). 산정 규칙은 시스템이 계산하지 않는다 — 개별담당자가 낸 점수를 받기만 한다.
 import { z } from "zod";
+import { josa } from "@/lib/josa";
 
 export const BONUS_ITEMS = [
   { code: "certificate", label: "자격증" },
@@ -34,8 +35,8 @@ export function checkValues(values: Partial<Record<BonusCode, number | "invalid"
   for (const it of BONUS_ITEMS) {
     const v = values[it.code] ?? 0;
     if (v === "invalid") return `${it.label}: 소수 둘째 자리까지의 숫자로 넣어 주세요`;
-    if ("negative" in it && v > 0) return `${it.label}은 감점이라 0 이하(예: -1)로 넣어 주세요`;
-    if (!("negative" in it) && v < 0) return `${it.label}은 0 이상으로 넣어 주세요`;
+    if ("negative" in it && v > 0) return `${josa(it.label, "은/는")} 감점이라 0 이하(예: -1)로 넣어 주세요`;
+    if (!("negative" in it) && v < 0) return `${josa(it.label, "은/는")} 0 이상으로 넣어 주세요`;
     if ("leaderOnly" in it && !isLeader && v !== 0) return "팀원은 다면평가를 넣을 수 없습니다";
   }
   return null;

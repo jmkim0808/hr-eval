@@ -109,3 +109,13 @@ describe("평균 안내 — 사람별 구체 제안 (2026-10-15)", () => {
     expect(averageGuide([row("a", 90, 9)], "a").kind).toBe("na");
   });
 });
+
+describe("조사 (2026-10-28 화면 문구)", () => {
+  it("받침에 맞게 은/는을 붙인다", async () => {
+    const { josa } = await import("@/lib/josa");
+    expect(josa("팀워크", "은/는")).toBe("팀워크는");
+    expect(josa("책임감", "은/는")).toBe("책임감은");
+    expect(josa("지식", "은/는")).toBe("지식은");
+    expect(josa("기여도", "은/는")).toBe("기여도는");
+  });
+});
